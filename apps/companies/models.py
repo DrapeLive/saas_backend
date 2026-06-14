@@ -74,7 +74,7 @@ class Company(UUIDModel, TimeStampedModel):
 
     class Meta:
         db_table = "companies_company"
-        ordering = ["company_name"]
+        ordering = ["name"]
         indexes = [
             models.Index(fields=["status"]),
             models.Index(fields=["gstin"]),

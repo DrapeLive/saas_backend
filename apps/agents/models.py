@@ -36,7 +36,7 @@ class AgentCompanyMembership(UUIDModel, TimeStampedModel):
         AgentProfile, on_delete=models.CASCADE, related_name="memberships"
     )
     company = models.ForeignKey(
-        "companies.Compnay", on_delete=models.CASCADE, related_name="agent_memberships"
+        "companies.Company", on_delete=models.CASCADE, related_name="agent_memberships"
     )
     status = models.CharField(
         max_length=15,

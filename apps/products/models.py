@@ -89,7 +89,7 @@ class Product(CompanyScopeModel, SoftDeleteModel):
     class Meta:
         db_table = "products_product"
         indexes = [
-            models.Index(fields=["tenant", "status"]),
+            models.Index(fields=["company", "status"]),
             models.Index(fields=["category"]),
         ]
 
@@ -97,7 +97,7 @@ class Product(CompanyScopeModel, SoftDeleteModel):
         return f"{self.name} ({self.company.name})"
 
 
-class ProductImage(UUIDModel, CompanyScopeModel):
+class ProductImage(UUIDModel, TimeStampedModel):
     product = models.ForeignKey(
         Product, on_delete=models.CASCADE, related_name="images"
     )

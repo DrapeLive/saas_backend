@@ -209,7 +209,7 @@ class SubscriptionEvent(UUIDModel):
 
 class UsageSnapshot(UUIDModel):
     """
-    Monthly usage snapshot per compnay for limit enforcement and analytics.
+    Monthly usage snapshot per company for limit enforcement and analytics.
     Captured via Celery task on 1st of every month.
     """
 

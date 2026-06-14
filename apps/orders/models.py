@@ -94,7 +94,7 @@ class Order(CompanyScopeModel):
         db_table = "orders_order"
         ordering = ["-created_at"]
         indexes = [
-            models.Index(fields=["tenant", "status"]),
+            models.Index(fields=["company", "status"]),
             models.Index(fields=["customer", "status"]),
             models.Index(fields=["agent", "submitted_at"]),
         ]
