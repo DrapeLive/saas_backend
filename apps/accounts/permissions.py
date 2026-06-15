@@ -53,7 +53,7 @@ class IsAgent(BasePermission):
 class IsSelf(BasePermission):
     def has_object_permission(self, request, view, obj):
         if request is None:
-            return obj is not None and hasattr(obj, 'pk')
+            return getattr(obj, 'company_id', None) is not None
         return obj.pk == request.user.pk
 
 

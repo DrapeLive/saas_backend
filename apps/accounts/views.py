@@ -151,6 +151,13 @@ class AuthViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
     permission_classes = (IsAuthenticated,)
 
+    def get_permissions(self):
+        if self.action in ("password_reset", "password_reset_confirm"):
+            return [AllowAny()]
+        if self.action == "join_company":
+            return [IsAuthenticated(), IsAgent()]
+        return super().get_permissions()
+
     def get_serializer_class(self):
         if self.action == "me":
             if self.request.method == "PATCH":
@@ -275,6 +282,14 @@ class AuthViewSet(GenericViewSet):
         if not created and membership.status == "removed":
             membership.status = "active"
             membership.save(update_fields=["status"])
+
+        inviter_company = invitation.invited_by.company
+        if inviter_company and inviter_company != invitation.company:
+            AgentCompanyMembership.objects.get_or_create(
+                agent=agent_profile,
+                company=inviter_company,
+                defaults={"status": "active", "approved_by": invitation.invited_by},
+            )
 
         invitation.status = "accepted"
         invitation.accepted_by = request.user
