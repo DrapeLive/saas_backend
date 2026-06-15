@@ -4,6 +4,7 @@ from apps.core.models import TimeStampedModel, UUIDModel
 
 
 class CompanyStatus(models.TextChoices):
+    PENDING = "pending", "Pending Approval"
     TRIAL = "trial", "Trial"
     ACTIVE = "active", "Active"
     SUSPENDED = "suspended", "Suspended"

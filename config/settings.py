@@ -20,6 +20,12 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    # Third-party
+    "rest_framework",
+    "rest_framework_simplejwt",
+    "rest_framework_simplejwt.token_blacklist",
+    "corsheaders",
+    # Apps
     "apps.accounts",
     "apps.agents",
     "apps.audits",
@@ -39,11 +45,13 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "apps.accounts.middleware.CompanyScopeMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -72,6 +80,20 @@ DATABASE_URL: str = config("DATABASE_URL")
 
 DATABASES = {"default": dj_database_url.parse(DATABASE_URL)}
 
+# ---------------------------------------------------------------------------
+# Test Configuration — use SQLite in-memory, disable throttling
+# ---------------------------------------------------------------------------
+import sys
+
+TESTING = len(sys.argv) > 1 and sys.argv[1] == "test"
+if TESTING:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": ":memory:",
+        }
+    }
+
 AUTH_PASSWORD_VALIDATORS = [
     {
         "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
@@ -88,6 +110,81 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
+# ---------------------------------------------------------------------------
+# Django REST Framework
+# ---------------------------------------------------------------------------
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "apps.accounts.authentication.CustomJWTAuthentication",
+    ),
+    "DEFAULT_PERMISSION_CLASSES": (
+        "rest_framework.permissions.IsAuthenticated",
+    ),
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "20/minute",
+        "user": "100/minute",
+        "login": "5/minute",
+        "signup": "3/minute",
+        "password_reset": "3/hour",
+    },
+    "DEFAULT_RENDERER_CLASSES": (
+        "rest_framework.renderers.JSONRenderer",
+    ),
+    "EXCEPTION_HANDLER": "apps.accounts.views.custom_exception_handler",
+}
+
+# ---------------------------------------------------------------------------
+# SimpleJWT
+# ---------------------------------------------------------------------------
+from datetime import timedelta
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(hours=24),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=30),
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
+    "UPDATE_LAST_LOGIN": False,
+    "ALGORITHM": "HS256",
+    "AUTH_HEADER_TYPES": ("Bearer",),
+    "AUTH_HEADER_NAME": "HTTP_AUTHORIZATION",
+    "USER_ID_FIELD": "id",
+    "USER_ID_CLAIM": "user_id",
+    "AUTH_TOKEN_CLASSES": ("rest_framework_simplejwt.tokens.AccessToken",),
+    "TOKEN_TYPE_CLAIM": "token_type",
+    "JTI_CLAIM": "jti",
+}
+
+# ---------------------------------------------------------------------------
+# CORS
+# ---------------------------------------------------------------------------
+CORS_ALLOWED_ORIGINS = config(
+    "CORS_ALLOWED_ORIGINS",
+    default="http://localhost:3000,http://localhost:5173",
+    cast=lambda v: [x.strip() for x in v.split(",")],
+)
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_METHODS = [
+    "DELETE",
+    "GET",
+    "OPTIONS",
+    "PATCH",
+    "POST",
+    "PUT",
+]
+CORS_ALLOW_HEADERS = [
+    "accept",
+    "authorization",
+    "content-type",
+    "x-requested-with",
+]
+
+# ---------------------------------------------------------------------------
+# Localization
+# ---------------------------------------------------------------------------
 LANGUAGE_CODE = "en-us"
 
 TIME_ZONE = "UTC"
@@ -100,3 +197,12 @@ USE_TZ = True
 STATIC_URL = "static/"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# ---------------------------------------------------------------------------
+# Test overrides (must come after all settings are defined)
+# ---------------------------------------------------------------------------
+if TESTING:
+    REST_FRAMEWORK["DEFAULT_THROTTLE_CLASSES"] = []
+    REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {
+        k: None for k in REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]
+    }

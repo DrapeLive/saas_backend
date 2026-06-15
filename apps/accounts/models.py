@@ -57,7 +57,7 @@ class User(AbstractBaseUser, PermissionsMixin, UUIDModel, TimeStampedModel):
     objects = UserManager()
 
     USERNAME_FIELD = "email"
-    REQUIRED_FIELDS = ["full_name", "role"]
+    REQUIRED_FIELDS = ["full_name"]
 
     class Meta:
         db_table = "accounts_user"
@@ -66,6 +66,18 @@ class User(AbstractBaseUser, PermissionsMixin, UUIDModel, TimeStampedModel):
             models.Index(fields=["role", "company"]),
             models.Index(fields=["email"]),
         ]
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        if (
+            self.role == RoleType.SUPER_ADMIN
+            or self.role == RoleType.AGENT
+            and self.company_id
+        ):
+            raise ValidationError("Super admin cannot belong to a company.")
+        if self.role in (RoleType.ADMIN, RoleType.SUB_ADMIN) and not self.company_id:
+            raise ValidationError(f"{self.role} must belong to a company.")
 
     def __str__(self):
         return f"{self.full_name} <{self.email}> [{self.role}]"
