@@ -1,6 +1,12 @@
+from datetime import timedelta
+from decimal import Decimal
+
 from django.contrib.auth.tokens import default_token_generator
+from django.db.models import Avg, Case, Count, DecimalField, ExpressionWrapper, F, FloatField, Q, Sum, Value, When
+from django.db.models.functions import Coalesce, Extract, TruncMonth
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
+from django.utils.timezone import now
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.exceptions import AuthenticationFailed
@@ -23,6 +29,8 @@ from apps.accounts.permissions import (
     IsSuperAdmin,
 )
 from apps.accounts.serializers import (
+    AdminAnalyticsSerializer,
+    AdminDashboardSerializer,
     AgentJoinSerializer,
     AgentRegisterSerializer,
     CreateSubAdminSerializer,
@@ -31,6 +39,7 @@ from apps.accounts.serializers import (
     PasswordResetConfirmSerializer,
     PasswordResetSerializer,
     SignupSerializer,
+    SuperAdminDashboardSerializer,
     UserAdminSerializer,
     UserProfileSerializer,
     UserProfileUpdateSerializer,
@@ -40,6 +49,14 @@ from apps.agents.models import (
     AgentInvitation,
     AgentProfile,
 )
+from apps.commissions.models import CommissionEntry
+from apps.companies.models import Company
+from apps.customers.models import CustomerProfile
+from apps.dispatch.models import Dispatch
+from apps.invoices.models import Invoice
+from apps.orders.models import Order, OrderItem
+from apps.products.models import Product, VariantSize
+from apps.subscriptions.models import Subscription, SubscriptionEvent
 
 
 def custom_exception_handler(exc, context):
@@ -447,4 +464,257 @@ class InvitationViewSet(GenericViewSet):
                 "status": invitation.status,
             },
             status=status.HTTP_201_CREATED,
+        )
+
+
+class SuperAdminDashboardViewSet(GenericViewSet):
+    authentication_classes = (CustomJWTAuthentication,)
+    permission_classes = (IsSuperAdmin,)
+    serializer_class = SuperAdminDashboardSerializer
+
+    def list(self, request, *args, **kwargs):
+        today = now()
+        month_start = today.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+        company_stats = Company.objects.aggregate(
+            total_companies=Count("id"),
+            active_companies=Count("id", filter=Q(status="active")),
+            trial_companies=Count("id", filter=Q(status="trial")),
+            expired_companies=Count("id", filter=Q(status="expired")),
+        )
+
+        active_subs = Subscription.objects.filter(status="active")
+        mrr_agg = active_subs.aggregate(
+            mrr=Coalesce(
+                Sum(
+                    Case(
+                        When(
+                            billing_cycle="monthly",
+                            then=F("price_paid"),
+                        ),
+                        When(
+                            billing_cycle="yearly",
+                            then=F("price_paid") / 12,
+                        ),
+                        When(billing_cycle="trial", then=Value(0)),
+                        default=Value(0),
+                        output_field=DecimalField(),
+                    )
+                ),
+                Value(0),
+                output_field=DecimalField(),
+            )
+        )
+        mrr = mrr_agg["mrr"] or 0
+        arr = mrr * 12
+
+        churned_count = (
+            SubscriptionEvent.objects.filter(
+                event_type__in=["expired", "cancelled"],
+                created_at__gte=month_start,
+            )
+            .values("subscription__company")
+            .distinct()
+            .count()
+        )
+        total_at_start = Company.objects.filter(created_at__lt=month_start).count()
+        churn_rate = churned_count / max(total_at_start, 1)
+
+        ltv_agg = Subscription.objects.exclude(status="trial").aggregate(
+            ltv=Avg("price_paid")
+        )
+        ltv = ltv_agg["ltv"] or 0
+
+        return Response(
+            SuperAdminDashboardSerializer(
+                {
+                    **company_stats,
+                    "mrr": mrr,
+                    "arr": arr,
+                    "churn_rate": churn_rate,
+                    "ltv": ltv,
+                }
+            ).data
+        )
+
+
+class AdminDashboardViewSet(GenericViewSet):
+    authentication_classes = (CustomJWTAuthentication,)
+    permission_classes = (IsAuthenticated, CompanyApproved, IsCompanyAdminOrAbove)
+    serializer_class = AdminDashboardSerializer
+
+    def list(self, request, *args, **kwargs):
+        company = request.company
+        today = now()
+        today_date = today.date()
+        month_start = today_date.replace(day=1)
+        thirty_days_ago = today_date - timedelta(days=30)
+
+        base_orders = Order.objects.filter(company=company)
+
+        orders_today = base_orders.filter(submitted_at__date=today_date).count()
+
+        sales_today = base_orders.filter(
+            Q(status="confirmed")
+            | Q(status="dispatched")
+            | Q(status="delivered"),
+            submitted_at__date=today_date,
+        ).aggregate(total=Sum("total_amount"))["total"] or 0
+
+        invoices = Invoice.objects.filter(company=company)
+        outstanding_total = invoices.filter(
+            status__in=["issued", "partial", "overdue"]
+        ).aggregate(total=Sum("amount_due"))["total"] or 0
+
+        overdue_total = invoices.filter(
+            due_date__lt=today_date,
+            status__in=["issued", "partial", "overdue"],
+        ).aggregate(total=Sum("amount_due"))["total"] or 0
+
+        avg_order_value = base_orders.filter(
+            submitted_at__date__gte=thirty_days_ago,
+        ).aggregate(avg=Avg("total_amount"))["avg"] or 0
+
+        response_times = base_orders.filter(
+            confirmed_at__isnull=False,
+            submitted_at__isnull=False,
+        ).annotate(
+            response_seconds=ExpressionWrapper(
+                Extract("confirmed_at", "epoch") - Extract("submitted_at", "epoch"),
+                output_field=FloatField(),
+            ),
+        ).aggregate(avg_seconds=Avg("response_seconds"))
+        agent_response_time = (
+            (response_times["avg_seconds"] or 0) / 3600
+        )
+
+        submitted_count = base_orders.filter(
+            submitted_at__date__gte=month_start,
+        ).count()
+        confirmed_count = base_orders.filter(
+            confirmed_at__isnull=False,
+            confirmed_at__date__gte=month_start,
+        ).count()
+        order_conversion_rate = confirmed_count / max(submitted_count, 1)
+
+        if isinstance(avg_order_value, Decimal):
+            avg_order_value = float(avg_order_value)
+        if isinstance(avg_order_value, float):
+            avg_order_value = round(avg_order_value, 2)
+
+        return Response(
+            AdminDashboardSerializer(
+                {
+                    "orders_today": orders_today,
+                    "sales_today": sales_today,
+                    "outstanding_total": outstanding_total,
+                    "overdue_total": overdue_total,
+                    "avg_order_value": avg_order_value,
+                    "agent_response_time": round(agent_response_time, 1),
+                    "order_conversion_rate": round(
+                        float(order_conversion_rate), 4
+                    ),
+                }
+            ).data
+        )
+
+
+class AdminAnalyticsViewSet(GenericViewSet):
+    authentication_classes = (CustomJWTAuthentication,)
+    permission_classes = (IsAuthenticated, CompanyApproved, IsCompanyAdminOrAbove)
+    serializer_class = AdminAnalyticsSerializer
+
+    def list(self, request, *args, **kwargs):
+        company = request.company
+        today = now()
+        today_date = today.date()
+        month_start = today_date.replace(day=1)
+
+        orders = Order.objects.filter(company=company, submitted_at__isnull=False)
+
+        sales_trend = (
+            orders.filter(submitted_at__gte=today_date - timedelta(days=365))
+            .annotate(month=TruncMonth("submitted_at"))
+            .values("month")
+            .annotate(total=Sum("total_amount"))
+            .order_by("month")
+        )
+
+        top_products = (
+            OrderItem.objects.filter(
+                order__company=company,
+                order__submitted_at__isnull=False,
+            )
+            .values("product_name")
+            .annotate(total=Sum("line_total"))
+            .order_by("-total")[:10]
+        )
+
+        agent_sales = (
+            orders.filter(
+                agent__isnull=False,
+                submitted_at__date__gte=month_start,
+            )
+            .values(
+                agent_name=F("agent__user__full_name"),
+            )
+            .annotate(total=Sum("total_amount"))
+            .order_by("-total")
+        )
+
+        invoices = Invoice.objects.filter(
+            company=company,
+            status__in=["issued", "partial", "overdue"],
+        )
+        aging = invoices.aggregate(
+            current=Sum(
+                "amount_due",
+                filter=Q(due_date__gte=today_date - timedelta(days=30))
+                | Q(due_date__isnull=True),
+            ),
+            days_31_60=Sum(
+                "amount_due",
+                filter=Q(
+                    due_date__lt=today_date - timedelta(days=30),
+                    due_date__gte=today_date - timedelta(days=60),
+                ),
+            ),
+            days_61_90=Sum(
+                "amount_due",
+                filter=Q(
+                    due_date__lt=today_date - timedelta(days=60),
+                    due_date__gte=today_date - timedelta(days=90),
+                ),
+            ),
+            days_90_plus=Sum(
+                "amount_due",
+                filter=Q(due_date__lt=today_date - timedelta(days=90)),
+            ),
+        )
+        for k, v in aging.items():
+            if v is None:
+                aging[k] = 0
+
+        total_customers = CustomerProfile.objects.filter(company=company).count()
+        customers_with_orders = (
+            CustomerProfile.objects.filter(
+                company=company, orders__isnull=False
+            )
+            .distinct()
+            .count()
+        )
+
+        return Response(
+            AdminAnalyticsSerializer(
+                {
+                    "sales_trend": list(sales_trend),
+                    "top_products": list(top_products),
+                    "agent_comparison": list(agent_sales),
+                    "outstanding_aging": aging,
+                    "customer_acquisition": {
+                        "total_customers": total_customers,
+                        "customers_with_orders": customers_with_orders,
+                    },
+                }
+            ).data
         )

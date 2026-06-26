@@ -2,12 +2,15 @@ from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
 
 from apps.accounts.views import (
+    AdminAnalyticsViewSet,
+    AdminDashboardViewSet,
     AdminUserViewSet,
     AgentRegisterView,
     AuthViewSet,
     InvitationViewSet,
     LoginView,
     SignupView,
+    SuperAdminDashboardViewSet,
 )
 
 urlpatterns = [
@@ -64,5 +67,20 @@ urlpatterns = [
         "admin/invitations",
         InvitationViewSet.as_view({"get": "list", "post": "create"}),
         name="admin-invitations",
+    ),
+    path(
+        "admin/dashboard",
+        AdminDashboardViewSet.as_view({"get": "list"}),
+        name="admin-dashboard",
+    ),
+    path(
+        "admin/analytics",
+        AdminAnalyticsViewSet.as_view({"get": "list"}),
+        name="admin-analytics",
+    ),
+    path(
+        "super-admin/dashboard",
+        SuperAdminDashboardViewSet.as_view({"get": "list"}),
+        name="super-admin-dashboard",
     ),
 ]

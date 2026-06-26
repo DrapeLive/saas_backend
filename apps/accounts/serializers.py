@@ -1,7 +1,7 @@
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 
-from apps.accounts.models import User, RoleType
+from apps.accounts.models import RoleType, User
 from apps.companies.models import Company
 
 
@@ -222,3 +222,32 @@ class CreateSubAdminSerializer(serializers.Serializer):
             company=company,
         )
         return user
+
+
+class SuperAdminDashboardSerializer(serializers.Serializer):
+    total_companies = serializers.IntegerField()
+    active_companies = serializers.IntegerField()
+    trial_companies = serializers.IntegerField()
+    expired_companies = serializers.IntegerField()
+    mrr = serializers.DecimalField(max_digits=12, decimal_places=2)
+    arr = serializers.DecimalField(max_digits=12, decimal_places=2)
+    churn_rate = serializers.FloatField()
+    ltv = serializers.DecimalField(max_digits=12, decimal_places=2)
+
+
+class AdminDashboardSerializer(serializers.Serializer):
+    orders_today = serializers.IntegerField()
+    sales_today = serializers.DecimalField(max_digits=14, decimal_places=2)
+    outstanding_total = serializers.DecimalField(max_digits=14, decimal_places=2)
+    overdue_total = serializers.DecimalField(max_digits=14, decimal_places=2)
+    avg_order_value = serializers.DecimalField(max_digits=10, decimal_places=2)
+    agent_response_time = serializers.FloatField()
+    order_conversion_rate = serializers.FloatField()
+
+
+class AdminAnalyticsSerializer(serializers.Serializer):
+    sales_trend = serializers.ListField(child=serializers.DictField())
+    top_products = serializers.ListField(child=serializers.DictField())
+    agent_comparison = serializers.ListField(child=serializers.DictField())
+    outstanding_aging = serializers.DictField()
+    customer_acquisition = serializers.DictField()

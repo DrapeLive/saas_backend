@@ -79,7 +79,7 @@ Super admin updates status via `POST /api/super-admin/companies/{id}/status`.
 | `apps/accounts/authentication.py` | Custom JWT auth + company scoping |
 | `apps/accounts/permissions.py` | DRF permission classes |
 | `apps/accounts/serializers.py` | All auth serializers |
-| `apps/accounts/views.py` | LoginView, SignupView, AuthViewSet, AdminUserViewSet, InvitationViewSet |
+| `apps/accounts/views.py` | LoginView, SignupView, AuthViewSet, AdminUserViewSet, InvitationViewSet, AdminDashboardViewSet, AdminAnalyticsViewSet, SuperAdminDashboardViewSet |
 | `apps/accounts/urls.py` | All `/api/*` routes |
 | `apps/accounts/middleware.py` | CompanyScopeMiddleware |
 | `apps/companies/serializers.py` | Company serializers |
@@ -112,6 +112,8 @@ Super admin updates status via `POST /api/super-admin/companies/{id}/status`.
 | DELETE | `/api/admin/users/<uuid:pk>` | Bearer | CanManageUsers + CompanyApproved |
 | GET | `/api/admin/invitations` | Bearer | IsCompanyAdmin + CompanyApproved |
 | POST | `/api/admin/invitations` | Bearer | IsCompanyAdmin + CompanyApproved |
+| GET | `/api/admin/dashboard` | Bearer | IsCompanyAdminOrAbove + CompanyApproved |
+| GET | `/api/admin/analytics` | Bearer | IsCompanyAdminOrAbove + CompanyApproved |
 
 ### Super Admin — `/api/super-admin/*`
 | Method | Path | Auth | Perm |
@@ -119,6 +121,41 @@ Super admin updates status via `POST /api/super-admin/companies/{id}/status`.
 | GET | `/api/super-admin/companies` | Bearer | IsSuperAdmin |
 | GET | `/api/super-admin/companies/<uuid:pk>` | Bearer | IsSuperAdmin |
 | POST | `/api/super-admin/companies/<uuid:pk>/status` | Bearer | IsSuperAdmin |
+| GET | `/api/super-admin/dashboard` | Bearer | IsSuperAdmin |
+
+## Dashboard KPIs
+
+### Super Admin Dashboard — `GET /api/super-admin/dashboard`
+| KPI | Source |
+|-----|--------|
+| `total_companies` | `Company.objects.count()` |
+| `active_companies` | `Company.objects.filter(status='active').count()` |
+| `trial_companies` | `Company.objects.filter(status='trial').count()` |
+| `expired_companies` | `Company.objects.filter(status='expired').count()` |
+| `mrr` | `SUM(price_paid / billing_cycle_months)` for active subscriptions |
+| `arr` | `MRR × 12` |
+| `churn_rate` | Churned this month / total companies at month start |
+| `ltv` | `AVG(price_paid)` across non-trial subscriptions |
+
+### Admin Dashboard — `GET /api/admin/dashboard`
+| KPI | Source |
+|-----|--------|
+| `orders_today` | Count of orders submitted today |
+| `sales_today` | `SUM(total_amount)` for confirmed/dispatched/delivered today |
+| `outstanding_total` | `SUM(amount_due)` on issued/partial/overdue invoices |
+| `overdue_total` | `SUM(amount_due)` on past-due invoices |
+| `avg_order_value` | Rolling 30-day average of `total_amount` |
+| `agent_response_time` | Avg hours from `submitted_at` to `confirmed_at` |
+| `order_conversion_rate` | Confirmed / submitted orders this month |
+
+### Admin Analytics — `GET /api/admin/analytics`
+| Chart | Data |
+|-------|------|
+| Sales trend | Line chart, truncated by month (12 months) |
+| Top products by revenue | Bar chart, top 10 by `line_total` |
+| Agent comparison | Bar chart, MTD sales per agent |
+| Outstanding aging | Stacked bar: current, 31–60, 61–90, 90+ days |
+| Customer acquisition funnel | Total customers vs. customers with orders |
 
 ## Rate Limiting (DRF Throttling)
 
