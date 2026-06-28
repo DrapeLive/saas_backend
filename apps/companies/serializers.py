@@ -47,3 +47,8 @@ class CompanyStatusUpdateSerializer(serializers.Serializer):
             "grace",
         ]
     )
+
+
+class ExtendTrialSerializer(serializers.Serializer):
+    days = serializers.IntegerField(min_value=1, max_value=90)
+    reason = serializers.CharField(max_length=500)

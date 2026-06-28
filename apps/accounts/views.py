@@ -38,6 +38,11 @@ from apps.accounts.serializers import (
     PasswordChangeSerializer,
     PasswordResetConfirmSerializer,
     PasswordResetSerializer,
+    SetupBankSerializer,
+    SetupInvoiceSerializer,
+    SetupNotificationSerializer,
+    SetupProfileSerializer,
+    SetupTaxSettingsSerializer,
     SignupSerializer,
     SuperAdminDashboardSerializer,
     UserAdminSerializer,
@@ -50,7 +55,7 @@ from apps.agents.models import (
     AgentProfile,
 )
 from apps.commissions.models import CommissionEntry
-from apps.companies.models import Company
+from apps.companies.models import Company, CompanySettings
 from apps.customers.models import CustomerProfile
 from apps.dispatch.models import Dispatch
 from apps.invoices.models import Invoice
@@ -339,7 +344,6 @@ class AdminUserViewSet(GenericViewSet):
         company = request.user.company
         if request.user.role == RoleType.SUPER_ADMIN:
             company_id = request.data.get("company")
-            from apps.companies.models import Company
             try:
                 company = Company.objects.get(pk=company_id)
             except Company.DoesNotExist:
@@ -718,3 +722,51 @@ class AdminAnalyticsViewSet(GenericViewSet):
                 }
             ).data
         )
+
+
+class CompanySetupViewSet(GenericViewSet):
+    authentication_classes = (CustomJWTAuthentication,)
+    permission_classes = (IsAuthenticated, CompanyApproved, IsCompanyAdmin)
+
+    def _get_settings(self, company):
+        settings, _ = CompanySettings.objects.get_or_create(company=company)
+        return settings
+
+    @action(detail=False, methods=["patch"], url_path="setup/profile")
+    def update_profile(self, request):
+        serializer = SetupProfileSerializer(request.company, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+    @action(detail=False, methods=["patch"], url_path="setup/bank")
+    def update_bank(self, request):
+        serializer = SetupBankSerializer(request.company, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+    @action(detail=False, methods=["patch"], url_path="setup/invoice")
+    def update_invoice(self, request):
+        serializer = SetupInvoiceSerializer(request.company, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+    @action(detail=False, methods=["patch"], url_path="setup/tax")
+    def update_tax(self, request):
+        settings = self._get_settings(request.company)
+        serializer = SetupTaxSettingsSerializer(settings, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+    @action(detail=False, methods=["patch"], url_path="setup/notifications")
+    def update_notifications(self, request):
+        settings = self._get_settings(request.company)
+        serializer = SetupNotificationSerializer(settings, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        request.company.setup_completed = True
+        request.company.save(update_fields=["setup_completed"])
+        return Response(serializer.data)

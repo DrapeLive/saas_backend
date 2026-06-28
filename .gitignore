@@ -24,14 +24,17 @@ share/wheels/
 MANIFEST
 
 venv/
+.venv/
 
 .env
+!.env.example
 .secrets
 secrets.json
 local_settings.py
 
 *.sqlite3
 *.db
+*.dat
 
 media/
 staticfiles/
@@ -48,6 +51,10 @@ nosetests.xml
 coverage.xml
 *.deprecated
 *.log
+*.bak
+*.dir
+
+.bat
 
 .vscode/
 
@@ -56,4 +63,8 @@ coverage.xml
 .DS_Store
 Thumbs.db
 
+# Redis
+dump.rdb
+
 *.env.*
+!.env.example

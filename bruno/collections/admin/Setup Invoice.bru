@@ -1,0 +1,19 @@
+meta {
+  name: Setup - Invoice
+  type: http
+  seq: 7
+}
+
+patch {
+  url: {{base_url}}/api/admin/setup/invoice
+  body: json
+  auth: bearer
+}
+
+body:json {
+  {
+    "invoice_prefix": "INV",
+    "po_prefix": "PO",
+    "financial_year_start": "2026-04-01"
+  }
+}

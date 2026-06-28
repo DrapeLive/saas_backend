@@ -1,0 +1,11 @@
+meta {
+  name: Delete Company (soft)
+  type: http
+  seq: 8
+}
+
+delete {
+  url: {{base_url}}/api/super-admin/companies/{{company_id}}
+  body: none
+  auth: bearer
+}

@@ -73,6 +73,13 @@ class Company(UUIDModel, TimeStampedModel):
 
     impersonation_token = models.CharField(max_length=64, blank=True)
 
+    # Soft delete
+    is_deleted = models.BooleanField(default=False, db_index=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+
+    # Setup wizard
+    setup_completed = models.BooleanField(default=False)
+
     class Meta:
         db_table = "companies_company"
         ordering = ["name"]

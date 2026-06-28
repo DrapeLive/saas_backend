@@ -1,0 +1,17 @@
+meta {
+  name: Update Status
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{base_url}}/api/super-admin/companies/{{company_id}}/status
+  body: json
+  auth: bearer
+}
+
+body:json {
+  {
+    "status": "trial"
+  }
+}

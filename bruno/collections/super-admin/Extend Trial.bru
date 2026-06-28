@@ -1,0 +1,18 @@
+meta {
+  name: Extend Trial
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{base_url}}/api/super-admin/companies/{{company_id}}/extend-trial
+  body: json
+  auth: bearer
+}
+
+body:json {
+  {
+    "days": 7,
+    "reason": "Customer requested extension"
+  }
+}

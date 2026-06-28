@@ -7,6 +7,7 @@ from apps.accounts.views import (
     AdminUserViewSet,
     AgentRegisterView,
     AuthViewSet,
+    CompanySetupViewSet,
     InvitationViewSet,
     LoginView,
     SignupView,
@@ -82,5 +83,31 @@ urlpatterns = [
         "super-admin/dashboard",
         SuperAdminDashboardViewSet.as_view({"get": "list"}),
         name="super-admin-dashboard",
+    ),
+    # Setup wizard
+    path(
+        "admin/setup/profile",
+        CompanySetupViewSet.as_view({"patch": "update_profile"}),
+        name="admin-setup-profile",
+    ),
+    path(
+        "admin/setup/bank",
+        CompanySetupViewSet.as_view({"patch": "update_bank"}),
+        name="admin-setup-bank",
+    ),
+    path(
+        "admin/setup/invoice",
+        CompanySetupViewSet.as_view({"patch": "update_invoice"}),
+        name="admin-setup-invoice",
+    ),
+    path(
+        "admin/setup/tax",
+        CompanySetupViewSet.as_view({"patch": "update_tax"}),
+        name="admin-setup-tax",
+    ),
+    path(
+        "admin/setup/notifications",
+        CompanySetupViewSet.as_view({"patch": "update_notifications"}),
+        name="admin-setup-notifications",
     ),
 ]

@@ -2,7 +2,7 @@ from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 
 from apps.accounts.models import RoleType, User
-from apps.companies.models import Company
+from apps.companies.models import Company, CompanySettings
 
 
 class SignupSerializer(serializers.Serializer):
@@ -251,3 +251,41 @@ class AdminAnalyticsSerializer(serializers.Serializer):
     agent_comparison = serializers.ListField(child=serializers.DictField())
     outstanding_aging = serializers.DictField()
     customer_acquisition = serializers.DictField()
+
+
+class SetupProfileSerializer(serializers.ModelSerializer):
+    gstin = serializers.CharField(max_length=15, required=False, allow_blank=True)
+
+    class Meta:
+        model = Company
+        fields = [
+            "name", "logo", "tagline", "gstin",
+            "address_line1", "address_line2", "city", "state", "pincode", "country",
+        ]
+
+
+class SetupBankSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Company
+        fields = ["bank_name", "bank_account", "bank_ifsc", "bank_branch", "upi_id"]
+
+
+class SetupInvoiceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Company
+        fields = ["invoice_prefix", "po_prefix", "financial_year_start"]
+
+
+class SetupTaxSettingsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CompanySettings
+        fields = ["default_gst_rate", "reverse_charge"]
+
+
+class SetupNotificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CompanySettings
+        fields = [
+            "notify_order_whatsapp", "notify_order_email",
+            "notify_low_stock", "notify_payment_due_days",
+        ]
