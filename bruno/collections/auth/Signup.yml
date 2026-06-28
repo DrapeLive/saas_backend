@@ -1,0 +1,38 @@
+info:
+  name: Signup
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: {{base_url}}/api/auth/signup
+  body:
+    type: json
+    data: |-
+      {
+        "email": "admin@company.com",
+        "password": "Test@12345678",
+        "full_name": "Admin User",
+        "phone": "9876543210",
+        "company_name": "Acme Corp",
+        "company_slug": "acme-corp"
+      }
+  auth:
+    type: none
+
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status is 201", function() {
+          expect(res.status).to.equal(201);
+        });
+        test("has access token", function() {
+          expect(res.body).to.have.property("access");
+        });
+        test("has refresh token", function() {
+          expect(res.body).to.have.property("refresh");
+        });
+
+settings:
+  encodeUrl: true

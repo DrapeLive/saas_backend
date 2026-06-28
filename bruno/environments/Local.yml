@@ -1,5 +1,0 @@
-name: Local
-color: "#2E8A54"
-variables:
-  - name: base_url
-    value: http://localhost:8000

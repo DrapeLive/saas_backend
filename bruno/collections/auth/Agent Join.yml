@@ -1,0 +1,28 @@
+info:
+  name: Agent Join
+  type: http
+  seq: 10
+
+http:
+  method: POST
+  url: {{base_url}}/api/auth/agents/join
+  body:
+    type: json
+    data: |-
+      {
+        "invite_code": "{{invite_code}}"
+      }
+  auth:
+    type: bearer
+    token: "{{auth_token}}"
+
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status is 200", function() {
+          expect(res.status).to.equal(200);
+        });
+
+settings:
+  encodeUrl: true

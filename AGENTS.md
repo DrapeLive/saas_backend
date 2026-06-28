@@ -184,6 +184,58 @@ DEBUG=True
 CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
 ```
 
+## Bruno API Client
+
+### File Structure
+
+```
+bruno/
+  environments/                    # Environment YAML files
+    admin.yml                      # Admin env: base_url, login_email, login_password, auth_token
+    superadmin.yml                 # Super admin env: same vars, different credentials
+  collections/
+    auth/
+      bruno.json                   # Auth collection root
+      Login.bru                    # POST login → post-response extracts access token → auth_token
+      Signup.bru                   # POST signup (no auth, hardcoded test data)
+    admin/
+      bruno.json                   # Admin collection root
+      Analytics.bru                # GET /api/admin/analytics
+      Dashboard.bru                # GET /api/admin/dashboard
+      Setup Bank.bru               # PATCH /api/admin/setup/bank
+      Setup Invoice.bru            # PATCH /api/admin/setup/invoice
+      Setup Notifications.bru      # PATCH /api/admin/setup/notifications
+      Setup Profile.bru            # PATCH /api/admin/setup/profile
+      Setup Tax.bru                # PATCH /api/admin/setup/tax
+    super-admin/
+      bruno.json                   # Super admin collection root
+      Activate Company.bru         # POST /api/super-admin/companies/{{company_id}}/activate
+      Dashboard.bru                # GET /api/super-admin/dashboard
+      Delete Company.bru           # DELETE /api/super-admin/companies/{{company_id}}
+      Extend Trial.bru             # POST /api/super-admin/companies/{{company_id}}/extend-trial
+      Get Company.bru              # GET /api/super-admin/companies/{{company_id}}
+      Impersonate Company.bru      # POST /api/super-admin/companies/{{company_id}}/impersonate
+      List Companies.bru           # GET /api/super-admin/companies
+      Suspend Company.bru          # POST /api/super-admin/companies/{{company_id}}/suspend
+      Update Status.bru            # POST /api/super-admin/companies/{{company_id}}/status
+```
+
+### Auth Flow (Token Chaining)
+
+1. Two environments — **admin** and **superadmin** — each with env vars: `base_url`, `login_email`, `login_password`, `auth_token` (initially empty).
+2. Import the `.yml` file from `bruno/environments/` into Bruno's environment manager, then select it from the dropdown.
+3. Run **Login** with the desired environment selected. The post-response script extracts `body.access` (JWT access token) and saves it into `auth_token` for the session.
+4. All other requests reference `auth:bearer { token: {{auth_token}} }` — no hardcoded tokens.
+5. Switch environments to test the other role — each has its own independent `auth_token`.
+
+### Response Key
+
+Login response returns `access` as the JWT token key. Script uses `JSON.parse(res.getBody())` since `.bru` format returns raw JSON string.
+
+### Bruno Format
+
+Requests use `.bru` format. Environments use `.yml` format (Bruno native for env files).
+
 ## Adding Auth to New Endpoints
 
 ```python

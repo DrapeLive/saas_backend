@@ -1,0 +1,29 @@
+info:
+  name: Extend Trial
+  type: http
+  seq: 6
+
+http:
+  method: POST
+  url: {{base_url}}/api/super-admin/companies/{{company_id}}/extend-trial
+  body:
+    type: json
+    data: |-
+      {
+        "days": 7,
+        "reason": "Customer requested extension"
+      }
+  auth:
+    type: bearer
+    token: "{{auth_token}}"
+
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("status is 200", function() {
+          expect(res.status).to.equal(200);
+        });
+
+settings:
+  encodeUrl: true
