@@ -12,14 +12,6 @@ http:
 
 runtime:
     scripts:
-        - type: after-response
-          code: |-
-              const body = res.getBody();
-              if (Array.isArray(body) && body.length > 0) {
-                bru.setVar("company_id", body[0].id || body[0].company_id);
-              } else if (body.results && body.results.length > 0) {
-                bru.setVar("company_id", body.results[0].id);
-              }
         - type: tests
           code: |-
               test("status is 200", function() {
