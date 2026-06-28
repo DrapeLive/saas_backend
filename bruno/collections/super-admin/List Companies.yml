@@ -1,34 +1,34 @@
 info:
-  name: List Companies
-  type: http
-  seq: 1
+    name: List Companies
+    type: http
+    seq: 1
 
 http:
-  method: GET
-  url: {{base_url}}/api/super-admin/companies
-  auth:
-    type: bearer
-    token: "{{auth_token}}"
+    method: GET
+    url: "{{base_url}}/api/super-admin/companies"
+    auth:
+        type: bearer
+        token: "{{auth_token}}"
 
 runtime:
-  scripts:
-    - type: after-response
-      code: |-
-        const body = res.getBody();
-        if (Array.isArray(body) && body.length > 0) {
-          bru.setVar("company_id", body[0].id || body[0].company_id);
-        } else if (body.results && body.results.length > 0) {
-          bru.setVar("company_id", body.results[0].id);
-        }
-    - type: tests
-      code: |-
-        test("status is 200", function() {
-          expect(res.status).to.equal(200);
-        });
-        test("returns array", function() {
-          const body = res.getBody();
-          expect(Array.isArray(body) || (body.results && Array.isArray(body.results))).to.be.true;
-        });
+    scripts:
+        - type: after-response
+          code: |-
+              const body = res.getBody();
+              if (Array.isArray(body) && body.length > 0) {
+                bru.setVar("company_id", body[0].id || body[0].company_id);
+              } else if (body.results && body.results.length > 0) {
+                bru.setVar("company_id", body.results[0].id);
+              }
+        - type: tests
+          code: |-
+              test("status is 200", function() {
+                expect(res.status).to.equal(200);
+              });
+              test("returns array", function() {
+                const body = res.getBody();
+                expect(Array.isArray(body) || (body.results && Array.isArray(body.results))).to.be.true;
+              });
 
 settings:
-  encodeUrl: true
+    encodeUrl: true

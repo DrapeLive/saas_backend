@@ -1,29 +1,29 @@
 info:
-  name: Update User
-  type: http
-  seq: 10
+    name: Update User
+    type: http
+    seq: 10
 
 http:
-  method: PATCH
-  url: {{base_url}}/api/admin/users/{{user_id}}
-  body:
-    type: json
-    data: |-
-      {
-        "full_name": "Updated Sub Admin",
-        "phone": "9876543214"
-      }
-  auth:
-    type: bearer
-    token: "{{auth_token}}"
+    method: PATCH
+    url: "{{base_url}}/api/admin/users/{{user_id}}"
+    body:
+        type: json
+        data: |-
+            {
+              "full_name": "Updated Sub Admin",
+              "phone": "9876543214"
+            }
+    auth:
+        type: bearer
+        token: "{{auth_token}}"
 
 runtime:
-  scripts:
-    - type: tests
-      code: |-
-        test("status is 200", function() {
-          expect(res.status).to.equal(200);
-        });
+    scripts:
+        - type: tests
+          code: |-
+              test("status is 200", function() {
+                expect(res.status).to.equal(200);
+              });
 
 settings:
-  encodeUrl: true
+    encodeUrl: true

@@ -1,9 +1,16 @@
 opencollection: 1.0.0
 info:
-    name: "SaaS Backend API"
-    type: workspace
+  name: "SaaS Backend API"
+  type: workspace
 
 collections:
-    - path: ./collections/auth
-    - path: ./collections/admin
-    - path: ./collections/super-admin
+  - name: "admin"
+    path: "collections/admin"
+  - name: "super-admin"
+    path: "collections/super-admin"
+  - name: "auth"
+    path: "collections/auth"
+
+specs:
+
+docs: ''

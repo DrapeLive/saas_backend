@@ -2,3 +2,45 @@ opencollection: 1.0.0
 
 info:
   name: auth
+
+items:
+  - type: http
+    name: Signup
+    filename: Signup.yml
+    seq: 1
+  - type: http
+    name: Login
+    filename: Login.yml
+    seq: 2
+  - type: http
+    name: Logout
+    filename: Logout.yml
+    seq: 3
+  - type: http
+    name: Me
+    filename: Me.yml
+    seq: 4
+  - type: http
+    name: Update Profile
+    filename: Update Profile.yml
+    seq: 5
+  - type: http
+    name: Password Change
+    filename: Password Change.yml
+    seq: 6
+  - type: http
+    name: Password Reset
+    filename: Password Reset.yml
+    seq: 7
+  - type: http
+    name: Password Reset Confirm
+    filename: Password Reset Confirm.yml
+    seq: 8
+  - type: http
+    name: Agent Register
+    filename: Agent Register.yml
+    seq: 9
+  - type: http
+    name: Agent Join
+    filename: Agent Join.yml
+    seq: 10

@@ -2,3 +2,41 @@ opencollection: 1.0.0
 
 info:
   name: super-admin
+
+items:
+  - type: http
+    name: List Companies
+    filename: List Companies.yml
+    seq: 1
+  - type: http
+    name: Get Company
+    filename: Get Company.yml
+    seq: 2
+  - type: http
+    name: Update Status
+    filename: Update Status.yml
+    seq: 3
+  - type: http
+    name: Suspend Company
+    filename: Suspend Company.yml
+    seq: 4
+  - type: http
+    name: Activate Company
+    filename: Activate Company.yml
+    seq: 5
+  - type: http
+    name: Extend Trial
+    filename: Extend Trial.yml
+    seq: 6
+  - type: http
+    name: Impersonate Company
+    filename: Impersonate Company.yml
+    seq: 7
+  - type: http
+    name: Delete Company
+    filename: Delete Company.yml
+    seq: 8
+  - type: http
+    name: Dashboard
+    filename: Dashboard.yml
+    seq: 9

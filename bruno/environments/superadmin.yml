@@ -1,11 +1,10 @@
+name: superadmin
 variables:
   - name: base_url
     value: http://localhost:8000
   - name: login_email
     value: superadmin@company.com
-  - name: login_password
-    value: Super@12345678
-    secret: true
-  - name: auth_token
-    value: ""
-    secret: true
+  - secret: true
+    name: login_password
+  - secret: true
+    name: auth_token
