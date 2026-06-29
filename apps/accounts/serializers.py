@@ -92,6 +92,11 @@ class AgentJoinSerializer(serializers.Serializer):
             invitation.save(update_fields=["status"])
             raise serializers.ValidationError("Invitation code has expired.")
 
+        if invitation.used_count >= invitation.max_uses:
+            invitation.status = "expired"
+            invitation.save(update_fields=["status"])
+            raise serializers.ValidationError("This invitation has reached its maximum uses.")
+
         self.context["invitation"] = invitation
         return value
 

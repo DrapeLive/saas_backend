@@ -14,7 +14,6 @@ http:
               "password": "Sub@12345678",
               "full_name": "Sub Admin",
               "phone": "9876543213",
-              "role": "subadmin"
             }
     auth:
         type: bearer

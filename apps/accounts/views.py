@@ -298,27 +298,36 @@ class AuthViewSet(GenericViewSet):
         membership, created = AgentCompanyMembership.objects.get_or_create(
             agent=agent_profile,
             company=invitation.company,
-            defaults={"status": "active", "approved_by": invitation.invited_by},
+            defaults={
+                "status": AgentCompanyMembership.MembershipStatus.PENDING,
+                "invitation_method": invitation.delivery_method,
+            },
         )
 
         if not created and membership.status == "removed":
-            membership.status = "active"
-            membership.save(update_fields=["status"])
+            membership.status = AgentCompanyMembership.MembershipStatus.PENDING
+            membership.invitation_method = invitation.delivery_method
+            membership.save(update_fields=["status", "invitation_method"])
 
         inviter_company = invitation.invited_by.company
         if inviter_company and inviter_company != invitation.company:
             AgentCompanyMembership.objects.get_or_create(
                 agent=agent_profile,
                 company=inviter_company,
-                defaults={"status": "active", "approved_by": invitation.invited_by},
+                defaults={
+                    "status": AgentCompanyMembership.MembershipStatus.PENDING,
+                    "invitation_method": invitation.delivery_method,
+                },
             )
 
-        invitation.status = "accepted"
-        invitation.accepted_by = request.user
-        invitation.save(update_fields=["status", "accepted_by"])
+        invitation.used_count = F("used_count") + 1
+        invitation.save(update_fields=["used_count"])
 
         return Response(
-            {"detail": f"Successfully joined {invitation.company.name}."},
+            {
+                "detail": f"Successfully joined {invitation.company.name}.",
+                "membership_status": membership.status,
+            },
             status=status.HTTP_200_OK,
         )
 
@@ -423,7 +432,8 @@ class InvitationViewSet(GenericViewSet):
                 "phone": inv.phone,
                 "token": inv.token,
                 "status": inv.status,
-                "delivery_method": inv.delivery_method,
+                "max_uses": inv.max_uses,
+                "used_count": inv.used_count,
                 "expires_at": inv.expires_at,
                 "created_at": inv.created_at,
             }
@@ -437,7 +447,7 @@ class InvitationViewSet(GenericViewSet):
 
         email = request.data.get("email", "")
         phone = request.data.get("phone", "")
-        delivery_method = request.data.get("delivery_method", "email")
+        max_uses = request.data.get("max_uses", 1)
 
         if not email and not phone:
             return Response(
@@ -454,7 +464,7 @@ class InvitationViewSet(GenericViewSet):
             email=email,
             phone=phone,
             token=token,
-            delivery_method=delivery_method,
+            max_uses=max_uses,
             expires_at=expires_at,
         )
 
@@ -464,6 +474,8 @@ class InvitationViewSet(GenericViewSet):
                 "token": invitation.token,
                 "email": invitation.email,
                 "phone": invitation.phone,
+                "max_uses": invitation.max_uses,
+                "used_count": invitation.used_count,
                 "expires_at": invitation.expires_at,
                 "status": invitation.status,
             },

@@ -1,0 +1,10 @@
+name: agent
+variables:
+    - name: base_url
+      value: http://localhost:8000
+    - name: login_email
+      value: agent@example.com
+    - name: login_password
+      value: Agent@12345678
+    - secret: true
+      name: auth_token

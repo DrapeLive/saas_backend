@@ -56,3 +56,48 @@ items:
     name: Create Invitation
     filename: Create Invitation.yml
     seq: 13
+  - type: folder
+    name: Agents
+    filename: Agents/folder.yml
+    seq: 14
+    items:
+      - type: http
+        name: List Agents
+        filename: Agents/List Agents.yml
+        seq: 1
+      - type: http
+        name: Get Agent
+        filename: Agents/Get Agent.yml
+        seq: 2
+      - type: http
+        name: Update Agent
+        filename: Agents/Update Agent.yml
+        seq: 3
+      - type: http
+        name: Remove Agent
+        filename: Agents/Remove Agent.yml
+        seq: 4
+      - type: http
+        name: Approve Agent
+        filename: Agents/Approve Agent.yml
+        seq: 5
+      - type: http
+        name: Reject Agent
+        filename: Agents/Reject Agent.yml
+        seq: 6
+      - type: http
+        name: Suspend Agent
+        filename: Agents/Suspend Agent.yml
+        seq: 7
+      - type: http
+        name: Reactivate Agent
+        filename: Agents/Reactivate Agent.yml
+        seq: 8
+      - type: http
+        name: Agent Performance
+        filename: Agents/Agent Performance.yml
+        seq: 9
+      - type: http
+        name: Leaderboard
+        filename: Agents/Leaderboard.yml
+        seq: 10

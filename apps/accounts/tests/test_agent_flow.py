@@ -94,15 +94,16 @@ class AgentJoinTests(TestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("Successfully joined", response.data["detail"])
+        self.assertEqual(response.data["membership_status"], "pending")
 
         membership = AgentCompanyMembership.objects.get(
             agent=self.agent_profile, company=self.company
         )
-        self.assertEqual(membership.status, "active")
+        self.assertEqual(membership.status, "pending")
+        self.assertEqual(membership.invitation_method, "email")
 
         self.invitation.refresh_from_db()
-        self.assertEqual(self.invitation.status, "accepted")
-        self.assertEqual(self.invitation.accepted_by, self.agent_user)
+        self.assertEqual(self.invitation.used_count, 1)
 
     def test_agent_join_invalid_code(self):
         response = self.view(

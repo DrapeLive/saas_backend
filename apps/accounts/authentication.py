@@ -15,6 +15,19 @@ class CustomJWTAuthentication(JWTAuthentication):
         if result is not None:
             user, validated_token = result
             company_id = validated_token.get("company_id", None)
+
+            # For agents, allow X-Company-Id header to override JWT context
+            if user.role == "agent" and not company_id:
+                header_company_id = request.META.get("HTTP_X_COMPANY_ID")
+                if header_company_id:
+                    from apps.agents.models import AgentCompanyMembership
+                    if AgentCompanyMembership.objects.filter(
+                        agent__user=user,
+                        company_id=header_company_id,
+                        status="active",
+                    ).exists():
+                        company_id = header_company_id
+
             if company_id:
                 from apps.companies.models import Company
                 try:

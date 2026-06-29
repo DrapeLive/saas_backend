@@ -1,28 +1,34 @@
 info:
-    name: Update Status
-    type: http
-    seq: 3
+  name: Update Status
+  type: http
+  seq: 3
 
 http:
-    method: POST
-    url: "{{base_url}}/api/super-admin/companies/{{company_id}}/status"
-    body:
-        type: json
-        data: |-
-            {
-              "status": "trial"
-            }
-    auth:
-        type: bearer
-        token: "{{auth_token}}"
+  method: POST
+  url: "{{base_url}}/api/super-admin/companies/{{company_id}}/status"
+  body:
+    type: json
+    data: |-
+      {
+        "status": "trial"
+      }
+  auth:
+    type: bearer
+    token: "{{auth_token}}"
 
 runtime:
-    scripts:
-        - type: tests
-          code: |-
-              test("status is 200", function() {
-                expect(res.status).to.equal(200);
-              });
+  variables:
+    - name: company_id
+      value: b6a92213-117e-4be8-8a2d-39600061f49f
+  scripts:
+    - type: tests
+      code: |-
+        test("status is 200", function() {
+          expect(res.status).to.equal(200);
+        });
 
 settings:
-    encodeUrl: true
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

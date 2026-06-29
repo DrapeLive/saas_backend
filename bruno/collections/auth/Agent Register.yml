@@ -25,8 +25,10 @@ runtime:
               test("status is 201", function() {
                 expect(res.status).to.equal(201);
               });
-              test("has access token", function() {
-                expect(res.body).to.have.property("access");
+              test("returns user data", function() {
+                expect(res.body).to.have.property("id");
+                expect(res.body).to.have.property("email");
+                expect(res.body).to.have.property("role", "agent");
               });
 
 settings:

@@ -28,6 +28,7 @@ class AgentProfile(UUIDModel, TimeStampedModel):
 class AgentCompanyMembership(UUIDModel, TimeStampedModel):
     class MembershipStatus(models.TextChoices):
         PENDING = "pending", "Pending Approval"
+        REVIEWED = "reviewed", "Reviewed by Sub Admin"
         ACTIVE = "active", "Active"
         SUSPENDED = "suspended", "Suspended"
         REMOVED = "removed", "Removed"
@@ -53,6 +54,17 @@ class AgentCompanyMembership(UUIDModel, TimeStampedModel):
 
     territory = models.CharField(max_length=200, blank=True)
 
+    invitation_method = models.CharField(
+        max_length=15,
+        blank=True,
+        choices=[
+            ("whatsapp", "WhatsApp"),
+            ("email", "Email"),
+            ("qr_code", "QR Code"),
+            ("in_app", "In-App"),
+        ],
+    )
+
     # Performance targets (set per company per agent)
     monthly_target = models.DecimalField(
         max_digits=12, decimal_places=2, null=True, blank=True
@@ -67,6 +79,14 @@ class AgentCompanyMembership(UUIDModel, TimeStampedModel):
         on_delete=models.SET_NULL,
         related_name="+",
     )
+    reviewed_by = models.ForeignKey(
+        "accounts.User",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="reviewed_memberships",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         db_table = "agents_company_membership"
@@ -102,15 +122,12 @@ class AgentInvitation(UUIDModel, TimeStampedModel):
     status = models.CharField(
         max_length=15, choices=InviteStatus.choices, default=InviteStatus.PENDING
     )
-    delivery_method = models.CharField(max_length=15, choices=DeliveryMethod.choices)
-    expires_at = models.DateTimeField()
-    accepted_by = models.ForeignKey(
-        "accounts.User",
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        related_name="accepted_invitations",
+    delivery_method = models.CharField(
+        max_length=15, blank=True, choices=DeliveryMethod.choices
     )
+    max_uses = models.PositiveSmallIntegerField(default=1)
+    used_count = models.PositiveSmallIntegerField(default=0)
+    expires_at = models.DateTimeField()
 
     class Meta:
         db_table = "agents_invitation"
