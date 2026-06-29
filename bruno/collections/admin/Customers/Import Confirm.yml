@@ -1,0 +1,34 @@
+info:
+    name: Import Confirm
+    type: http
+    seq: 7
+
+http:
+    method: POST
+    url: "{{base_url}}/api/admin/customers/import-confirm"
+    body:
+        type: json
+        data: |-
+            {
+              "rows": [
+                {"trade_name": "Customer One", "phone": "1111111111"},
+                {"trade_name": "Customer Two", "phone": "2222222222"}
+              ]
+            }
+    auth:
+        type: bearer
+        token: "{{auth_token}}"
+
+runtime:
+    scripts:
+        - type: tests
+          code: |-
+              test("status is 201", function() {
+                expect(res.status).to.equal(201);
+              });
+              test("returns created count", function() {
+                expect(res.body).to.have.property("created");
+              });
+
+settings:
+    encodeUrl: true

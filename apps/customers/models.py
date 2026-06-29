@@ -3,6 +3,13 @@ from django.db import models
 from apps.core.models import CompanyScopeModel
 
 
+class GstStatus(models.TextChoices):
+    ACTIVE = "active", "Active"
+    CANCELLED = "cancelled", "Cancelled"
+    SUSPENDED = "suspended", "Suspended"
+    UNVERIFIED = "unverified", "Unverified"
+
+
 class CustomerProfile(CompanyScopeModel):
     class CustomerStatus(models.TextChoices):
         ACTIVE = "active", "Active"
@@ -26,8 +33,9 @@ class CustomerProfile(CompanyScopeModel):
     )
 
     # Business identity
-    business_name = models.CharField(max_length=200)
-    owner_name = models.CharField(max_length=150)
+    legal_name = models.CharField(max_length=200, blank=True)
+    trade_name = models.CharField(max_length=200, default="")
+    owner_name = models.CharField(max_length=150, blank=True)
     email = models.EmailField(blank=True)
     phone = models.CharField(max_length=15)
     whatsapp_number = models.CharField(max_length=15, blank=True)
@@ -36,11 +44,16 @@ class CustomerProfile(CompanyScopeModel):
     gstin = models.CharField(max_length=15, blank=True, db_index=True)
     gstin_verified = models.BooleanField(default=False)
     gstin_legal_name = models.CharField(max_length=200, blank=True)
-    gstin_status = models.CharField(max_length=50, blank=True)  # Active / Cancelled
+    gstin_status = models.CharField(
+        max_length=15, choices=GstStatus.choices, default=GstStatus.UNVERIFIED
+    )
     gstin_type = models.CharField(max_length=50, blank=True)  # Regular / Composition
     gstin_verified_at = models.DateTimeField(null=True, blank=True)
 
     pan = models.CharField(max_length=10, blank=True)
+
+    # Tags
+    tags = models.JSONField(default=list, blank=True)
 
     # Address
     billing_address_line1 = models.CharField(max_length=255, blank=True)
@@ -66,6 +79,7 @@ class CustomerProfile(CompanyScopeModel):
     # Credit management
     credit_limit = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     credit_utilized = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    is_credit_blocked = models.BooleanField(default=False)
     payment_terms_days = models.PositiveSmallIntegerField(default=30)
     auto_block_on_exceed = models.BooleanField(default=True)
 
@@ -75,7 +89,7 @@ class CustomerProfile(CompanyScopeModel):
         max_digits=14, decimal_places=2, default=0
     )
 
-    # Segmentation (auto-computed via periodic task)
+    # Segmentation (can be auto-computed)
     segment = models.CharField(
         max_length=15, choices=CustomerSegment.choices, default=CustomerSegment.BRONZE
     )
@@ -87,6 +101,13 @@ class CustomerProfile(CompanyScopeModel):
 
     class Meta:
         db_table = "customers_profile"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["company", "gstin"],
+                name="unique_gstin_per_company",
+                condition=models.Q(gstin__gt=""),
+            ),
+        ]
         indexes = [
             models.Index(fields=["company", "status"]),
             models.Index(fields=["gstin"]),
@@ -94,7 +115,7 @@ class CustomerProfile(CompanyScopeModel):
         ]
 
     def __str__(self):
-        return f"{self.business_name} ({self.company.name})"
+        return f"{self.trade_name} ({self.company.name})"
 
     @property
     def credit_utilization_pct(self):

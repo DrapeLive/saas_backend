@@ -1,0 +1,27 @@
+info:
+    name: List Communication Logs
+    type: http
+    seq: 13
+
+http:
+    method: GET
+    url: "{{base_url}}/api/admin/customers/{{customer_id}}/communication-logs"
+    headers:
+        - name: accept
+          value: application/json
+    body:
+        type: none
+    auth:
+        type: bearer
+        token: "{{auth_token}}"
+
+runtime:
+    scripts:
+        - type: tests
+          code: |-
+              test("status is 200", function() {
+                expect(res.status).to.equal(200);
+              });
+
+settings:
+    encodeUrl: true

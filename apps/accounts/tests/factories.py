@@ -72,6 +72,19 @@ def create_invitation(company, invited_by, **overrides):
     )
 
 
+def create_customer(company, **overrides):
+    from apps.customers.models import CustomerProfile
+
+    defaults = {
+        "trade_name": "Test Customer",
+        "phone": "9876543210",
+        "email": "customer@test.com",
+        "owner_name": "Owner Name",
+    }
+    defaults.update(overrides)
+    return CustomerProfile.objects.create(company=company, **defaults)
+
+
 def get_jwt_headers(user):
     refresh = RefreshToken.for_user(user)
     refresh["role"] = user.role

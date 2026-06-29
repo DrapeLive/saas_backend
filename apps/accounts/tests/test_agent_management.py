@@ -462,7 +462,7 @@ class AgentPerformanceTests(AgentManagementBase):
 
         customer = CustomerProfile.objects.create(
             company=self.company,
-            business_name="Test Customer",
+            trade_name="Test Customer",
             owner_name="Owner",
             phone="9999999999",
         )

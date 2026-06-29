@@ -1,0 +1,27 @@
+info:
+    name: List Customers
+    type: http
+    seq: 1
+
+http:
+    method: GET
+    url: "{{base_url}}/api/admin/customers"
+    headers:
+        - name: accept
+          value: application/json
+    body:
+        type: none
+    auth:
+        type: bearer
+        token: "{{auth_token}}"
+
+runtime:
+    scripts:
+        - type: tests
+          code: |-
+              test("status is 200", function() {
+                expect(res.status).to.equal(200);
+              });
+
+settings:
+    encodeUrl: true
