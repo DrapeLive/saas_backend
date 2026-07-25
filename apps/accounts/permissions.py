@@ -1,4 +1,4 @@
-from rest_framework.permissions import BasePermission, SAFE_METHODS
+from rest_framework.permissions import BasePermission
 
 from apps.accounts.models import RoleType
 
@@ -6,8 +6,7 @@ from apps.accounts.models import RoleType
 class IsSuperAdmin(BasePermission):
     def has_permission(self, request, view):
         return bool(
-            request.user.is_authenticated
-            and request.user.role == RoleType.SUPER_ADMIN
+            request.user.is_authenticated and request.user.role == RoleType.SUPER_ADMIN
         )
 
 
@@ -45,15 +44,14 @@ class IsCompanyStaff(BasePermission):
 class IsAgent(BasePermission):
     def has_permission(self, request, view):
         return bool(
-            request.user.is_authenticated
-            and request.user.role == RoleType.AGENT
+            request.user.is_authenticated and request.user.role == RoleType.AGENT
         )
 
 
 class IsSelf(BasePermission):
     def has_object_permission(self, request, view, obj):
         if request is None:
-            return getattr(obj, 'company_id', None) is not None
+            return getattr(obj, "company_id", None) is not None
         return obj.pk == request.user.pk
 
 
@@ -70,6 +68,7 @@ class CompanyApproved(BasePermission):
         company = getattr(request, "company", None)
         if company is None:
             from apps.companies.models import Company
+
             try:
                 company = Company.objects.get(pk=request.user.company_id)
             except Company.DoesNotExist:

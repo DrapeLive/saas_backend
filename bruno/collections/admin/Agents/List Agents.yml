@@ -1,33 +1,40 @@
 info:
-    name: List Agents
-    type: http
-    folder: Agents
-    seq: 1
+  name: List Agents
+  type: http
+  seq: 1
 
 http:
-    method: GET
-    url: "{{base_url}}/api/admin/agents"
-    auth:
-        type: bearer
-        token: "{{auth_token}}"
+  method: GET
+  url: "{{base_url}}/api/admin/agents"
+  auth:
+    type: bearer
+    token: "{{auth_token}}"
 
 runtime:
-    scripts:
-        - type: tests
-          code: |-
-              test("status is 200", function() {
-                expect(res.status).to.equal(200);
-              });
-              test("returns array", function() {
-                expect(Array.isArray(res.body)).to.be.true;
-              });
-              test("each agent has user and status", function() {
-                if (res.body.length > 0) {
-                  expect(res.body[0]).to.have.property("user");
-                  expect(res.body[0]).to.have.property("status");
-                  expect(res.body[0]).to.have.property("territory");
-                }
-              });
+  variables:
+    - name: auth_token
+      value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzg1MDgzMjMyLCJpYXQiOjE3ODQ5OTY4MzMsImp0aSI6Ijg5NWY2MDUyNWM5YTRmZDdiYTM3MjBkMWU2OGE1NzU4IiwidXNlcl9pZCI6IjQ5MzI0N2VhLTAxOGMtNGE0YS04ZjkyLTNjMjVhNGJhNGYyYyIsInJvbGUiOiJzdXBlcmFkbWluIiwiY29tcGFueV9pZCI6bnVsbCwiaXNfc3VwZXJfYWRtaW4iOnRydWV9.ie5djDpdTIPgI2yDqYnKHqfkGyNE2URDqhP6c0trRjM
+    - name: base_url
+      value: http://localhost:8000
+  scripts:
+    - type: tests
+      code: |-
+        test("status is 200", function() {
+          expect(res.status).to.equal(200);
+        });
+        test("returns array", function() {
+          expect(Array.isArray(res.body)).to.be.true;
+        });
+        test("each agent has user and status", function() {
+          if (res.body.length > 0) {
+            expect(res.body[0]).to.have.property("user");
+            expect(res.body[0]).to.have.property("status");
+            expect(res.body[0]).to.have.property("territory");
+          }
+        });
 
 settings:
-    encodeUrl: true
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

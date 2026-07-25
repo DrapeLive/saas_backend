@@ -1,0 +1,16 @@
+name: dev
+color: "#346AB2"
+variables:
+  - name: base_url
+    value: http://localhost:8000
+    description: ""
+  - name: login_email
+    value: admin@company.com
+    description: ""
+  - name: access_token
+    value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzg1MDgzMjMyLCJpYXQiOjE3ODQ5OTY4MzMsImp0aSI6Ijg5NWY2MDUyNWM5YTRmZDdiYTM3MjBkMWU2OGE1NzU4IiwidXNlcl9pZCI6IjQ5MzI0N2VhLTAxOGMtNGE0YS04ZjkyLTNjMjVhNGJhNGYyYyIsInJvbGUiOiJzdXBlcmFkbWluIiwiY29tcGFueV9pZCI6bnVsbCwiaXNfc3VwZXJfYWRtaW4iOnRydWV9.ie5djDpdTIPgI2yDqYnKHqfkGyNE2URDqhP6c0trRjM
+    description: ""
+  - secret: true
+    name: login_password
+  - secret: true
+    name: auth_token

@@ -17,7 +17,11 @@ http:
 runtime:
   variables:
     - name: login_password
-      value: Test@12345678
+      value: password
+    - name: login_email
+      value: admin@gmail.com
+    - name: base_url
+      value: http://localhost:8000
   scripts:
     - type: after-response
       code: |-
