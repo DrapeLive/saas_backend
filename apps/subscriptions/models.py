@@ -1,3 +1,5 @@
+from typing import ClassVar
+
 from django.db import models
 
 from apps.core.models import TimeStampedModel, UUIDModel
@@ -60,7 +62,7 @@ class Plan(UUIDModel, TimeStampedModel):
 
     class Meta:
         db_table = "subscriptions_plan"
-        ordering = ["display_order"]
+        ordering: ClassVar[list[str]] = ["display_order"]
 
     def __str__(self):
         return f"{self.name} — ₹{self.monthly_price}/mo"
@@ -68,60 +70,60 @@ class Plan(UUIDModel, TimeStampedModel):
     @classmethod
     def get_defaults(cls):
         return [
-            dict(
-                tier=PlanTier.STARTER,
-                name="Starter",
-                monthly_price=1999,
-                yearly_price=19990,
-                trial_days=14,
-                max_agents=3,
-                max_customers=100,
-                max_products=500,
-                max_orders_per_month=200,
-                storage_gb=50,
-                tally_sync_enabled=False,
-                whatsapp_enabled=False,
-                display_order=1,
-            ),
-            dict(
-                tier=PlanTier.PROFESSIONAL,
-                name="Professional",
-                monthly_price=4999,
-                yearly_price=49990,
-                trial_days=14,
-                max_agents=10,
-                max_customers=500,
-                max_products=2000,
-                max_orders_per_month=1000,
-                storage_gb=200,
-                tally_sync_enabled=True,
-                whatsapp_enabled=True,
-                gst_verify_enabled=True,
-                analytics_advanced=True,
-                offline_mode_enabled=True,
-                display_order=2,
-            ),
-            dict(
-                tier=PlanTier.ENTERPRISE,
-                name="Enterprise",
-                monthly_price=9999,
-                yearly_price=99990,
-                trial_days=14,
-                max_agents=0,
-                max_customers=0,
-                max_products=0,
-                max_orders_per_month=0,
-                storage_gb=1024,
-                tally_sync_enabled=True,
-                whatsapp_enabled=True,
-                gst_verify_enabled=True,
-                analytics_advanced=True,
-                offline_mode_enabled=True,
-                api_access_enabled=True,
-                custom_domain_enabled=True,
-                dedicated_support=True,
-                display_order=3,
-            ),
+            {
+                "tier": PlanTier.STARTER,
+                "name": "Starter",
+                "monthly_price": 1999,
+                "yearly_price": 19990,
+                "trial_days": 14,
+                "max_agents": 3,
+                "max_customers": 100,
+                "max_products": 500,
+                "max_orders_per_month": 200,
+                "storage_gb": 50,
+                "tally_sync_enabled": False,
+                "whatsapp_enabled": False,
+                "display_order": 1,
+            },
+            {
+                "tier": PlanTier.PROFESSIONAL,
+                "name": "Professional",
+                "monthly_price": 4999,
+                "yearly_price": 49990,
+                "trial_days": 14,
+                "max_agents": 10,
+                "max_customers": 500,
+                "max_products": 2000,
+                "max_orders_per_month": 1000,
+                "storage_gb": 200,
+                "tally_sync_enabled": True,
+                "whatsapp_enabled": True,
+                "gst_verify_enabled": True,
+                "analytics_advanced": True,
+                "offline_mode_enabled": True,
+                "display_order": 2,
+            },
+            {
+                "tier": PlanTier.ENTERPRISE,
+                "name": "Enterprise",
+                "monthly_price": 9999,
+                "yearly_price": 99990,
+                "trial_days": 14,
+                "max_agents": 0,
+                "max_customers": 0,
+                "max_products": 0,
+                "max_orders_per_month": 0,
+                "storage_gb": 1024,
+                "tally_sync_enabled": True,
+                "whatsapp_enabled": True,
+                "gst_verify_enabled": True,
+                "analytics_advanced": True,
+                "offline_mode_enabled": True,
+                "api_access_enabled": True,
+                "custom_domain_enabled": True,
+                "dedicated_support": True,
+                "display_order": 3,
+            },
         ]
 
 
@@ -156,7 +158,7 @@ class Subscription(UUIDModel, TimeStampedModel):
 
     class Meta:
         db_table = "subscriptions_subscription"
-        indexes = [
+        indexes: ClassVar = [
             models.Index(fields=["status", "current_period_end"]),
         ]
 
@@ -204,7 +206,7 @@ class SubscriptionEvent(UUIDModel):
 
     class Meta:
         db_table = "subscriptions_event"
-        ordering = ["-created_at"]
+        ordering: ClassVar = ["-created_at"]
 
 
 class UsageSnapshot(UUIDModel):
@@ -225,5 +227,5 @@ class UsageSnapshot(UUIDModel):
 
     class Meta:
         db_table = "subscriptions_usage_snapshot"
-        unique_together = [("subscription", "snapshot_month")]
-        ordering = ["-snapshot_month"]
+        unique_together: ClassVar = [("subscription", "snapshot_month")]
+        ordering: ClassVar = ["-snapshot_month"]
