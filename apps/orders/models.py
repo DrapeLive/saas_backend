@@ -1,3 +1,5 @@
+from typing import ClassVar
+
 from django.db import models
 
 from apps.core.models import CompanyScopeModel, TimeStampedModel, UUIDModel
@@ -92,8 +94,8 @@ class Order(CompanyScopeModel):
 
     class Meta:
         db_table = "orders_order"
-        ordering = ["-created_at"]
-        indexes = [
+        ordering: ClassVar = ["-created_at"]
+        indexes: ClassVar = [
             models.Index(fields=["company", "status"]),
             models.Index(fields=["customer", "status"]),
             models.Index(fields=["agent", "submitted_at"]),
@@ -147,7 +149,7 @@ class OrderStatusHistory(UUIDModel):
 
     class Meta:
         db_table = "orders_status_history"
-        ordering = ["-created_at"]
+        ordering: ClassVar = ["-created_at"]
 
 
 class OrderSignature(UUIDModel):
