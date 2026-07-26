@@ -1,3 +1,5 @@
+from typing import ClassVar
+
 from django.db import models
 
 from apps.core.models import (
@@ -39,7 +41,7 @@ class Category(CompanyScopeModel, SoftDeleteModel):
 
     class Meta:
         db_table = "products_category"
-        unique_together = [("company", "slug")]
+        unique_together: ClassVar = [("company", "slug")]
 
     def __str__(self):
         return f"{self.name} ({self.company.name})"
@@ -88,7 +90,7 @@ class Product(CompanyScopeModel, SoftDeleteModel):
 
     class Meta:
         db_table = "products_product"
-        indexes = [
+        indexes: ClassVar = [
             models.Index(fields=["company", "status"]),
             models.Index(fields=["category"]),
         ]
@@ -108,7 +110,7 @@ class ProductImage(UUIDModel, TimeStampedModel):
 
     class Meta:
         db_table = "products_image"
-        ordering = ["display_order"]
+        ordering: ClassVar = ["display_order"]
 
 
 class ColorVariant(UUIDModel, TimeStampedModel):
@@ -126,7 +128,7 @@ class ColorVariant(UUIDModel, TimeStampedModel):
 
     class Meta:
         db_table = "products_color_variant"
-        unique_together = [("product", "color_name")]
+        unique_together: ClassVar = [("product", "color_name")]
 
     def __str__(self):
         return f"{self.product.name} — {self.color_name}"
@@ -154,7 +156,7 @@ class VariantSize(UUIDModel, TimeStampedModel):
 
     class Meta:
         db_table = "products_variant_size"
-        unique_together = [("color_variant", "size")]
+        unique_together: ClassVar = [("color_variant", "size")]
 
     def __str__(self):
         return f"{self.color_variant} / {self.size} — stock={self.stock_quantity}"
@@ -195,5 +197,5 @@ class StockMovement(UUIDModel, TimeStampedModel):
 
     class Meta:
         db_table = "products_stock_movement"
-        ordering = ["-created_at"]
-        indexes = [models.Index(fields=["variant_size", "created_at"])]
+        ordering: ClassVar = ["-created_at"]
+        indexes: ClassVar = [models.Index(fields=["variant_size", "created_at"])]
