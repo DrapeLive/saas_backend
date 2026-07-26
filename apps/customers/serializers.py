@@ -1,6 +1,10 @@
 from rest_framework import serializers
 
-from apps.customers.models import CustomerCommunicationLog, CustomerDocument, CustomerProfile
+from apps.customers.models import (
+    CustomerCommunicationLog,
+    CustomerDocument,
+    CustomerProfile,
+)
 
 
 class CustomerSerializer(serializers.ModelSerializer):
@@ -157,8 +161,12 @@ class CustomerImportRowSerializer(serializers.Serializer):
     gstin = serializers.CharField(max_length=15, required=False, allow_blank=True)
     email = serializers.EmailField(required=False, allow_blank=True)
     owner_name = serializers.CharField(max_length=150, required=False, allow_blank=True)
-    billing_city = serializers.CharField(max_length=100, required=False, allow_blank=True)
-    billing_state = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    billing_city = serializers.CharField(
+        max_length=100, required=False, allow_blank=True
+    )
+    billing_state = serializers.CharField(
+        max_length=100, required=False, allow_blank=True
+    )
     errors = serializers.ListField(child=serializers.CharField(), default=list)
 
 
@@ -173,12 +181,29 @@ class CustomerImportConfirmSerializer(serializers.Serializer):
 class CustomerDocumentSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomerDocument
-        fields = ["id", "customer", "doc_type", "title", "file", "uploaded_by", "notes", "created_at"]
+        fields = [
+            "id",
+            "customer",
+            "doc_type",
+            "title",
+            "file",
+            "uploaded_by",
+            "notes",
+            "created_at",
+        ]
         read_only_fields = ["id", "uploaded_by", "created_at"]
 
 
 class CustomerCommunicationLogSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomerCommunicationLog
-        fields = ["id", "customer", "channel", "subject", "message", "performed_by", "created_at"]
+        fields = [
+            "id",
+            "customer",
+            "channel",
+            "subject",
+            "message",
+            "performed_by",
+            "created_at",
+        ]
         read_only_fields = ["id", "performed_by", "created_at"]
