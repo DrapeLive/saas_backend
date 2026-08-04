@@ -1,0 +1,20 @@
+info:
+  name: Delete Size Chart
+  type: http
+  seq: 8
+
+http:
+  method: DELETE
+  url: "{{BASE_URL}}/size-charts/f0ed5e65-ee64-49cc-b8a5-29e32d0ae5e6/"
+  body:
+    type: json
+    data: ""
+  auth:
+    type: bearer
+    token: "{{access_admin}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

@@ -1,0 +1,27 @@
+info:
+  name: setup bank
+  type: http
+  seq: 9
+
+http:
+  method: PATCH
+  url: "{{BASE_URL}}/admin/setup/bank"
+  body:
+    type: json
+    data: |-
+      {
+        "bank_name": "federal",
+        "bank_account": "fdrls15720100315331",
+        "bank_ifsc": "fdrl0001562",
+        "bank_branch": "kozhikkode",
+        "upi_id": "company@upi"
+      }
+  auth:
+    type: bearer
+    token: "{{access_admin}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

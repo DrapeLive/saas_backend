@@ -1,0 +1,20 @@
+info:
+  name: reactivate agent
+  type: http
+  seq: 20
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/admin/agents/223a5547-a246-4034-84a6-8270d9274a53/reactivate"
+  body:
+    type: json
+    data: ""
+  auth:
+    type: bearer
+    token: "{{access_admin}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

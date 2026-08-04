@@ -1,0 +1,21 @@
+info:
+  name: show switch company
+  type: http
+  seq: 3
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/auth/agents/switch-company"
+  body:
+    type: json
+    data: |-
+      {
+        "company_id"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

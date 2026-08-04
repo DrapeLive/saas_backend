@@ -1,0 +1,98 @@
+info:
+  name: Create Products
+  type: http
+  seq: 10
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/products/"
+  body:
+    type: json
+    data: |-
+      {
+        "category": "eb9374f8-56aa-4b6d-9ab7-95a62955cd01",
+        "name": "Premium Cotton Polo T-Shirt",
+        "description": "Soft premium cotton polo t-shirt with ribbed collar and comfortable fit.",
+        "sku_prefix": "POL",
+        "hsn_code": "61091000",
+        "gst_rate": "5.00",
+        "size_chart": "96e9c42d-dc0a-4cb7-86cb-35d8fe54ce46",
+        "mrp": "1299.00",
+        "wholesale_price": "850.00",
+        "minimum_order_qty": 2,
+        "order_in_multiples": 2,
+        "status": "active",
+        "color_variants": [
+          {
+            "color_name": "Navy Blue",
+            "color_hex": "#1F3A93",
+            "is_active": true,
+            "sizes": [
+              {
+                "size": "M",
+                "sku": "POL-NVY-M",
+                "price_override": null,
+                "stock_quantity": 60,
+                "reorder_level": 15,
+                "is_active": true
+              },
+              {
+                "size": "L",
+                "sku": "POL-NVY-L",
+                "price_override": "75.00",
+                "stock_quantity": 45,
+                "reorder_level": 15,
+                "is_active": true
+              },
+              {
+                "size": "XL",
+                "sku": "POL-NVY-XL",
+                "price_override": null,
+                "stock_quantity": 35,
+                "reorder_level": 10,
+                "is_active": true
+              }
+            ]
+          },
+          {
+            "color_name": "Olive Green",
+            "color_hex": "#556B2F",
+            "is_active": true,
+            "sizes": [
+              {
+                "size": "S",
+                "sku": "POL-OLV-S",
+                "price_override": null,
+                "stock_quantity": 30,
+                "reorder_level": 8,
+                "is_active": true
+              },
+              {
+                "size": "M",
+                "sku": "POL-OLV-M",
+                "price_override": "50.00",
+                "stock_quantity": 28,
+                "reorder_level": 8,
+                "is_active": true
+              },
+              {
+                "size": "L",
+                "sku": "POL-OLV-L",
+                "price_override": null,
+                "stock_quantity": 22,
+                "reorder_level": 8,
+                "is_active": true
+              }
+            ]
+          }
+        ]
+      }
+  auth:
+    type: bearer
+    token: "{{access_admin}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

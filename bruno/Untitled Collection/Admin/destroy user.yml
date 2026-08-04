@@ -1,0 +1,17 @@
+info:
+  name: destroy user
+  type: http
+  seq: 5
+
+http:
+  method: DELETE
+  url: "{{BASE_URL}}/admin/users/4ac2538c-2561-42bc-a3d9-a6822c01eb31"
+  auth:
+    type: bearer
+    token: "{{access_admin}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

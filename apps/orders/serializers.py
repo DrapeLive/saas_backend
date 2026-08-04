@@ -242,12 +242,9 @@ class OrderCreateSerializer(serializers.Serializer):
     def validate_customer(self, value):
         from apps.customers.models import CustomerProfile
 
-        request = self.context.get("request")
-        company = getattr(request, "company", None)
+        company = self.context["company"]
         try:
-            customer = CustomerProfile.objects.get(
-                id=value, tenant=company, is_deleted=False
-            )
+            customer = CustomerProfile.objects.get(id=value, company=company)
         except CustomerProfile.DoesNotExist:
             raise serializers.ValidationError("Customer not found.")
         if customer.status == "blocked":

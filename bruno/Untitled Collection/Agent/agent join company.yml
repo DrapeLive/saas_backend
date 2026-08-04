@@ -1,0 +1,23 @@
+info:
+  name: agent join company
+  type: http
+  seq: 9
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/auth/agents/join"
+  body:
+    type: json
+    data: |-
+      {
+         "invite_code": "GO1wjPZjmP7hZFL74x745sNgV7jA3sXWOT26bvfSB48" 
+      }
+  auth:
+    type: bearer
+    token: "{{access_agent}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

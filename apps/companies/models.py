@@ -15,7 +15,7 @@ class CompanyStatus(models.TextChoices):
 class Company(UUIDModel, TimeStampedModel):
     name = models.CharField(max_length=200)
     slug = models.CharField(unique=True, max_length=200)
-    logo = models.ImageField(upload_to="company/logos", null=True, blank=True)
+    logo = models.ImageField(upload_to="media/company/logos", null=True, blank=True)
     tagline = models.CharField(max_length=200, blank=True)
 
     # Business Details

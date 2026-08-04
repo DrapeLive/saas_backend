@@ -1,0 +1,23 @@
+info:
+  name: retrieve order
+  type: http
+  seq: 4
+
+http:
+  method: GET
+  url: "{{BASE_URL}}/orders/8fc9038d-94d2-47ee-b7a2-133263e3d3d9/"
+  headers:
+    - name: X-Company-Id
+      value: 34548a8b-3322-44f3-ad9b-48ba4e40278c
+  body:
+    type: json
+    data: ""
+  auth:
+    type: bearer
+    token: "{{access_agent}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

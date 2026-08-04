@@ -1,0 +1,20 @@
+info:
+  name: delete product
+  type: http
+  seq: 13
+
+http:
+  method: DELETE
+  url: "{{BASE_URL}}/products/cdc55d01-338e-40cf-8fe0-6fd5998656b0/"
+  body:
+    type: json
+    data: ""
+  auth:
+    type: bearer
+    token: "{{access_admin}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

@@ -156,7 +156,7 @@ class OrderSignature(UUIDModel):
     order = models.OneToOneField(
         Order, on_delete=models.CASCADE, related_name="signature"
     )
-    signature_image = models.ImageField(upload_to="orders/signatures/")
+    signature_image = models.ImageField(upload_to="media/orders/signatures/")
     captured_at = models.DateTimeField(auto_now_add=True)
     captured_by = models.ForeignKey(
         "accounts.User", null=True, on_delete=models.SET_NULL

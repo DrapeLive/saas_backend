@@ -1,0 +1,20 @@
+info:
+  name: delete customer
+  type: http
+  seq: 27
+
+http:
+  method: DELETE
+  url: "{{BASE_URL}}/admin/customers/84826e33-63f7-4bd9-89ac-c601716b9a67/"
+  body:
+    type: json
+    data: ""
+  auth:
+    type: bearer
+    token: "{{access_admin}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

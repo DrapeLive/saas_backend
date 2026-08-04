@@ -1,0 +1,24 @@
+info:
+  name: Register Agent
+  type: http
+  seq: 5
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/auth/agents/register"
+  body:
+    type: json
+    data: |-
+      {
+        "email": "agent@gmail.com",
+        "password": "password!12",
+        "full_name": "agent",
+        "phone": "8967845789"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

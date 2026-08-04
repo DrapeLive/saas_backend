@@ -16,8 +16,8 @@ from apps.accounts.authentication import CustomJWTAuthentication
 from apps.accounts.permissions import (
     CanManageUsers,
     CompanyApproved,
+    IsAdmin,
     IsAgent,
-    IsCompanyAdmin,
     IsCompanyAdminOrAbove,
 )
 from apps.agents.models import AgentCompanyMembership, AgentProfile
@@ -38,7 +38,11 @@ class AgentMembershipViewSet(GenericViewSet):
 
     def get_queryset(self):
         return AgentCompanyMembership.objects.select_related(
-            "agent__user", "company", "custom_commission_plan", "approved_by", "reviewed_by"
+            "agent__user",
+            "company",
+            "custom_commission_plan",
+            "approved_by",
+            "reviewed_by",
         )
 
     def get_permissions(self):
@@ -86,9 +90,7 @@ class AgentMembershipViewSet(GenericViewSet):
                 {"detail": "Membership not found."},
                 status=status.HTTP_404_NOT_FOUND,
             )
-        if request.user.role != "superadmin" and membership.company_id != getattr(
-            request.user, "company_id", None
-        ):
+        if request.user.role != "superadmin" and membership.company_id != request.user.company_id:
             return Response(
                 {"detail": "You can only view agents in your company."},
                 status=status.HTTP_403_FORBIDDEN,
@@ -104,9 +106,7 @@ class AgentMembershipViewSet(GenericViewSet):
                 {"detail": "Membership not found."},
                 status=status.HTTP_404_NOT_FOUND,
             )
-        if request.user.role != "superadmin" and membership.company_id != getattr(
-            request.user, "company_id", None
-        ):
+        if request.user.role != "superadmin" and membership.company_id != request.user.company_id:
             return Response(
                 {"detail": "You can only manage agents in your company."},
                 status=status.HTTP_403_FORBIDDEN,
@@ -126,9 +126,7 @@ class AgentMembershipViewSet(GenericViewSet):
                 {"detail": "Membership not found."},
                 status=status.HTTP_404_NOT_FOUND,
             )
-        if request.user.role != "superadmin" and membership.company_id != getattr(
-            request.user, "company_id", None
-        ):
+        if request.user.role != "superadmin" and membership.company_id != request.user.company_id:
             return Response(
                 {"detail": "You can only manage agents in your company."},
                 status=status.HTTP_403_FORBIDDEN,
@@ -156,7 +154,9 @@ class AgentMembershipViewSet(GenericViewSet):
             )
         if membership.status not in ("pending", "reviewed"):
             return Response(
-                {"detail": f"Cannot approve membership with status '{membership.status}'."},
+                {
+                    "detail": f"Cannot approve membership with status '{membership.status}'."
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
         membership.status = AgentCompanyMembership.MembershipStatus.ACTIVE
@@ -181,7 +181,9 @@ class AgentMembershipViewSet(GenericViewSet):
             )
         if membership.status != "pending":
             return Response(
-                {"detail": f"Cannot reject membership with status '{membership.status}'."},
+                {
+                    "detail": f"Cannot reject membership with status '{membership.status}'."
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
         membership.status = AgentCompanyMembership.MembershipStatus.REMOVED
@@ -208,7 +210,9 @@ class AgentMembershipViewSet(GenericViewSet):
             )
         if membership.status != "active":
             return Response(
-                {"detail": f"Cannot suspend membership with status '{membership.status}'."},
+                {
+                    "detail": f"Cannot suspend membership with status '{membership.status}'."
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
         membership.status = AgentCompanyMembership.MembershipStatus.SUSPENDED
@@ -231,7 +235,9 @@ class AgentMembershipViewSet(GenericViewSet):
             )
         if membership.status != "suspended":
             return Response(
-                {"detail": f"Cannot reactivate membership with status '{membership.status}'."},
+                {
+                    "detail": f"Cannot reactivate membership with status '{membership.status}'."
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
         membership.status = AgentCompanyMembership.MembershipStatus.ACTIVE
@@ -254,7 +260,9 @@ class AgentMembershipViewSet(GenericViewSet):
             )
         if membership.status != "pending":
             return Response(
-                {"detail": f"Cannot review membership with status '{membership.status}'."},
+                {
+                    "detail": f"Cannot review membership with status '{membership.status}'."
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
         membership.status = AgentCompanyMembership.MembershipStatus.REVIEWED
@@ -277,9 +285,13 @@ class AgentMembershipViewSet(GenericViewSet):
         today = now()
         month_start = today.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
-        memberships = AgentCompanyMembership.objects.filter(
-            agent=agent_profile,
-        ).select_related("company").order_by("-created_at")
+        memberships = (
+            AgentCompanyMembership.objects.filter(
+                agent=agent_profile,
+            )
+            .select_related("company")
+            .order_by("-created_at")
+        )
 
         data = []
         for m in memberships:
@@ -363,22 +375,31 @@ class AgentMembershipViewSet(GenericViewSet):
             submitted_at__gte=month_start,
         ).count()
 
-        sales_this_month = base_orders.filter(
-            submitted_at__gte=month_start,
-        ).aggregate(total=Sum("total_amount"))["total"] or 0
+        sales_this_month = (
+            base_orders.filter(
+                submitted_at__gte=month_start,
+            ).aggregate(total=Sum("total_amount"))["total"]
+            or 0
+        )
 
-        commission_earned = CommissionEntry.objects.filter(
-            agent=agent_profile,
-            order__company=company,
-            settlement_month__gte=month_start,
-            status__in=["approved", "paid"],
-        ).aggregate(total=Sum("commission_amount"))["total"] or 0
+        commission_earned = (
+            CommissionEntry.objects.filter(
+                agent=agent_profile,
+                order__company=company,
+                settlement_month__gte=month_start,
+                status__in=["approved", "paid"],
+            ).aggregate(total=Sum("commission_amount"))["total"]
+            or 0
+        )
 
-        commission_preview = CommissionEntry.objects.filter(
-            agent=agent_profile,
-            order__company=company,
-            order__status="draft",
-        ).aggregate(total=Sum("commission_amount"))["total"] or 0
+        commission_preview = (
+            CommissionEntry.objects.filter(
+                agent=agent_profile,
+                order__company=company,
+                order__status="draft",
+            ).aggregate(total=Sum("commission_amount"))["total"]
+            or 0
+        )
 
         membership = AgentCompanyMembership.objects.filter(
             agent=agent_profile, company=company
@@ -414,7 +435,9 @@ class AgentMembershipViewSet(GenericViewSet):
             "commission_earned": commission_earned,
             "commission_preview": commission_preview,
             "leaderboard_rank": rank,
-            "target_vs_actual": round(target_vs_actual, 1) if target_vs_actual is not None else None,
+            "target_vs_actual": round(target_vs_actual, 1)
+            if target_vs_actual is not None
+            else None,
             "monthly_target": monthly_target,
         }
 
@@ -430,7 +453,9 @@ class AgentMembershipViewSet(GenericViewSet):
         company = getattr(request, "company", None)
         if not company:
             return Response(
-                {"detail": "No active company context. Use X-Company-Id header or switch company."},
+                {
+                    "detail": "No active company context. Use X-Company-Id header or switch company."
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -446,7 +471,10 @@ class AgentMembershipViewSet(GenericViewSet):
                 {"detail": "Membership not found."},
                 status=status.HTTP_404_NOT_FOUND,
             )
-        if request.user.role != "superadmin" and membership.company_id != request.user.company_id:
+        if (
+            request.user.role != "superadmin"
+            and membership.company_id != request.user.company_id
+        ):
             return Response(
                 {"detail": "You can only view agents in your company."},
                 status=status.HTTP_403_FORBIDDEN,
@@ -461,7 +489,9 @@ class AgentMembershipViewSet(GenericViewSet):
             company_id = request.query_params.get("company_id")
             if not company_id:
                 return Response(
-                    {"detail": "company_id query parameter is required for super admin."},
+                    {
+                        "detail": "company_id query parameter is required for super admin."
+                    },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
         else:

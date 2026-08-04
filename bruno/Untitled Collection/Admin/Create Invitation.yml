@@ -1,0 +1,25 @@
+info:
+  name: Create Invitation
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/admin/invitations"
+  body:
+    type: json
+    data: |-
+      {
+        "email": "admin@gmail.com",
+        "phone": "9878605748",
+        "max_uses": 7
+      }
+  auth:
+    type: bearer
+    token: "{{access_admin}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

@@ -1,0 +1,22 @@
+info:
+  name: login
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/auth/login"
+  body:
+    type: json
+    data: |-
+      {
+        "email": "superadmin@gmail.com",
+        "password": "Password784"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

@@ -1,0 +1,29 @@
+info:
+  name: setup profile
+  type: http
+  seq: 8
+
+http:
+  method: PATCH
+  url: "{{BASE_URL}}/admin/setup/profile"
+  body:
+    type: json
+    data: |-
+      {
+        "name": "y-company",
+        "tagline": "company",
+        "address_line1": "Dummy address",
+        "address_line2": "Malapuuram",
+        "city": "Malappuram",
+        "state": "Kerala",
+        "pincode": "786756"
+      }
+  auth:
+    type: bearer
+    token: "{{access_admin}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

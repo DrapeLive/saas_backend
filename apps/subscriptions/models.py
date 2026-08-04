@@ -6,6 +6,7 @@ from apps.core.models import TimeStampedModel, UUIDModel
 
 
 class PlanTier(models.TextChoices):
+    FREE = "free", "Free"
     STARTER = "starter", "Starter"
     PROFESSIONAL = "professional", "Professional"
     ENTERPRISE = "enterprise", "Enterprise"
@@ -70,6 +71,21 @@ class Plan(UUIDModel, TimeStampedModel):
     @classmethod
     def get_defaults(cls):
         return [
+            {
+                "tier": PlanTier.FREE,
+                "name": "Free",
+                "monthly_price": 0,
+                "yearly_price": 0,
+                "trial_days": 0,
+                "max_agents": 1,
+                "max_customers": 50,
+                "max_products": 100,
+                "max_orders_per_month": 50,
+                "storage_gb": 10,
+                "tally_sync_enabled": False,
+                "whatsapp_enabled": False,
+                "display_order": 0,
+            },
             {
                 "tier": PlanTier.STARTER,
                 "name": "Starter",

@@ -1,0 +1,26 @@
+info:
+  name: upgrade Subscription
+  type: http
+  seq: 9
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/subscriptions/b3ecb7bd-361a-4fd2-b7f1-7a554c6475f2/upgrade/"
+  body:
+    type: json
+    data: |-
+      {
+        "plan_id": "53734936-9184-4a7c-809c-d42bb6ee904b",
+        "billing_cycle": "monthly",
+        "discount_pct": "10",
+        "notes": "Good"
+      }
+  auth:
+    type: bearer
+    token: "{{access}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

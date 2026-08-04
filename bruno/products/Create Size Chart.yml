@@ -1,0 +1,31 @@
+info:
+  name: Create Size Chart
+  type: http
+  seq: 6
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/size-charts/"
+  body:
+    type: json
+    data: |-
+      {
+          "name": "Kids Shirt",
+          "sizes": [
+              "20-24",
+              "24-28",
+              "28-32",
+              "32-34",
+              "34-36",
+              "38"
+          ]
+      }
+  auth:
+    type: bearer
+    token: "{{access_admin}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

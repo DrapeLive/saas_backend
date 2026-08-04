@@ -1,0 +1,24 @@
+info:
+  name: extend trials
+  type: http
+  seq: 7
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/super-admin/companies/34548a8b-3322-44f3-ad9b-48ba4e40278c/extend-trial"
+  body:
+    type: json
+    data: |-
+      {
+        "days": 30,
+        "reason": "Nothing"
+      }
+  auth:
+    type: bearer
+    token: "{{access}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

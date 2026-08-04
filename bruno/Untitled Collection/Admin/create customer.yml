@@ -1,0 +1,52 @@
+info:
+  name: create customer
+  type: http
+  seq: 24
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/admin/customers/"
+  body:
+    type: json
+    data: |-
+      {
+        "legal_name": "ABC Traders Private Limited",
+        "trade_name": "ABC Traders",
+        "owner_name": "Rahul Sharma",
+        "email": "rahul.sharma@example.com",
+        "phone": "+91-9876543210",
+        "whatsapp_number": "+91-9876543210",
+        "gstin": "29ABCDE1234F1Z3",
+        "pan": "ABCDE1234F",
+        "tags": [
+          "Wholesale",
+          "Preferred Customer",
+          "South Region"
+        ],
+        "billing_address_line1": "123 MG Road",
+        "billing_address_line2": "Near City Mall",
+        "billing_city": "Bengaluru",
+        "billing_state": "Karnataka",
+        "billing_pincode": "560001",
+        "shipping_address_line1": "456 Industrial Area",
+        "shipping_address_line2": "Warehouse Block B",
+        "shipping_city": "Bengaluru",
+        "shipping_state": "Karnataka",
+        "shipping_pincode": "560048",
+        "same_as_billing": false,
+        "assigned_agent": "1c542f2b-eb67-41f0-8aae-8f8abbc79ce5",
+        "credit_limit": 500000,
+        "payment_terms_days": 30,
+        "auto_block_on_exceed": true,
+        "status": "active",
+        "internal_notes": "Priority customer with monthly billing. Review credit limit every quarter."
+      }
+  auth:
+    type: bearer
+    token: "{{access_admin}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

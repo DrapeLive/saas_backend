@@ -1,0 +1,24 @@
+info:
+  name: setup tax
+  type: http
+  seq: 11
+
+http:
+  method: PATCH
+  url: "{{BASE_URL}}/admin/setup/tax"
+  body:
+    type: json
+    data: |-
+      {
+        "default_gst_rate": "12",
+        "reverse_charge": true
+      }
+  auth:
+    type: bearer
+    token: "{{access_admin}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

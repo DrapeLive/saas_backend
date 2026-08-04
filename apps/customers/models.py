@@ -137,7 +137,7 @@ class CustomerDocument(CompanyScopeModel):
     )
     doc_type = models.CharField(max_length=20, choices=DocType.choices)
     title = models.CharField(max_length=200)
-    file = models.FileField(upload_to="customer/docs/%Y/%m/")
+    file = models.FileField(upload_to="media/customer/docs/%Y/%m/")
     uploaded_by = models.ForeignKey(
         "accounts.User", on_delete=models.SET_NULL, null=True
     )

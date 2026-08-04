@@ -1,0 +1,24 @@
+info:
+  name: Change status of Company
+  type: http
+  seq: 11
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/super-admin/companies/34548a8b-3322-44f3-ad9b-48ba4e40278c/status"
+  body:
+    type: json
+    data: |-
+      {
+        "status": "active",
+        "reason": "nothing"
+      }
+  auth:
+    type: bearer
+    token: "{{access}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

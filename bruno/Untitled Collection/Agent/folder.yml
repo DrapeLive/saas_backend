@@ -1,0 +1,9 @@
+info:
+  name: Agent
+  type: folder
+  seq: 12
+
+request:
+  auth:
+    type: bearer
+    token: "{{access_agent}}"

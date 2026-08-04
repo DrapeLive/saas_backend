@@ -1,0 +1,43 @@
+info:
+  name: create orders
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/orders/"
+  headers:
+    - name: X-Company-Id
+      value: 34548a8b-3322-44f3-ad9b-48ba4e40278c
+  body:
+    type: json
+    data: |-
+      {
+        "customer": "b41c24bd-fb5d-4351-b71f-cef183bda290",
+        "items": [
+          {
+            "variant_size": "443aa359-6bd5-410c-9ee7-fffbe7f5a665",
+            "quantity": 2,
+            "discount_pct": 10
+          }
+        ],
+        "discount_pct": 5,
+        "delivery_address_line1": "Flat 302, Green Residency",
+        "delivery_address_line2": "MG Road",
+        "delivery_city": "Bengaluru",
+        "delivery_state": "Karnataka",
+        "delivery_pincode": "560001",
+        "expected_delivery_date": "2026-08-05",
+        "order_notes": "Please deliver between 10 AM and 1 PM.",
+        "is_offline_order": false,
+        "offline_created_at": null
+      }
+  auth:
+    type: bearer
+    token: "{{access_agent}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

@@ -1,0 +1,23 @@
+info:
+  name: update specific agent copy
+  type: http
+  seq: 16
+
+http:
+  method: PATCH
+  url: "{{BASE_URL}}/admin/agents/223a5547-a246-4034-84a6-8270d9274a53"
+  body:
+    type: json
+    data: |-
+      {
+        "territory": "dummy"
+      }
+  auth:
+    type: bearer
+    token: "{{access_admin}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

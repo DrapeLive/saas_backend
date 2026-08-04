@@ -1,0 +1,20 @@
+info:
+  name: update company status activate
+  type: http
+  seq: 6
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/super-admin/companies/34548a8b-3322-44f3-ad9b-48ba4e40278c/activate"
+  body:
+    type: json
+    data: ""
+  auth:
+    type: bearer
+    token: "{{access}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

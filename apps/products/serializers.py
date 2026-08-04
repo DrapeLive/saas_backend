@@ -1,12 +1,13 @@
 from typing import ClassVar
 
+from django.db import transaction
+from django.utils.text import slugify
 from rest_framework import serializers
 
 from apps.products.models import (
     Category,
     ColorVariant,
     Product,
-    ProductImage,
     SizeChart,
     StockMovement,
     VariantSize,
@@ -77,7 +78,7 @@ class CategoryCreateUpdateSerializer(serializers.ModelSerializer):
     def validate_slug(self, value):
         request = self.context.get("request")
         company = getattr(request, "company", None)
-        qs = Category.objects.filter(tenant=company, slug=value, is_deleted=False)
+        qs = Category.objects.filter(company=company, slug=value, is_deleted=False)
         if self.instance:
             qs = qs.exclude(pk=self.instance.pk)
         if qs.exists():
@@ -102,18 +103,6 @@ class SizeChartSerializer(serializers.ModelSerializer):
         if not isinstance(value, list) or len(value) == 0:
             raise serializers.ValidationError("Sizes must be a non-empty list.")
         return value
-
-
-class ProductImageSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = ProductImage
-        fields: ClassVar = [
-            "id",
-            "image",
-            "is_primary",
-            "alt_text",
-            "display_order",
-        ]
 
 
 class VariantSizeSerializer(serializers.ModelSerializer):
@@ -141,6 +130,7 @@ class VariantSizeCreateSerializer(serializers.ModelSerializer):
         model = VariantSize
         fields: ClassVar = [
             "size",
+            "sku",
             "price_override",
             "stock_quantity",
             "reorder_level",
@@ -157,7 +147,8 @@ class ColorVariantListSerializer(serializers.ModelSerializer):
             "id",
             "color_name",
             "color_hex",
-            "color_image",
+            "image",
+            "is_primary",
             "sku",
             "is_active",
             "total_stock",
@@ -176,10 +167,10 @@ class ColorVariantDetailSerializer(serializers.ModelSerializer):
             "id",
             "color_name",
             "color_hex",
-            "color_image",
+            "image",
+            "is_primary",
             "sku",
             "qr_code",
-            "qr_data",
             "is_active",
             "sizes",
             "created_at",
@@ -195,7 +186,8 @@ class ColorVariantCreateSerializer(serializers.ModelSerializer):
         fields: ClassVar = [
             "color_name",
             "color_hex",
-            "color_image",
+            "image",
+            "is_primary",
             "is_active",
             "sizes",
         ]
@@ -230,18 +222,21 @@ class ProductListSerializer(serializers.ModelSerializer):
             "minimum_order_qty",
             "total_stock",
             "status",
-            "is_featured",
             "primary_image",
             "variant_count",
             "created_at",
         ]
 
     def get_primary_image(self, obj):
-        img = obj.images.filter(is_primary=True).first()
-        if img:
+        variant = obj.color_variants.filter(is_primary=True).first()
+        if not variant:
+            variant = obj.color_variants.first()
+        if variant and variant.image:
             request = self.context.get("request")
             return (
-                request.build_absolute_uri(img.image.url) if request else img.image.url
+                request.build_absolute_uri(variant.image.url)
+                if request
+                else variant.image.url
             )
         return None
 
@@ -251,7 +246,6 @@ class ProductDetailSerializer(serializers.ModelSerializer):
     size_chart_name = serializers.CharField(
         source="size_chart.name", read_only=True, default=None
     )
-    images = ProductImageSerializer(many=True, read_only=True)
     color_variants = ColorVariantDetailSerializer(many=True, read_only=True)
 
     class Meta:
@@ -273,9 +267,6 @@ class ProductDetailSerializer(serializers.ModelSerializer):
             "order_in_multiples",
             "total_stock",
             "status",
-            "is_featured",
-            "tags",
-            "images",
             "color_variants",
             "created_at",
             "updated_at",
@@ -300,8 +291,6 @@ class ProductCreateSerializer(serializers.ModelSerializer):
             "minimum_order_qty",
             "order_in_multiples",
             "status",
-            "is_featured",
-            "tags",
             "color_variants",
         ]
 
@@ -317,14 +306,41 @@ class ProductCreateSerializer(serializers.ModelSerializer):
             )
         return attrs
 
+    @transaction.atomic
     def create(self, validated_data):
         variants_data = validated_data.pop("color_variants", [])
+
         product = Product.objects.create(**validated_data)
+
+        total_stock = 0
+
         for variant_data in variants_data:
             sizes_data = variant_data.pop("sizes", [])
-            variant = ColorVariant.objects.create(product=product, **variant_data)
+
+            color_slug = slugify(variant_data["color_name"]).upper().replace("-", "")
+            variant_data.pop("sku", None)
+
+            variant = ColorVariant.objects.create(
+                product=product,
+                sku=f"{product.sku_prefix}-{color_slug}",
+                **variant_data,
+            )
+
             for size_data in sizes_data:
-                VariantSize.objects.create(color_variant=variant, **size_data)
+                size_data.pop("sku", None)
+                stock = size_data.get("stock_quantity", 0)
+
+                VariantSize.objects.create(
+                    color_variant=variant,
+                    sku=f"{variant.sku}-{size_data['size']}",
+                    **size_data,
+                )
+
+                total_stock += stock
+
+        product.total_stock = total_stock
+        product.save(update_fields=["total_stock"])
+
         return product
 
 
@@ -343,8 +359,6 @@ class ProductUpdateSerializer(serializers.ModelSerializer):
             "minimum_order_qty",
             "order_in_multiples",
             "status",
-            "is_featured",
-            "tags",
         ]
 
 

@@ -54,7 +54,9 @@ class Invoice(CompanyScopeModel):
     place_of_supply = models.CharField(max_length=100, blank=True)
 
     # PDF
-    pdf_file = models.FileField(upload_to="invoices/pdf/%Y/%m/", null=True, blank=True)
+    pdf_file = models.FileField(
+        upload_to="media/invoices/pdf/%Y/%m/", null=True, blank=True
+    )
     pdf_generated_at = models.DateTimeField(null=True, blank=True)
 
     tally_voucher_id = models.CharField(max_length=100, blank=True)

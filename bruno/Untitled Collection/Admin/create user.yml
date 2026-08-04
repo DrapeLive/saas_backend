@@ -1,0 +1,26 @@
+info:
+  name: create user
+  type: http
+  seq: 3
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/admin/users"
+  body:
+    type: json
+    data: |-
+      {
+        "email": "subdummyadmin@gmail.com",
+        "password": "Password4563",
+        "full_name": "sub dummy admin",
+        "phone": "7879684676"
+      }
+  auth:
+    type: bearer
+    token: "{{access_admin}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

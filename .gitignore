@@ -68,3 +68,5 @@ dump.rdb
 
 *.env.*
 !.env.example
+
+media/

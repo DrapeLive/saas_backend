@@ -1,0 +1,26 @@
+info:
+  name: setup notification
+  type: http
+  seq: 12
+
+http:
+  method: PATCH
+  url: "{{BASE_URL}}/admin/setup/notifications"
+  body:
+    type: json
+    data: |-
+      {
+        "notify_order_whatsapp": true,
+        "notify_order_email": true,
+        "notify_low_stock": true,
+        "notify_payment_due_days": true
+      }
+  auth:
+    type: bearer
+    token: "{{access_admin}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

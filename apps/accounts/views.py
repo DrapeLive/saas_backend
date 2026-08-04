@@ -2,7 +2,19 @@ from datetime import timedelta
 from decimal import Decimal
 
 from django.contrib.auth.tokens import default_token_generator
-from django.db.models import Avg, Case, Count, DecimalField, ExpressionWrapper, F, FloatField, Q, Sum, Value, When
+from django.db.models import (
+    Avg,
+    Case,
+    Count,
+    DecimalField,
+    ExpressionWrapper,
+    F,
+    FloatField,
+    Q,
+    Sum,
+    Value,
+    When,
+)
 from django.db.models.functions import Coalesce, Extract, TruncMonth
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
@@ -23,8 +35,8 @@ from apps.accounts.models import RoleType, User
 from apps.accounts.permissions import (
     CanManageUsers,
     CompanyApproved,
+    IsAdmin,
     IsAgent,
-    IsCompanyAdmin,
     IsCompanyAdminOrAbove,
     IsSuperAdmin,
 )
@@ -219,7 +231,12 @@ class AuthViewSet(GenericViewSet):
         request.user.save(update_fields=["password"])
         return Response({"detail": "Password changed successfully."})
 
-    @action(detail=False, methods=["post"], url_path="password/reset", permission_classes=[AllowAny])
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="password/reset",
+        permission_classes=[AllowAny],
+    )
     def password_reset(self, request, *args, **kwargs):
         serializer = PasswordResetSerializer(
             data=request.data, context={"request": request}
@@ -244,7 +261,12 @@ class AuthViewSet(GenericViewSet):
             {"detail": "Password reset initiated.", "uid": uid, "token": token}
         )
 
-    @action(detail=False, methods=["post"], url_path="password/reset/confirm", permission_classes=[AllowAny])
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="password/reset/confirm",
+        permission_classes=[AllowAny],
+    )
     def password_reset_confirm(self, request, *args, **kwargs):
         serializer = PasswordResetConfirmSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -366,9 +388,7 @@ class AdminUserViewSet(GenericViewSet):
         )
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
-        return Response(
-            UserAdminSerializer(user).data, status=status.HTTP_201_CREATED
-        )
+        return Response(UserAdminSerializer(user).data, status=status.HTTP_201_CREATED)
 
     def update(self, request, pk=None, *args, **kwargs):
         try:
@@ -386,9 +406,7 @@ class AdminUserViewSet(GenericViewSet):
                     status=status.HTTP_403_FORBIDDEN,
                 )
 
-        serializer = UserAdminSerializer(
-            user, data=request.data, partial=True
-        )
+        serializer = UserAdminSerializer(user, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(UserAdminSerializer(user).data)
@@ -416,15 +434,17 @@ class AdminUserViewSet(GenericViewSet):
 
 class InvitationViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
-    permission_classes = (IsAuthenticated, CompanyApproved, IsCompanyAdmin)
+    permission_classes = (IsAuthenticated, CompanyApproved, IsAdmin)
 
     def get_serializer_class(self):
         return None
 
     def list(self, request, *args, **kwargs):
-        invitations = AgentInvitation.objects.filter(
-            company=request.user.company
-        ).select_related("invited_by").order_by("-created_at")
+        invitations = (
+            AgentInvitation.objects.filter(company=request.user.company)
+            .select_related("invited_by")
+            .order_by("-created_at")
+        )
         data = [
             {
                 "id": str(inv.id),
@@ -442,8 +462,9 @@ class InvitationViewSet(GenericViewSet):
         return Response(data)
 
     def create(self, request, *args, **kwargs):
-        from django.utils import timezone
         import secrets
+
+        from django.utils import timezone
 
         email = request.data.get("email", "")
         phone = request.data.get("phone", "")
@@ -570,39 +591,51 @@ class AdminDashboardViewSet(GenericViewSet):
 
         orders_today = base_orders.filter(submitted_at__date=today_date).count()
 
-        sales_today = base_orders.filter(
-            Q(status="confirmed")
-            | Q(status="dispatched")
-            | Q(status="delivered"),
-            submitted_at__date=today_date,
-        ).aggregate(total=Sum("total_amount"))["total"] or 0
+        sales_today = (
+            base_orders.filter(
+                Q(status="confirmed") | Q(status="dispatched") | Q(status="delivered"),
+                submitted_at__date=today_date,
+            ).aggregate(total=Sum("total_amount"))["total"]
+            or 0
+        )
 
         invoices = Invoice.objects.filter(company=company)
-        outstanding_total = invoices.filter(
-            status__in=["issued", "partial", "overdue"]
-        ).aggregate(total=Sum("amount_due"))["total"] or 0
-
-        overdue_total = invoices.filter(
-            due_date__lt=today_date,
-            status__in=["issued", "partial", "overdue"],
-        ).aggregate(total=Sum("amount_due"))["total"] or 0
-
-        avg_order_value = base_orders.filter(
-            submitted_at__date__gte=thirty_days_ago,
-        ).aggregate(avg=Avg("total_amount"))["avg"] or 0
-
-        response_times = base_orders.filter(
-            confirmed_at__isnull=False,
-            submitted_at__isnull=False,
-        ).annotate(
-            response_seconds=ExpressionWrapper(
-                Extract("confirmed_at", "epoch") - Extract("submitted_at", "epoch"),
-                output_field=FloatField(),
-            ),
-        ).aggregate(avg_seconds=Avg("response_seconds"))
-        agent_response_time = (
-            (response_times["avg_seconds"] or 0) / 3600
+        outstanding_total = (
+            invoices.filter(status__in=["issued", "partial", "overdue"]).aggregate(
+                total=Sum("amount_due")
+            )["total"]
+            or 0
         )
+
+        overdue_total = (
+            invoices.filter(
+                due_date__lt=today_date,
+                status__in=["issued", "partial", "overdue"],
+            ).aggregate(total=Sum("amount_due"))["total"]
+            or 0
+        )
+
+        avg_order_value = (
+            base_orders.filter(
+                submitted_at__date__gte=thirty_days_ago,
+            ).aggregate(avg=Avg("total_amount"))["avg"]
+            or 0
+        )
+
+        response_times = (
+            base_orders.filter(
+                confirmed_at__isnull=False,
+                submitted_at__isnull=False,
+            )
+            .annotate(
+                response_seconds=ExpressionWrapper(
+                    Extract("confirmed_at", "epoch") - Extract("submitted_at", "epoch"),
+                    output_field=FloatField(),
+                ),
+            )
+            .aggregate(avg_seconds=Avg("response_seconds"))
+        )
+        agent_response_time = (response_times["avg_seconds"] or 0) / 3600
 
         submitted_count = base_orders.filter(
             submitted_at__date__gte=month_start,
@@ -627,9 +660,7 @@ class AdminDashboardViewSet(GenericViewSet):
                     "overdue_total": overdue_total,
                     "avg_order_value": avg_order_value,
                     "agent_response_time": round(agent_response_time, 1),
-                    "order_conversion_rate": round(
-                        float(order_conversion_rate), 4
-                    ),
+                    "order_conversion_rate": round(float(order_conversion_rate), 4),
                 }
             ).data
         )
@@ -713,9 +744,7 @@ class AdminAnalyticsViewSet(GenericViewSet):
 
         total_customers = CustomerProfile.objects.filter(company=company).count()
         customers_with_orders = (
-            CustomerProfile.objects.filter(
-                company=company, orders__isnull=False
-            )
+            CustomerProfile.objects.filter(company=company, orders__isnull=False)
             .distinct()
             .count()
         )
@@ -738,7 +767,7 @@ class AdminAnalyticsViewSet(GenericViewSet):
 
 class CompanySetupViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
-    permission_classes = (IsAuthenticated, CompanyApproved, IsCompanyAdmin)
+    permission_classes = (IsAuthenticated, CompanyApproved, IsAdmin)
 
     def _get_settings(self, company):
         settings, _ = CompanySettings.objects.get_or_create(company=company)
@@ -746,21 +775,27 @@ class CompanySetupViewSet(GenericViewSet):
 
     @action(detail=False, methods=["patch"], url_path="setup/profile")
     def update_profile(self, request):
-        serializer = SetupProfileSerializer(request.company, data=request.data, partial=True)
+        serializer = SetupProfileSerializer(
+            request.company, data=request.data, partial=True
+        )
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
 
     @action(detail=False, methods=["patch"], url_path="setup/bank")
     def update_bank(self, request):
-        serializer = SetupBankSerializer(request.company, data=request.data, partial=True)
+        serializer = SetupBankSerializer(
+            request.company, data=request.data, partial=True
+        )
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
 
     @action(detail=False, methods=["patch"], url_path="setup/invoice")
     def update_invoice(self, request):
-        serializer = SetupInvoiceSerializer(request.company, data=request.data, partial=True)
+        serializer = SetupInvoiceSerializer(
+            request.company, data=request.data, partial=True
+        )
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
@@ -768,7 +803,9 @@ class CompanySetupViewSet(GenericViewSet):
     @action(detail=False, methods=["patch"], url_path="setup/tax")
     def update_tax(self, request):
         settings = self._get_settings(request.company)
-        serializer = SetupTaxSettingsSerializer(settings, data=request.data, partial=True)
+        serializer = SetupTaxSettingsSerializer(
+            settings, data=request.data, partial=True
+        )
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
@@ -776,7 +813,9 @@ class CompanySetupViewSet(GenericViewSet):
     @action(detail=False, methods=["patch"], url_path="setup/notifications")
     def update_notifications(self, request):
         settings = self._get_settings(request.company)
-        serializer = SetupNotificationSerializer(settings, data=request.data, partial=True)
+        serializer = SetupNotificationSerializer(
+            settings, data=request.data, partial=True
+        )
         serializer.is_valid(raise_exception=True)
         serializer.save()
         request.company.setup_completed = True

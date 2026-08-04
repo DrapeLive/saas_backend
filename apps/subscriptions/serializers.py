@@ -88,12 +88,19 @@ class PlanCreateUpdateSerializer(serializers.ModelSerializer):
         return value
 
     def validate(self, attrs):
-        monthly = attrs.get("monthly_price", 0)
-        yearly = attrs.get("yearly_price", 0)
+        # Bug #6 fix: on PATCH, only one price may be provided. Fall back to the
+        # instance's current value rather than 0 so the discount check is not silently skipped.
+        instance = self.instance
+        monthly = attrs.get(
+            "monthly_price", getattr(instance, "monthly_price", 0) if instance else 0
+        )
+        yearly = attrs.get(
+            "yearly_price", getattr(instance, "yearly_price", 0) if instance else 0
+        )
         if yearly > 0 and monthly > 0 and yearly >= monthly * 12:
             raise serializers.ValidationError(
                 {
-                    "yearly_price": "Yearly price should be less than 12× the monthly price (discount expected)."
+                    "yearly_price": "Yearly price should be less than 12\u00d7 the monthly price (discount expected)."
                 }
             )
         return attrs
@@ -196,7 +203,13 @@ class SubscriptionDetailSerializer(serializers.ModelSerializer):
 class SubscriptionUpgradeSerializer(serializers.Serializer):
     plan_id = serializers.UUIDField()
     billing_cycle = serializers.ChoiceField(choices=BillingCycle.choices)
-    discount_pct = serializers.DecimalField(max_digits=5, decimal_places=2, default=0)
+    discount_pct = serializers.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=0,
+        min_value=0,
+        max_value=100,
+    )
     notes = serializers.CharField(required=False, allow_blank=True)
 
     def validate_plan_id(self, value):
@@ -208,3 +221,36 @@ class SubscriptionUpgradeSerializer(serializers.Serializer):
 class SubscriptionExtendSerializer(serializers.Serializer):
     extend_days = serializers.IntegerField(min_value=1, max_value=365)
     notes = serializers.CharField(required=False, allow_blank=True)
+
+
+class SubscriptionCreateSerializer(serializers.Serializer):
+    company_id = serializers.UUIDField()
+    plan_id = serializers.UUIDField()
+    billing_cycle = serializers.ChoiceField(
+        choices=BillingCycle.choices, default=BillingCycle.TRIAL
+    )
+
+    def validate_company_id(self, value):
+        from apps.companies.models import Company
+
+        try:
+            company = Company.objects.get(pk=value)
+        except Company.DoesNotExist:
+            raise serializers.ValidationError("Company not found.")
+
+        if company.subscription_id:
+            raise serializers.ValidationError(
+                "This company already has a subscription."
+            )
+
+        self.context["company"] = company
+        return value
+
+    def validate_plan_id(self, value):
+        try:
+            plan = Plan.objects.get(pk=value)
+        except Plan.DoesNotExist:
+            raise serializers.ValidationError("Plan not found.")
+
+        self.context["plan"] = plan
+        return value

@@ -12,7 +12,7 @@ class AuditLogListSerializer(serializers.ModelSerializer):
         source="user.full_name", read_only=True, default=None
     )
     company_name = serializers.CharField(
-        source="tenant.name", read_only=True, default=None
+        source="company.name", read_only=True, default=None
     )
 
     class Meta:
@@ -40,14 +40,14 @@ class AuditLogDetailSerializer(serializers.ModelSerializer):
         source="user.email", read_only=True, default=None
     )
     company_name = serializers.CharField(
-        source="tenant.name", read_only=True, default=None
+        source="company.name", read_only=True, default=None
     )
 
     class Meta:
         model = AuditLog
         fields: ClassVar = [
             "id",
-            "tenant",
+            "company",
             "company_name",
             "user",
             "user_name",

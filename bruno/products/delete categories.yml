@@ -1,0 +1,17 @@
+info:
+  name: delete categories
+  type: http
+  seq: 4
+
+http:
+  method: DELETE
+  url: "{{BASE_URL}}/categories/80c7cc93-3ce1-477e-a88d-309959f8d248/"
+  auth:
+    type: bearer
+    token: "{{access_admin}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

@@ -1,0 +1,23 @@
+info:
+  name: update Products
+  type: http
+  seq: 11
+
+http:
+  method: PATCH
+  url: "{{BASE_URL}}/products/2e77b239-a7d4-412d-83c1-308a5244c983/"
+  body:
+    type: json
+    data: |-
+      {
+        "description": "Good Shirt"
+      }
+  auth:
+    type: bearer
+    token: "{{access_admin}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

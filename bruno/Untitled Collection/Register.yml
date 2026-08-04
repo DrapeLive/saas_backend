@@ -1,0 +1,26 @@
+info:
+  name: Register
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/auth/signup"
+  body:
+    type: json
+    data: |-
+      {
+        "email": "admin@gmail.com",
+        "password": "password!123",
+        "full_name": "Admin",
+        "phone": "9878605748",
+        "company_name":"xcompany",
+        "company_slug": "x-company"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

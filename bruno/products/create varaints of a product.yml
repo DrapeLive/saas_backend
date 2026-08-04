@@ -1,0 +1,37 @@
+info:
+  name: create varaints of a product
+  type: http
+  seq: 16
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/products/2e77b239-a7d4-412d-83c1-308a5244c983/variants/"
+  body:
+    type: multipart-form
+    data:
+      - name: color_name
+        type: text
+        value: white
+      - name: color_hex
+        type: text
+        value: "#FFFFFF"
+      - name: image
+        type: file
+        value:
+          - /home/muflih/Pictures/LOGO.png
+        contentType: image/png
+      - name: is_primary
+        type: text
+        value: "true"
+      - name: is_active
+        type: text
+        value: "true"
+  auth:
+    type: bearer
+    token: "{{access_admin}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

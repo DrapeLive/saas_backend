@@ -28,7 +28,7 @@ class NotificationTemplateDetailSerializer(serializers.ModelSerializer):
         model = NotificationTemplate
         fields: ClassVar = [
             "id",
-            "tenant",
+            "company",
             "event_type",
             "channel",
             "subject",
@@ -105,7 +105,7 @@ class NotificationDetailSerializer(serializers.ModelSerializer):
         model = Notification
         fields: ClassVar = [
             "id",
-            "tenant",
+            "company",
             "recipient",
             "recipient_name",
             "recipient_phone",

@@ -1,0 +1,35 @@
+info:
+  name: Create Plan
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/plans/"
+  body:
+    type: json
+    data: |-
+      {
+          "tier": "free",
+          "name": "Free",
+          "monthly_price": 0,
+          "yearly_price": 0,
+          "trial_days": 0,
+          "max_agents": 1,
+          "max_customers": 50,
+          "max_products": 100,
+          "max_orders_per_month": 50,
+          "storage_gb": 10,
+          "tally_sync_enabled": false,
+          "whatsapp_enabled": false,
+          "display_order": 0
+      }
+  auth:
+    type: bearer
+    token: "{{access}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

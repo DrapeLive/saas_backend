@@ -1,5 +1,10 @@
+import json
+import uuid
+from io import BytesIO
 from typing import ClassVar
 
+import qrcode
+from django.core.files import File
 from django.db import models
 
 from apps.core.models import (
@@ -27,7 +32,7 @@ class Category(CompanyScopeModel, SoftDeleteModel):
         related_name="children",
     )
     description = models.TextField(blank=True)
-    image = models.ImageField(upload_to="categories/", null=True, blank=True)
+    image = models.ImageField(upload_to="media/categories/", null=True, blank=True)
     display_order = models.PositiveSmallIntegerField(default=0)
     is_active = models.BooleanField(default=True)
 
@@ -99,31 +104,18 @@ class Product(CompanyScopeModel, SoftDeleteModel):
         return f"{self.name} ({self.company.name})"
 
 
-class ProductImage(UUIDModel, TimeStampedModel):
-    product = models.ForeignKey(
-        Product, on_delete=models.CASCADE, related_name="images"
-    )
-    image = models.ImageField(upload_to="products/%Y/%m/")
-    is_primary = models.BooleanField(default=False)
-    alt_text = models.CharField(max_length=200, blank=True)
-    display_order = models.PositiveSmallIntegerField(default=0)
-
-    class Meta:
-        db_table = "products_image"
-        ordering: ClassVar = ["display_order"]
-
-
 class ColorVariant(UUIDModel, TimeStampedModel):
     product = models.ForeignKey(
         Product, on_delete=models.CASCADE, related_name="color_variants"
     )
     color_name = models.CharField(max_length=100)
     color_hex = models.CharField(max_length=7, blank=True)
-    color_image = models.ImageField(upload_to="products/colors/", null=True, blank=True)
-    sku = models.CharField(max_length=50, unique=True)  # auto-generated
-    qr_code = models.ImageField(upload_to="products/qr/", null=True, blank=True)
-    qr_data = models.TextField(blank=True, help_text="JSON payload encoded in QR")
-
+    image = models.ImageField(
+        upload_to="media/products/variants/", null=True, blank=True
+    )
+    is_primary = models.BooleanField(default=False)
+    sku = models.CharField(max_length=50, unique=True)
+    qr_code = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     is_active = models.BooleanField(default=True)
 
     class Meta:

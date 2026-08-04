@@ -1,0 +1,25 @@
+info:
+  name: Create Subscription
+  type: http
+  seq: 7
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/subscriptions/"
+  body:
+    type: json
+    data: |-
+      {
+        "company_id": "34548a8b-3322-44f3-ad9b-48ba4e40278c",
+        "plan_id": "99b2a059-ade6-463e-a472-d8b5f7a70111",
+        "billing_cycle": "monthly"
+      }
+  auth:
+    type: bearer
+    token: "{{access}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

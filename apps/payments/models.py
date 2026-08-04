@@ -32,7 +32,7 @@ class Payment(CompanyScopeModel):
     mode = models.CharField(max_length=15, choices=PaymentMode.choices)
     reference_no = models.CharField(max_length=100, blank=True)
     receipt_file = models.FileField(
-        upload_to="payments/receipts/", null=True, blank=True
+        upload_to="media/payments/receipts/", null=True, blank=True
     )
     notes = models.TextField(blank=True)
 

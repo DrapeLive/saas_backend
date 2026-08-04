@@ -14,7 +14,6 @@ from apps.products.models import (
     Category,
     ColorVariant,
     Product,
-    ProductImage,
     SizeChart,
     StockMovement,
     VariantSize,
@@ -28,7 +27,6 @@ from apps.products.serializers import (
     ColorVariantListSerializer,
     ProductCreateSerializer,
     ProductDetailSerializer,
-    ProductImageSerializer,
     ProductListSerializer,
     ProductUpdateSerializer,
     SizeChartSerializer,
@@ -51,7 +49,7 @@ class CategoryViewSet(GenericViewSet):
 
     def _get_obj(self, pk, company):
         try:
-            return Category.objects.get(pk=pk, tenant=company, is_deleted=False)
+            return Category.objects.get(pk=pk, company=company, is_deleted=False)
         except Category.DoesNotExist:
             return None
 
@@ -59,7 +57,7 @@ class CategoryViewSet(GenericViewSet):
     def list(self, request):
         company = self._get_company(request)
         qs = (
-            Category.objects.filter(tenant=company, is_deleted=False, parent=None)
+            Category.objects.filter(company=company, is_deleted=False, parent=None)
             .prefetch_related("children")
             .order_by("display_order", "name")
         )
@@ -81,7 +79,7 @@ class CategoryViewSet(GenericViewSet):
             data=request.data, context={"request": request}
         )
         serializer.is_valid(raise_exception=True)
-        category = serializer.save(tenant=company)
+        category = serializer.save(company=company)
         return Response(
             CategorySerializer(category).data, status=status.HTTP_201_CREATED
         )
@@ -98,7 +96,7 @@ class CategoryViewSet(GenericViewSet):
         )
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return Response(CategorySerializer(obj).data)
+        return Response(CategorySerializer(serializer.instance).data)
 
     # DELETE /api/categories/<pk>/
     def destroy(self, request, pk=None):
@@ -132,7 +130,7 @@ class SizeChartViewSet(GenericViewSet):
     # GET /api/size-charts/
     def list(self, request):
         company = self._get_company(request)
-        qs = SizeChart.objects.filter(tenant=company).order_by("name")
+        qs = SizeChart.objects.filter(company=company).order_by("name")
         return Response(SizeChartSerializer(qs, many=True).data)
 
     # POST /api/size-charts/
@@ -141,7 +139,7 @@ class SizeChartViewSet(GenericViewSet):
         company = self._get_company(request)
         serializer = SizeChartSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        chart = serializer.save(tenant=company)
+        chart = serializer.save(company=company)
         return Response(SizeChartSerializer(chart).data, status=status.HTTP_201_CREATED)
 
     # PATCH /api/size-charts/<pk>/
@@ -149,7 +147,7 @@ class SizeChartViewSet(GenericViewSet):
     def partial_update(self, request, pk=None):
         company = self._get_company(request)
         try:
-            chart = SizeChart.objects.get(pk=pk, tenant=company)
+            chart = SizeChart.objects.get(pk=pk, company=company)
         except SizeChart.DoesNotExist:
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
         serializer = SizeChartSerializer(chart, data=request.data, partial=True)
@@ -161,7 +159,7 @@ class SizeChartViewSet(GenericViewSet):
     def destroy(self, request, pk=None):
         company = self._get_company(request)
         try:
-            chart = SizeChart.objects.get(pk=pk, tenant=company)
+            chart = SizeChart.objects.get(pk=pk, company=company)
         except SizeChart.DoesNotExist:
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
         if Product.objects.filter(size_chart=chart, is_deleted=False).exists():
@@ -187,7 +185,7 @@ class ProductViewSet(GenericViewSet):
 
     def _get_product(self, pk, company):
         try:
-            return Product.objects.get(pk=pk, tenant=company, is_deleted=False)
+            return Product.objects.get(pk=pk, company=company, is_deleted=False)
         except Product.DoesNotExist:
             return None
 
@@ -195,9 +193,9 @@ class ProductViewSet(GenericViewSet):
     def list(self, request):
         company = self._get_company(request)
         qs = (
-            Product.objects.filter(tenant=company, is_deleted=False)
+            Product.objects.filter(company=company, is_deleted=False)
             .select_related("category")
-            .prefetch_related("images")
+            .prefetch_related("color_variants")
             .order_by("name")
         )
 
@@ -214,7 +212,9 @@ class ProductViewSet(GenericViewSet):
         if featured:
             qs = qs.filter(is_featured=True)
         if low_stock:
-            qs = qs.filter(total_stock__lte=F("color_variants__sizes__reorder_level"))
+            qs = qs.filter(
+                total_stock__lte=F("color_variants__sizes__reorder_level")
+            ).distinct()
         if search:
             qs = qs.filter(name__icontains=search) | qs.filter(
                 sku_prefix__icontains=search
@@ -230,9 +230,9 @@ class ProductViewSet(GenericViewSet):
         product = self._get_product(pk, company)
         if not product:
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
-        product_qs = Product.objects.prefetch_related(
-            "images", "color_variants__sizes"
-        ).get(pk=pk)
+        product_qs = Product.objects.prefetch_related("color_variants__sizes").get(
+            pk=pk
+        )
         return Response(
             ProductDetailSerializer(product_qs, context={"request": request}).data
         )
@@ -243,7 +243,7 @@ class ProductViewSet(GenericViewSet):
         company = self._get_company(request)
         serializer = ProductCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        product = serializer.save(tenant=company)
+        product = serializer.save(company=company)
         return Response(
             ProductDetailSerializer(product, context={"request": request}).data,
             status=status.HTTP_201_CREATED,
@@ -260,7 +260,9 @@ class ProductViewSet(GenericViewSet):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(
-            ProductDetailSerializer(product, context={"request": request}).data
+            ProductDetailSerializer(
+                serializer.instance, context={"request": request}
+            ).data
         )
 
     # DELETE /api/products/<pk>/
@@ -274,33 +276,25 @@ class ProductViewSet(GenericViewSet):
         product.save(update_fields=["is_deleted", "deleted_at"])
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    # POST /api/products/<pk>/toggle-featured/
-    @action(detail=True, methods=["post"], url_path="toggle-featured")
-    def toggle_featured(self, request, pk=None):
+    # GET /api/products/scan/<qr_code>/
+    @action(detail=False, methods=["get"], url_path=r"scan/(?P<qr_code>[0-9a-f-]+)")
+    def scan_qr(self, request, qr_code=None):
         company = self._get_company(request)
-        product = self._get_product(pk, company)
-        if not product:
-            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
-        product.is_featured = not product.is_featured
-        product.save(update_fields=["is_featured"])
-        return Response({"id": str(product.id), "is_featured": product.is_featured})
+        try:
+            variant = ColorVariant.objects.get(
+                qr_code=qr_code, product__company=company, product__is_deleted=False
+            )
+        except ColorVariant.DoesNotExist:
+            return Response(
+                {"detail": "Variant not found."}, status=status.HTTP_404_NOT_FOUND
+            )
 
-    # POST /api/products/<pk>/images/
-    @action(detail=True, methods=["post"], url_path="images")
-    @transaction.atomic
-    def upload_image(self, request, pk=None):
-        company = self._get_company(request)
-        product = self._get_product(pk, company)
-        if not product:
-            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
-        serializer = ProductImageSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        if serializer.validated_data.get("is_primary"):
-            ProductImage.objects.filter(product=product).update(is_primary=False)
-        image = serializer.save(product=product)
-        return Response(
-            ProductImageSerializer(image).data, status=status.HTTP_201_CREATED
+        product_qs = Product.objects.prefetch_related("color_variants__sizes").get(
+            pk=variant.product_id
         )
+
+        data = ProductDetailSerializer(product_qs, context={"request": request}).data
+        return Response({"scanned_variant_id": str(variant.id), "product": data})
 
 
 # ─────────────────────────────────────────────────────────────────
@@ -314,7 +308,7 @@ class ColorVariantViewSet(GenericViewSet):
 
     def _get_product(self, product_pk, company):
         try:
-            return Product.objects.get(pk=product_pk, tenant=company, is_deleted=False)
+            return Product.objects.get(pk=product_pk, company=company, is_deleted=False)
         except Product.DoesNotExist:
             return None
 
@@ -392,7 +386,7 @@ class StockViewSet(GenericViewSet):
         company = request.user.company
         qs = (
             StockMovement.objects.filter(
-                variant_size__color_variant__product__tenant=company
+                variant_size__color_variant__product__company=company
             )
             .select_related(
                 "variant_size__color_variant__product",
@@ -435,8 +429,10 @@ class StockViewSet(GenericViewSet):
 
         # Update parent product total_stock
         product = variant.color_variant.product
+        from django.db.models import Sum as DSum
+
         total = VariantSize.objects.filter(color_variant__product=product).aggregate(
-            total=F("stock_quantity")
+            total=DSum("stock_quantity")
         )
         Product.objects.filter(pk=product.pk).update(total_stock=total["total"] or 0)
 

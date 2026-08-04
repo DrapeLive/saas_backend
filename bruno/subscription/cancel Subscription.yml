@@ -1,0 +1,20 @@
+info:
+  name: cancel Subscription
+  type: http
+  seq: 11
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/subscriptions/b3ecb7bd-361a-4fd2-b7f1-7a554c6475f2/cancel/"
+  body:
+    type: json
+    data: ""
+  auth:
+    type: bearer
+    token: "{{access}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

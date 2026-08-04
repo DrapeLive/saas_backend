@@ -1,0 +1,20 @@
+info:
+  name: My Subscription plan
+  type: http
+  seq: 17
+
+http:
+  method: GET
+  url: "{{BASE_URL}}/my-subscription/plans/"
+  body:
+    type: json
+    data: ""
+  auth:
+    type: bearer
+    token: "{{access_admin}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

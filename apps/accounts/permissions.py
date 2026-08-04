@@ -10,7 +10,7 @@ class IsSuperAdmin(BasePermission):
         )
 
 
-class IsCompanyAdmin(BasePermission):
+class IsAdmin(BasePermission):
     def has_permission(self, request, view):
         return bool(
             request.user.is_authenticated
@@ -85,3 +85,23 @@ class CanManageUsers(BasePermission):
         if request.user.role == RoleType.ADMIN:
             return True
         return False
+
+
+class IsAdminOrSubAdmin(BasePermission):
+    def has_permission(self, request, view):
+        if not request.user.is_authenticated:
+            return False
+        return request.user.role in (
+            RoleType.SUB_ADMIN,
+            RoleType.ADMIN,
+        )
+
+
+class IsAdminSubAdminOrAgent(BasePermission):
+    def has_permission(self, request, view):
+        if not request.user.is_authenticated:
+            return False
+        return request.user.role in (
+            RoleType.SUB_ADMIN,
+            RoleType.AGENT,
+        )
