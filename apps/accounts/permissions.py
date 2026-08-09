@@ -102,6 +102,7 @@ class IsAdminSubAdminOrAgent(BasePermission):
         if not request.user.is_authenticated:
             return False
         return request.user.role in (
+            RoleType.ADMIN,
             RoleType.SUB_ADMIN,
             RoleType.AGENT,
         )

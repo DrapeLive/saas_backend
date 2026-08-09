@@ -10,7 +10,7 @@ http:
     type: json
     data: |-
       {
-        "refresh": "{{refresh}}"
+        "refresh": "{{refresh_admin}}"
       }
   auth: inherit
 
