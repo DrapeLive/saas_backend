@@ -11,22 +11,22 @@ http:
     data:
       - name: name
         type: text
-        value: Women's Kids Wear
+        value: Shirt
         contentType: Text
       - name: slug
         type: text
-        value: womens-kids-wear
+        value: shirt
       - name: description
         type: text
-        value: Womens's Kids collection
+        value: Shirt for all gender
       - name: image
         type: file
         value:
-          - /home/muflih/Pictures/git_profile.jpg
+          - /Users/fahad/Downloads/churuli.jpg
         contentType: image/jpeg
       - name: display_order
         type: text
-        value: "3"
+        value: "1"
       - name: is_active
         type: text
         value: "true"
@@ -35,10 +35,10 @@ http:
         value: "1"
       - name: parent
         type: text
-        value: 236280a8-6787-474a-ae56-a7ca32956508
+        value: ""
   auth:
     type: bearer
-    token: "{{access_admin}}"
+    token: "{{ACCESS}}"
 
 settings:
   encodeUrl: true

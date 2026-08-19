@@ -8,7 +8,7 @@ http:
   url: "{{BASE_URL}}/super-admin/companies"
   auth:
     type: bearer
-    token: "{{access}}"
+    token: "{{ACCESS}}"
 
 runtime:
   variables:

@@ -20,7 +20,9 @@ class SignupSerializer(serializers.Serializer):
 
     def validate_company_slug(self, value):
         if Company.objects.filter(slug__iexact=value).exists():
-            raise serializers.ValidationError("A company with this slug already exists.")
+            raise serializers.ValidationError(
+                "A company with this slug already exists."
+            )
         return value
 
     def create(self, validated_data):
@@ -80,6 +82,7 @@ class AgentJoinSerializer(serializers.Serializer):
 
     def validate_invite_code(self, value):
         from django.utils import timezone
+
         from apps.agents.models import AgentInvitation
 
         try:
@@ -95,7 +98,9 @@ class AgentJoinSerializer(serializers.Serializer):
         if invitation.used_count >= invitation.max_uses:
             invitation.status = "expired"
             invitation.save(update_fields=["status"])
-            raise serializers.ValidationError("This invitation has reached its maximum uses.")
+            raise serializers.ValidationError(
+                "This invitation has reached its maximum uses."
+            )
 
         self.context["invitation"] = invitation
         return value
@@ -103,7 +108,9 @@ class AgentJoinSerializer(serializers.Serializer):
 
 class PasswordChangeSerializer(serializers.Serializer):
     old_password = serializers.CharField(write_only=True)
-    new_password = serializers.CharField(write_only=True, validators=[validate_password])
+    new_password = serializers.CharField(
+        write_only=True, validators=[validate_password]
+    )
 
     def validate_old_password(self, value):
         user = self.context["request"].user
@@ -127,7 +134,9 @@ class PasswordResetSerializer(serializers.Serializer):
 class PasswordResetConfirmSerializer(serializers.Serializer):
     token = serializers.CharField()
     uid = serializers.CharField()
-    new_password = serializers.CharField(write_only=True, validators=[validate_password])
+    new_password = serializers.CharField(
+        write_only=True, validators=[validate_password]
+    )
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
@@ -240,14 +249,47 @@ class SuperAdminDashboardSerializer(serializers.Serializer):
     ltv = serializers.DecimalField(max_digits=12, decimal_places=2)
 
 
+class ReceivablesAgeingSerializer(serializers.Serializer):
+    _0_30 = serializers.DecimalField(
+        source="0_30",
+        max_digits=14,
+        decimal_places=2,
+    )
+    _31_60 = serializers.DecimalField(
+        source="31_60",
+        max_digits=14,
+        decimal_places=2,
+    )
+    _60_plus = serializers.DecimalField(
+        source="60_plus",
+        max_digits=14,
+        decimal_places=2,
+    )
+
+
+class TallySyncSerializer(serializers.Serializer):
+    status = serializers.CharField()
+    last_synced_at = serializers.DateTimeField(allow_null=True)
+
+
 class AdminDashboardSerializer(serializers.Serializer):
-    orders_today = serializers.IntegerField()
-    sales_today = serializers.DecimalField(max_digits=14, decimal_places=2)
-    outstanding_total = serializers.DecimalField(max_digits=14, decimal_places=2)
-    overdue_total = serializers.DecimalField(max_digits=14, decimal_places=2)
-    avg_order_value = serializers.DecimalField(max_digits=10, decimal_places=2)
-    agent_response_time = serializers.FloatField()
-    order_conversion_rate = serializers.FloatField()
+    sales_total = serializers.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+    )
+    orders_pending = serializers.IntegerField()
+
+    outstanding_total = serializers.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+    )
+    overdue_total = serializers.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+    )
+
+    receivables_ageing = ReceivablesAgeingSerializer()
+    tally_sync = TallySyncSerializer()
 
 
 class AdminAnalyticsSerializer(serializers.Serializer):
@@ -264,8 +306,16 @@ class SetupProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = Company
         fields = [
-            "name", "logo", "tagline", "gstin",
-            "address_line1", "address_line2", "city", "state", "pincode", "country",
+            "name",
+            "logo",
+            "tagline",
+            "gstin",
+            "address_line1",
+            "address_line2",
+            "city",
+            "state",
+            "pincode",
+            "country",
         ]
 
 
@@ -291,6 +341,8 @@ class SetupNotificationSerializer(serializers.ModelSerializer):
     class Meta:
         model = CompanySettings
         fields = [
-            "notify_order_whatsapp", "notify_order_email",
-            "notify_low_stock", "notify_payment_due_days",
+            "notify_order_whatsapp",
+            "notify_order_email",
+            "notify_low_stock",
+            "notify_payment_due_days",
         ]
