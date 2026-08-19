@@ -10,13 +10,13 @@ http:
     type: json
     data: |-
       {
-        "category": "eb9374f8-56aa-4b6d-9ab7-95a62955cd01",
+        "category": "b81616f4-2858-4fcd-88f5-946f182ae1c4",
         "name": "Premium Cotton Polo T-Shirt",
         "description": "Soft premium cotton polo t-shirt with ribbed collar and comfortable fit.",
         "sku_prefix": "POL",
         "hsn_code": "61091000",
         "gst_rate": "5.00",
-        "size_chart": "96e9c42d-dc0a-4cb7-86cb-35d8fe54ce46",
+        "size_chart": "3d66b7d3-a831-453b-b318-e2a8492c9071",
         "mrp": "1299.00",
         "wholesale_price": "850.00",
         "minimum_order_qty": 2,
@@ -89,7 +89,7 @@ http:
       }
   auth:
     type: bearer
-    token: "{{access_admin}}"
+    token: "{{ACCESS}}"
 
 settings:
   encodeUrl: true

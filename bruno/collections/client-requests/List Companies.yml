@@ -1,14 +1,14 @@
 info:
-  name: List Size Chart
+  name: List Companies
   type: http
-  seq: 5
+  seq: 13
 
 http:
   method: GET
-  url: "{{BASE_URL}}/size-charts/"
+  url: "{{BASE_URL}}/super-admin/companies"
   auth:
     type: bearer
-    token: "{{access_admin}}"
+    token: "{{access}}"
 
 settings:
   encodeUrl: true

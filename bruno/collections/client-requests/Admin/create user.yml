@@ -13,11 +13,13 @@ http:
         "email": "subdummyadmin@gmail.com",
         "password": "Password4563",
         "full_name": "sub dummy admin",
-        "phone": "7879684676"
+        "phone": "7879684676",
+        "company_name": "Bruno",
+        "company_slug": "bruno"
       }
   auth:
     type: bearer
-    token: "{{access_admin}}"
+    token: "{{ACCESS}}"
 
 settings:
   encodeUrl: true

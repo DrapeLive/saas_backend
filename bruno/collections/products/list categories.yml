@@ -1,14 +1,14 @@
 info:
-  name: list companies
+  name: list categories
   type: http
   seq: 1
 
 http:
   method: GET
-  url: "{{BASE_URL}}/super-admin/companies"
+  url: "{{BASE_URL}}/categories/"
   auth:
     type: bearer
-    token: "{{access}}"
+    token: "{{ACCESS}}"
 
 settings:
   encodeUrl: true

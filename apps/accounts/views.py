@@ -71,7 +71,7 @@ from apps.companies.models import Company, CompanySettings
 from apps.customers.models import CustomerProfile
 from apps.dispatch.models import Dispatch
 from apps.invoices.models import Invoice
-from apps.orders.models import Order, OrderItem
+from apps.orders.models import Order, OrderItem, OrderStatus
 from apps.products.models import Product, VariantSize
 from apps.subscriptions.models import Subscription, SubscriptionEvent
 
@@ -584,17 +584,20 @@ class AdminDashboardViewSet(GenericViewSet):
         company = request.company
         today = now()
         today_date = today.date()
-        month_start = today_date.replace(day=1)
-        thirty_days_ago = today_date - timedelta(days=30)
 
         base_orders = Order.objects.filter(company=company)
 
-        orders_today = base_orders.filter(submitted_at__date=today_date).count()
+        orders_pending = base_orders.filter(
+            status__in=[OrderStatus.CONFIRMED, OrderStatus.PROCESSING]
+        ).count()
 
-        sales_today = (
+        sales_total = (
             base_orders.filter(
-                Q(status="confirmed") | Q(status="dispatched") | Q(status="delivered"),
-                submitted_at__date=today_date,
+                status__in=[
+                    OrderStatus.CONFIRMED,
+                    OrderStatus.PROCESSING,
+                    OrderStatus.DELIVERED,
+                ],
             ).aggregate(total=Sum("total_amount"))["total"]
             or 0
         )
@@ -615,52 +618,47 @@ class AdminDashboardViewSet(GenericViewSet):
             or 0
         )
 
-        avg_order_value = (
-            base_orders.filter(
-                submitted_at__date__gte=thirty_days_ago,
-            ).aggregate(avg=Avg("total_amount"))["avg"]
+        ageing_0_30 = (
+            invoices.filter(
+                due_date__gte=today_date - timedelta(days=30),
+                due_date__lte=today_date,
+            ).aggregate(total=Sum("amount_due"))["total"]
             or 0
         )
 
-        response_times = (
-            base_orders.filter(
-                confirmed_at__isnull=False,
-                submitted_at__isnull=False,
-            )
-            .annotate(
-                response_seconds=ExpressionWrapper(
-                    Extract("confirmed_at", "epoch") - Extract("submitted_at", "epoch"),
-                    output_field=FloatField(),
-                ),
-            )
-            .aggregate(avg_seconds=Avg("response_seconds"))
+        ageing_31_60 = (
+            invoices.filter(
+                due_date__gte=today_date - timedelta(days=60),
+                due_date__lt=today_date - timedelta(days=30),
+            ).aggregate(total=Sum("amount_due"))["total"]
+            or 0
         )
-        agent_response_time = (response_times["avg_seconds"] or 0) / 3600
 
-        submitted_count = base_orders.filter(
-            submitted_at__date__gte=month_start,
-        ).count()
-        confirmed_count = base_orders.filter(
-            confirmed_at__isnull=False,
-            confirmed_at__date__gte=month_start,
-        ).count()
-        order_conversion_rate = confirmed_count / max(submitted_count, 1)
+        ageing_60_plus = (
+            invoices.filter(
+                due_date__lt=today_date - timedelta(days=60),
+            ).aggregate(total=Sum("amount_due"))["total"]
+            or 0
+        )
 
-        if isinstance(avg_order_value, Decimal):
-            avg_order_value = float(avg_order_value)
-        if isinstance(avg_order_value, float):
-            avg_order_value = round(avg_order_value, 2)
+        tally_sync = {
+            "status": "synced",
+            "last_synced_at": None,
+        }
 
         return Response(
             AdminDashboardSerializer(
                 {
-                    "orders_today": orders_today,
-                    "sales_today": sales_today,
+                    "sales_total": sales_total,
+                    "orders_pending": orders_pending,
                     "outstanding_total": outstanding_total,
                     "overdue_total": overdue_total,
-                    "avg_order_value": avg_order_value,
-                    "agent_response_time": round(agent_response_time, 1),
-                    "order_conversion_rate": round(float(order_conversion_rate), 4),
+                    "receivables_ageing": {
+                        "0_30": ageing_0_30,
+                        "31_60": ageing_31_60,
+                        "60_plus": ageing_60_plus,
+                    },
+                    "tally_sync": tally_sync,
                 }
             ).data
         )
