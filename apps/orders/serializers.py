@@ -2,6 +2,8 @@ from typing import ClassVar
 
 from rest_framework import serializers
 
+from apps.agents.serializers import AgentUserSerializer
+from apps.customers.serializers import CustomerSerializer
 from apps.orders.models import (
     Order,
     OrderItem,
@@ -9,6 +11,7 @@ from apps.orders.models import (
     OrderStatus,
     OrderStatusHistory,
 )
+from apps.products.serializers import VariantSizeSerializer
 
 
 class OrderStatusHistorySerializer(serializers.ModelSerializer):
@@ -44,11 +47,14 @@ class OrderSignatureSerializer(serializers.ModelSerializer):
 
 
 class OrderItemSerializer(serializers.ModelSerializer):
+    variant_details = VariantSizeSerializer(source="variant_size", read_only=True)
+
     class Meta:
         model = OrderItem
         fields: ClassVar = [
             "id",
             "variant_size",
+            "variant_details",
             "product_name",
             "color_name",
             "size",
@@ -112,9 +118,7 @@ class OrderItemCreateSerializer(serializers.ModelSerializer):
 
 
 class OrderListSerializer(serializers.ModelSerializer):
-    customer_name = serializers.CharField(
-        source="customer.business_name", read_only=True
-    )
+    customer_name = serializers.CharField(source="customer.legal_name", read_only=True)
     agent_name = serializers.CharField(
         source="agent.user.full_name", read_only=True, default=None
     )
@@ -142,12 +146,9 @@ class OrderListSerializer(serializers.ModelSerializer):
 
 
 class OrderDetailSerializer(serializers.ModelSerializer):
-    customer_name = serializers.CharField(
-        source="customer.business_name", read_only=True
-    )
-    agent_name = serializers.CharField(
-        source="agent.user.full_name", read_only=True, default=None
-    )
+    customer_details = CustomerSerializer(source="customer", read_only=True)
+
+    agent_details = AgentUserSerializer(source="agent.user", read_only=True)
     approved_by_name = serializers.CharField(
         source="approved_by.full_name", read_only=True, default=None
     )
@@ -162,9 +163,9 @@ class OrderDetailSerializer(serializers.ModelSerializer):
             "order_number",
             "po_number",
             "customer",
-            "customer_name",
+            "customer_details",
             "agent",
-            "agent_name",
+            "agent_details",
             "status",
             # Pricing breakdown
             "subtotal",
