@@ -1,7 +1,7 @@
 info:
-  name: list companies
+  name: List Companies
   type: http
-  seq: 1
+  seq: 13
 
 http:
   method: GET

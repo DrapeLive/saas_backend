@@ -16,9 +16,13 @@ http:
   auth: inherit
 
 runtime:
-  variables:
-    - name: BASE_URL
-      value: https://beta.xlapparals.in/api
+  scripts:
+    - type: after-response
+      code: |-
+        let responseBody = res.getBody();
+
+        // Set it as an environment variable (Temporary for the active session)
+        bru.setEnvVar("ACCESS", responseBody.access);
 
 settings:
   encodeUrl: true

@@ -1,7 +1,7 @@
 info:
-  name: List Companies
+  name: list companies
   type: http
-  seq: 12
+  seq: 1
 
 http:
   method: GET
@@ -9,6 +9,11 @@ http:
   auth:
     type: bearer
     token: "{{access}}"
+
+runtime:
+  variables:
+    - name: BASE_URL
+      value: http://localhost:8000/api
 
 settings:
   encodeUrl: true

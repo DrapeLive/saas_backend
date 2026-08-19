@@ -1,0 +1,6 @@
+name: Dev
+variables:
+  - name: BASE_URL
+    value: http://localhost:8000/api
+  - name: ACCESS
+    value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzg3MjI1NTgwLCJpYXQiOjE3ODcxMzkxODAsImp0aSI6ImVlNTdkYmM4NGM5NzRmM2I4MWIzNmVlZDU4MTYyY2QzIiwidXNlcl9pZCI6IjNlYTlkZmIyLTJlYzMtNGE2OS05MzYwLTczMWI2NTk3ODM2ZSIsInJvbGUiOiJzdXBlcmFkbWluIiwiY29tcGFueV9pZCI6bnVsbCwiaXNfc3VwZXJfYWRtaW4iOnRydWV9.NIXJcUkT5rbq-LnfPLIzNi0n6aAZ4mrcWwHCUh_l3q4
