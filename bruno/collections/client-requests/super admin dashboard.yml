@@ -8,7 +8,7 @@ http:
   url: "{{BASE_URL}}/super-admin/dashboard"
   auth:
     type: bearer
-    token: "{{access}}"
+    token: "{{ACCESS}}"
 
 settings:
   encodeUrl: true
