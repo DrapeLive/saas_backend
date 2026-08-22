@@ -10,6 +10,7 @@ from apps.orders.models import (
     OrderSignature,
     OrderStatus,
     OrderStatusHistory,
+    PackingStatus,
 )
 from apps.products.serializers import VariantSizeSerializer
 
@@ -48,6 +49,15 @@ class OrderSignatureSerializer(serializers.ModelSerializer):
 
 class OrderItemSerializer(serializers.ModelSerializer):
     variant_details = VariantSizeSerializer(source="variant_size", read_only=True)
+    pending_qty = serializers.IntegerField(
+        read_only=True,
+        help_text="Ordered quantity minus packed quantity.",
+    )
+    packing_status = serializers.ChoiceField(
+        choices=PackingStatus.choices,
+        read_only=True,
+        help_text="Derived: unpacked | partially_packed | packed.",
+    )
 
     class Meta:
         model = OrderItem
@@ -62,6 +72,9 @@ class OrderItemSerializer(serializers.ModelSerializer):
             "hsn_code",
             "unit_price",
             "quantity",
+            "packed_quantity",
+            "pending_qty",
+            "packing_status",
             "discount_pct",
             "line_total",
             "gst_rate",
@@ -117,7 +130,18 @@ class OrderItemCreateSerializer(serializers.ModelSerializer):
         return attrs
 
 
-class OrderListSerializer(serializers.ModelSerializer):
+class PackingStatusMixin(serializers.Serializer):
+    packing_status = serializers.ChoiceField(
+        choices=PackingStatus.choices,
+        read_only=True,
+        help_text=(
+            "Order-level packing state, auto-derived from its items: "
+            "unpacked | partially_packed | packed."
+        ),
+    )
+
+
+class OrderListSerializer(PackingStatusMixin, serializers.ModelSerializer):
     customer_name = serializers.CharField(source="customer.legal_name", read_only=True)
     agent_name = serializers.CharField(
         source="agent.user.full_name", read_only=True, default=None
@@ -135,6 +159,7 @@ class OrderListSerializer(serializers.ModelSerializer):
             "agent",
             "agent_name",
             "status",
+            "packing_status",
             "total_amount",
             "item_count",
             "is_offline_order",
@@ -145,7 +170,7 @@ class OrderListSerializer(serializers.ModelSerializer):
         ]
 
 
-class OrderDetailSerializer(serializers.ModelSerializer):
+class OrderDetailSerializer(PackingStatusMixin, serializers.ModelSerializer):
     customer_details = CustomerSerializer(source="customer", read_only=True)
 
     agent_details = AgentUserSerializer(source="agent.user", read_only=True)
@@ -167,6 +192,7 @@ class OrderDetailSerializer(serializers.ModelSerializer):
             "agent",
             "agent_details",
             "status",
+            "packing_status",
             # Pricing breakdown
             "subtotal",
             "discount_pct",
@@ -276,3 +302,65 @@ class OrderApprovalSerializer(serializers.Serializer):
 
 class OrderCancelSerializer(serializers.Serializer):
     reason = serializers.CharField(min_length=5, max_length=500)
+
+
+class PackItemSerializer(serializers.Serializer):
+    item_id = serializers.UUIDField(help_text="ID of an item on this order.")
+    packed_quantity = serializers.IntegerField(
+        min_value=0,
+        help_text="Units physically packed. Must be ≤ the ordered quantity.",
+    )
+
+
+class PackItemsSerializer(serializers.Serializer):
+    """
+    Records packed quantities for order items. Packed quantity may be equal
+    to or less than the ordered quantity — over-packing is rejected.
+    """
+
+    items = PackItemSerializer(
+        many=True,
+        min_length=1,
+        help_text="Per-item packed quantities. Partial updates allowed.",
+    )
+    notes = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        help_text="Optional note recorded in the order's status history.",
+    )
+
+    def validate(self, attrs):
+        order = self.context["order"]
+        # UUIDField coerces to uuid.UUID; normalize keys to str for lookups
+        requested = {
+            str(entry["item_id"]): entry["packed_quantity"] for entry in attrs["items"]
+        }
+        if len(requested) != len(attrs["items"]):
+            raise serializers.ValidationError(
+                {"items": "Duplicate item_id entries are not allowed."}
+            )
+
+        order_items = {
+            str(item.id): item for item in order.items.filter(id__in=requested.keys())
+        }
+        missing = set(requested) - set(order_items)
+        if missing:
+            raise serializers.ValidationError(
+                {"items": f"Items not found on this order: {', '.join(sorted(missing))}."}
+            )
+
+        for item_id, packed_qty in requested.items():
+            item = order_items[item_id]
+            if packed_qty > item.quantity:
+                raise serializers.ValidationError(
+                    {
+                        "items": (
+                            f"Packed quantity ({packed_qty}) cannot exceed ordered "
+                            f"quantity ({item.quantity}) for '{item.sku}'."
+                        )
+                    }
+                )
+        attrs["_resolved_items"] = [
+            (order_items[item_id], packed_qty) for item_id, packed_qty in requested.items()
+        ]
+        return attrs

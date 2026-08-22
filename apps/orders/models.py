@@ -18,6 +18,12 @@ class OrderStatus(models.TextChoices):
     ON_HOLD = "on_hold", "On Hold"
 
 
+class PackingStatus(models.TextChoices):
+    UNPACKED = "unpacked", "Unpacked"
+    PARTIALLY_PACKED = "partially_packed", "Partially Packed"
+    PACKED = "packed", "Packed"
+
+
 class Order(CompanyScopeModel):
     order_number = models.CharField(max_length=30, unique=True, blank=True)
     po_number = models.CharField(max_length=30, blank=True, db_index=True)
@@ -104,6 +110,22 @@ class Order(CompanyScopeModel):
     def __str__(self):
         return f"{self.order_number} — {self.customer.business_name} [{self.status}]"
 
+    @property
+    def packing_status(self):
+        """
+        Derived from items: 'unpacked' when nothing is packed, 'packed' when
+        every item is fully packed, otherwise 'partially_packed'.
+        """
+        items = self.items.all()
+        if not items:
+            return PackingStatus.UNPACKED
+        statuses = {i.packing_status for i in items}
+        if statuses == {PackingStatus.PACKED}:
+            return PackingStatus.PACKED
+        if statuses == {PackingStatus.UNPACKED}:
+            return PackingStatus.UNPACKED
+        return PackingStatus.PARTIALLY_PACKED
+
 
 class OrderItem(UUIDModel, TimeStampedModel):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="items")
@@ -121,6 +143,10 @@ class OrderItem(UUIDModel, TimeStampedModel):
 
     unit_price = models.DecimalField(max_digits=10, decimal_places=2)
     quantity = models.PositiveIntegerField()
+    packed_quantity = models.PositiveIntegerField(
+        default=0,
+        help_text="Quantity actually packed. May be less than ordered quantity.",
+    )
     discount_pct = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     line_total = models.DecimalField(max_digits=12, decimal_places=2)
     gst_rate = models.DecimalField(max_digits=5, decimal_places=2, default=5.00)
@@ -131,6 +157,19 @@ class OrderItem(UUIDModel, TimeStampedModel):
 
     def __str__(self):
         return f"{self.order.order_number}: {self.product_name} {self.color_name} {self.size} ×{self.quantity}"
+
+    @property
+    def pending_qty(self):
+        """Ordered quantity not yet packed."""
+        return max(0, self.quantity - self.packed_quantity)
+
+    @property
+    def packing_status(self):
+        if self.packed_quantity <= 0:
+            return PackingStatus.UNPACKED
+        if self.packed_quantity < self.quantity:
+            return PackingStatus.PARTIALLY_PACKED
+        return PackingStatus.PACKED
 
 
 class OrderStatusHistory(UUIDModel):

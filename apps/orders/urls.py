@@ -2,6 +2,7 @@
 
 from django.urls import path
 
+from apps.accounts.permissions import IsAgent, IsAdminOrSubAdmin
 from apps.orders.views import OrderViewSet
 
 app_name = "orders"
@@ -33,12 +34,12 @@ urlpatterns = [
     # POST   /api/orders/sync/           Bulk offline order sync (Agent mobile app)
     path(
         "orders/kanban/",
-        OrderViewSet.as_view({"get": "kanban"}),
+        OrderViewSet.as_view({"get": "kanban"}, permission_classes=[IsAdminOrSubAdmin]),
         name="order-kanban",
     ),  # ✅
     path(
         "orders/sync/",
-        OrderViewSet.as_view({"post": "sync_offline"}),
+        OrderViewSet.as_view({"post": "sync_offline"}, permission_classes=[IsAgent]),
         name="order-sync-offline",
     ),  # Not checked
     # ─────────────────────────────────────────────────────────────
@@ -54,17 +55,29 @@ urlpatterns = [
     # RESOURCE-LEVEL ACTIONS
     # ─────────────────────────────────────────────────────────────
     # POST   /api/orders/<pk>/status/    Move order to any status (Admin / SubAdmin)
+    # POST   /api/orders/<pk>/pack-items/ Record packed quantities per item (Admin / SubAdmin)
     # POST   /api/orders/<pk>/approve/   Approve or reject a pending order (Admin / SubAdmin)
     # POST   /api/orders/<pk>/cancel/    Cancel order + release reserved stock
     # POST   /api/orders/<pk>/signature/ Capture customer signature (Agent)
     path(
         "orders/<uuid:pk>/status/",
-        OrderViewSet.as_view({"post": "update_status"}),
+        OrderViewSet.as_view(
+            {"post": "update_status"}, permission_classes=[IsAdminOrSubAdmin]
+        ),
         name="order-update-status",
     ),
     path(
+        "orders/<uuid:pk>/pack-items/",
+        OrderViewSet.as_view(
+            {"post": "pack_items"}, permission_classes=[IsAdminOrSubAdmin]
+        ),
+        name="order-pack-items",
+    ),
+    path(
         "orders/<uuid:pk>/approve/",
-        OrderViewSet.as_view({"post": "approve"}),
+        OrderViewSet.as_view(
+            {"post": "approve"}, permission_classes=[IsAdminOrSubAdmin]
+        ),
         name="order-approve",
     ),
     path(
@@ -74,7 +87,9 @@ urlpatterns = [
     ),
     path(
         "orders/<uuid:pk>/signature/",
-        OrderViewSet.as_view({"post": "capture_signature"}),
+        OrderViewSet.as_view(
+            {"post": "capture_signature"}, permission_classes=[IsAgent]
+        ),
         name="order-signature",
     ),
 ]

@@ -1,0 +1,31 @@
+info:
+  name: add packed quantity (pack items)
+  type: http
+  seq: 6
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/orders/8fc9038d-94d2-47ee-b7a2-133263e3d3d9/pack-items/"
+  headers:
+    - name: X-Company-Id
+      value: 34548a8b-3322-44f3-ad9b-48ba4e40278c
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: >-
+      {
+        "items": [
+          { "item_id": "replace-with-order-item-id", "packed_quantity": 80 }
+        ],
+        "notes": "20 units short-packed"
+      }
+  auth:
+    type: bearer
+    token: "{{access_token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

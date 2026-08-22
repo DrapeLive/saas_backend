@@ -25,6 +25,7 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt",
     "rest_framework_simplejwt.token_blacklist",
     "corsheaders",
+    "drf_spectacular",
     # Apps
     "apps.accounts",
     "apps.agents",
@@ -138,7 +139,25 @@ REST_FRAMEWORK = {
         "password_reset": "3/hour",
     },
     "DEFAULT_RENDERER_CLASSES": ("rest_framework.renderers.JSONRenderer",),
+    # JSON-only API: test client posts nested payloads as JSON by default
+    "TEST_REQUEST_DEFAULT_FORMAT": "json",
     "EXCEPTION_HANDLER": "apps.accounts.views.custom_exception_handler",
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+}
+
+# ---------------------------------------------------------------------------
+# OpenAPI schema (drf-spectacular)
+# ---------------------------------------------------------------------------
+SPECTACULAR_SETTINGS = {
+    "TITLE": "Drape SaaS Backend API",
+    "DESCRIPTION": (
+        "Multi-tenant textile wholesale SaaS backend. "
+        "All order endpoints are company-scoped via the JWT `company_id` claim."
+    ),
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "COMPONENT_SPLIT_REQUEST": True,
+    "SCHEMA_PATH_PREFIX": "/api",
 }
 
 # ---------------------------------------------------------------------------
