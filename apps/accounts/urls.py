@@ -8,6 +8,7 @@ from apps.accounts.views import (
     AdminUserViewSet,
     AgentRegisterView,
     AuthViewSet,
+    BusinessStatsViewSet,
     CompanySetupViewSet,
     InvitationViewSet,
     LoginView,
@@ -96,6 +97,11 @@ urlpatterns = [
         "admin/analytics",
         AdminAnalyticsViewSet.as_view({"get": "list"}),
         name="admin-analytics",
+    ),  # ✅
+    path(
+        "business/stats",
+        BusinessStatsViewSet.as_view({"get": "list"}),
+        name="business-stats",
     ),  # ✅
     path(
         "super-admin/dashboard",

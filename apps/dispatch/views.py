@@ -1,4 +1,6 @@
 from django.db import transaction
+from django.db.models import F, Value
+from django.db.models.functions import Greatest
 from django.utils.timezone import now
 from rest_framework import status
 from rest_framework.decorators import action
@@ -94,26 +96,27 @@ class DispatchViewSet(GenericViewSet):
             notes=f"LR: {dispatch.lr_number}",
         )
 
-        # Deduct reserved stock → actual OUT movement
+        # Deduct stock for what was actually packed and release ALL reservations
+        # (packed qty leaves stock; any unpacked remainder becomes sellable again).
         for item in order.items.all():
-            from django.db.models import F
-
             from apps.products.models import StockMovement, VariantSize
 
+            shipped_qty = item.packed_quantity
             VariantSize.objects.filter(pk=item.variant_size_id).update(
-                stock_quantity=F("stock_quantity") - item.quantity,
-                reserved_qty=F("reserved_qty") - item.quantity,
+                stock_quantity=F("stock_quantity") - shipped_qty,
+                reserved_qty=Greatest(F("reserved_qty") - item.quantity, Value(0)),
             )
-            item.variant_size.refresh_from_db(fields=["stock_quantity"])
-            StockMovement.objects.create(
-                variant_size=item.variant_size,
-                movement_type=StockMovement.MovementType.OUT,
-                quantity=-item.quantity,
-                balance_after=item.variant_size.stock_quantity,
-                reference_type="dispatch",
-                reference_id=dispatch.id,
-                performed_by=request.user,
-            )
+            if shipped_qty > 0:
+                item.variant_size.refresh_from_db(fields=["stock_quantity"])
+                StockMovement.objects.create(
+                    variant_size=item.variant_size,
+                    movement_type=StockMovement.MovementType.OUT,
+                    quantity=-shipped_qty,
+                    balance_after=item.variant_size.stock_quantity,
+                    reference_type="dispatch",
+                    reference_id=dispatch.id,
+                    performed_by=request.user,
+                )
 
         # Queue: generate sales invoice + WhatsApp notification
         # tasks.generate_sales_invoice.delay(str(order.id))
