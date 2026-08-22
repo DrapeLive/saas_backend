@@ -292,6 +292,22 @@ class AdminDashboardSerializer(serializers.Serializer):
     tally_sync = TallySyncSerializer()
 
 
+class BusinessStatsSerializer(serializers.Serializer):
+    total_customers = serializers.IntegerField()
+    overdue_customers = serializers.IntegerField()
+    overdue_invoices = serializers.IntegerField()
+    total_agents = serializers.IntegerField()
+    active_agents_today = serializers.IntegerField()
+    outstanding_total = serializers.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+    )
+    overdue_total = serializers.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+    )
+
+
 class AdminAnalyticsSerializer(serializers.Serializer):
     sales_trend = serializers.ListField(child=serializers.DictField())
     top_products = serializers.ListField(child=serializers.DictField())

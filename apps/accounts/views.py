@@ -45,6 +45,7 @@ from apps.accounts.serializers import (
     AdminDashboardSerializer,
     AgentJoinSerializer,
     AgentRegisterSerializer,
+    BusinessStatsSerializer,
     CreateSubAdminSerializer,
     LoginSerializer,
     PasswordChangeSerializer,
@@ -65,12 +66,13 @@ from apps.agents.models import (
     AgentCompanyMembership,
     AgentInvitation,
     AgentProfile,
+    AgentVisitLog,
 )
 from apps.commissions.models import CommissionEntry
 from apps.companies.models import Company, CompanySettings
 from apps.customers.models import CustomerProfile
 from apps.dispatch.models import Dispatch
-from apps.invoices.models import Invoice
+from apps.invoices.models import Invoice, InvoiceStatus
 from apps.orders.models import Order, OrderItem, OrderStatus
 from apps.products.models import Product, VariantSize
 from apps.subscriptions.models import Subscription, SubscriptionEvent
@@ -125,6 +127,7 @@ class LoginView(TokenViewBase):
         ip = request.META.get("REMOTE_ADDR", "")
         device = request.META.get("HTTP_USER_AGENT", "")[:200]
         User.objects.filter(pk=user.pk).update(
+            last_login=now(),
             last_login_ip=ip,
             last_login_device=device,
         )
@@ -728,8 +731,98 @@ class AdminDashboardViewSet(GenericViewSet):
                 "number_of_orders_today": stat["orders_today"],
                 "total_order_payment_today": stat["payment_today"]
             })
-            
         return Response(data)
+
+
+class BusinessStatsViewSet(GenericViewSet):
+    """
+    Business home-page metrics:
+    customers (total/overdue), agents (total/active today) and
+    receivables (outstanding/overdue amount + overdue invoice count).
+    """
+
+    authentication_classes = (CustomJWTAuthentication,)
+    permission_classes = (IsAuthenticated, CompanyApproved, IsCompanyAdminOrAbove)
+    serializer_class = BusinessStatsSerializer
+
+    def list(self, request, *args, **kwargs):
+        company = request.company
+        current = now()
+        today_date = current.date()
+        today_start = current.replace(hour=0, minute=0, second=0, microsecond=0)
+
+        unpaid_statuses = [
+            InvoiceStatus.ISSUED,
+            InvoiceStatus.PARTIAL,
+            InvoiceStatus.OVERDUE,
+        ]
+        invoices = Invoice.objects.filter(company=company)
+        overdue_qs = invoices.filter(
+            due_date__lt=today_date,
+            status__in=unpaid_statuses,
+        )
+
+        outstanding_total = (
+            invoices.filter(status__in=unpaid_statuses).aggregate(
+                total=Sum("amount_due")
+            )["total"]
+            or 0
+        )
+        overdue_total = (
+            overdue_qs.aggregate(total=Sum("amount_due"))["total"] or 0
+        )
+        overdue_invoices = overdue_qs.count()
+        overdue_customers = overdue_qs.values("customer").distinct().count()
+
+        total_customers = CustomerProfile.objects.filter(
+            company=company,
+            status=CustomerProfile.CustomerStatus.ACTIVE,
+        ).count()
+
+        active_memberships = AgentCompanyMembership.objects.filter(
+            company=company,
+            status=AgentCompanyMembership.MembershipStatus.ACTIVE,
+        )
+        total_agents = active_memberships.count()
+
+        # "Active today" = logged in OR logged a visit OR placed an order today
+        logged_in_ids = set(
+            User.objects.filter(
+                role=RoleType.AGENT,
+                agent_profile__memberships__company=company,
+                agent_profile__memberships__status="active",
+                last_login__gte=today_start,
+            ).values_list("agent_profile", flat=True)
+        )
+        visited_ids = set(
+            AgentVisitLog.objects.filter(
+                company=company,
+                visit_date=today_date,
+            ).values_list("agent_id", flat=True)
+        )
+        ordered_ids = set(
+            Order.objects.filter(
+                company=company,
+                agent__isnull=False,
+                created_at__gte=today_start,
+            ).values_list("agent_id", flat=True)
+        )
+        active_agents_today = len(logged_in_ids | visited_ids | ordered_ids)
+
+        return Response(
+            BusinessStatsSerializer(
+                {
+                    "total_customers": total_customers,
+                    "overdue_customers": overdue_customers,
+                    "overdue_invoices": overdue_invoices,
+                    "total_agents": total_agents,
+                    "active_agents_today": active_agents_today,
+                    "outstanding_total": outstanding_total,
+                    "overdue_total": overdue_total,
+                }
+            ).data
+        )
+
 
 class AdminAnalyticsViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)

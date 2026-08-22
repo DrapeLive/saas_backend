@@ -1,11 +1,14 @@
 opencollection: 1.0.0
 info:
-    name: "Saas Backend"
-    type: workspace
+  name: "Saas Backend"
+  type: workspace
 
 collections:
-    - name: "Saas Backend"
-      path: "collections"
+  - name: "Saas Backend"
+    path: "collections"
 
-docs: |-
-    Saas Backend API workspace.
+specs:
+  - name: "schema"
+    path: "../schema.yml"
+
+docs: "Saas Backend API workspace."
