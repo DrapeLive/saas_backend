@@ -1,0 +1,26 @@
+info:
+  name: trigger tally
+  type: http
+  seq: 3
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/tally/trigger/"
+  body:
+    type: json
+    data: |-
+      {
+        "entity_type": "product",
+        "entity_id": "fff65bbc-6fa2-439a-be91-0fc53d262d41",
+        "direction": "push"
+      }
+  auth:
+    type: bearer
+    token: "{{ACCESS}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
