@@ -1,0 +1,5413 @@
+openapi: 3.0.3
+info:
+  title: Drape SaaS Backend API
+  version: 1.0.0
+  description: Multi-tenant textile wholesale SaaS backend. All order endpoints are
+    company-scoped via the JWT `company_id` claim.
+paths:
+  /api/admin/agents:
+    get:
+      operationId: admin_agents_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - admin
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAgentMembershipList'
+          description: ''
+  /api/admin/agents/{id}:
+    get:
+      operationId: admin_agents_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - admin
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentMembership'
+          description: ''
+    patch:
+      operationId: admin_agents_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - admin
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedAgentMembershipUpdateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedAgentMembershipUpdateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedAgentMembershipUpdateRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentMembershipUpdate'
+          description: ''
+    delete:
+      operationId: admin_agents_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - admin
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/admin/agents/{id}/approve:
+    post:
+      operationId: admin_agents_approve_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - admin
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentMembershipRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AgentMembershipRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AgentMembershipRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentMembership'
+          description: ''
+  /api/admin/agents/{id}/performance:
+    get:
+      operationId: admin_agents_performance_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - admin
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentMembership'
+          description: ''
+  /api/admin/agents/{id}/reactivate:
+    post:
+      operationId: admin_agents_reactivate_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - admin
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentMembershipRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AgentMembershipRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AgentMembershipRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentMembership'
+          description: ''
+  /api/admin/agents/{id}/reject:
+    post:
+      operationId: admin_agents_reject_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - admin
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentMembershipRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AgentMembershipRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AgentMembershipRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentMembership'
+          description: ''
+  /api/admin/agents/{id}/review:
+    post:
+      operationId: admin_agents_review_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - admin
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentMembershipRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AgentMembershipRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AgentMembershipRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentMembership'
+          description: ''
+  /api/admin/agents/{id}/suspend:
+    post:
+      operationId: admin_agents_suspend_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - admin
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentMembershipRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AgentMembershipRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AgentMembershipRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentMembership'
+          description: ''
+  /api/admin/agents/leaderboard:
+    get:
+      operationId: admin_agents_leaderboard_retrieve
+      tags:
+      - admin
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentMembership'
+          description: ''
+  /api/admin/agents/overview:
+    get:
+      operationId: admin_agents_overview_retrieve
+      tags:
+      - admin
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentMembership'
+          description: ''
+  /api/admin/analytics:
+    get:
+      operationId: admin_analytics_list
+      tags:
+      - admin
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AdminAnalytics'
+          description: ''
+  /api/admin/customers/:
+    get:
+      operationId: admin_customers_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - admin
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedCustomerList'
+          description: ''
+    post:
+      operationId: admin_customers_create
+      tags:
+      - admin
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CustomerCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CustomerCreateRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerCreate'
+          description: ''
+  /api/admin/customers/{id}/:
+    get:
+      operationId: admin_customers_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this customer profile.
+        required: true
+      tags:
+      - admin
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Customer'
+          description: ''
+    patch:
+      operationId: admin_customers_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this customer profile.
+        required: true
+      tags:
+      - admin
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedCustomerUpdateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedCustomerUpdateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedCustomerUpdateRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerUpdate'
+          description: ''
+    delete:
+      operationId: admin_customers_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this customer profile.
+        required: true
+      tags:
+      - admin
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/admin/customers/{id}/communication-logs/:
+    get:
+      operationId: admin_customers_communication_logs_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this customer profile.
+        required: true
+      tags:
+      - admin
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerCommunicationLog'
+          description: ''
+  /api/admin/customers/{id}/compute-segment/:
+    post:
+      operationId: admin_customers_compute_segment_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this customer profile.
+        required: true
+      tags:
+      - admin
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CustomerRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CustomerRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Customer'
+          description: ''
+  /api/admin/customers/{id}/credit-block/:
+    post:
+      operationId: admin_customers_credit_block_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this customer profile.
+        required: true
+      tags:
+      - admin
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CustomerRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CustomerRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Customer'
+          description: ''
+  /api/admin/customers/{id}/credit-unblock/:
+    post:
+      operationId: admin_customers_credit_unblock_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this customer profile.
+        required: true
+      tags:
+      - admin
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CustomerRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CustomerRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Customer'
+          description: ''
+  /api/admin/customers/{id}/documents/:
+    get:
+      operationId: admin_customers_documents_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this customer profile.
+        required: true
+      tags:
+      - admin
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerDocument'
+          description: ''
+    post:
+      operationId: admin_customers_documents_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this customer profile.
+        required: true
+      tags:
+      - admin
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerDocumentRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CustomerDocumentRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CustomerDocumentRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerDocument'
+          description: ''
+  /api/admin/customers/{id}/verify-gstin/:
+    post:
+      operationId: admin_customers_verify_gstin_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this customer profile.
+        required: true
+      tags:
+      - admin
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CustomerRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CustomerRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Customer'
+          description: ''
+  /api/admin/customers/import-confirm/:
+    post:
+      operationId: admin_customers_import_confirm_create
+      tags:
+      - admin
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CustomerRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CustomerRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Customer'
+          description: ''
+  /api/admin/customers/import-preview/:
+    post:
+      operationId: admin_customers_import_preview_create
+      tags:
+      - admin
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CustomerRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CustomerRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Customer'
+          description: ''
+  /api/admin/customers/overview/:
+    get:
+      operationId: admin_customers_overview_retrieve
+      tags:
+      - admin
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Customer'
+          description: ''
+  /api/admin/dashboard:
+    get:
+      operationId: admin_dashboard_list
+      tags:
+      - admin
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AdminDashboard'
+          description: ''
+  /api/admin/dashboard/low-stock-items:
+    get:
+      operationId: admin_dashboard_low_stock_items_retrieve
+      tags:
+      - admin
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminDashboard'
+          description: ''
+  /api/admin/dashboard/recent-orders:
+    get:
+      operationId: admin_dashboard_recent_orders_retrieve
+      tags:
+      - admin
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminDashboard'
+          description: ''
+  /api/admin/dashboard/top-agents:
+    get:
+      operationId: admin_dashboard_top_agents_retrieve
+      tags:
+      - admin
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminDashboard'
+          description: ''
+  /api/admin/invitations:
+    get:
+      operationId: admin_invitations_retrieve
+      tags:
+      - admin
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: admin_invitations_create
+      tags:
+      - admin
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          description: No response body
+  /api/admin/setup/bank:
+    patch:
+      operationId: admin_setup_bank_partial_update
+      tags:
+      - admin
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/admin/setup/invoice:
+    patch:
+      operationId: admin_setup_invoice_partial_update
+      tags:
+      - admin
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/admin/setup/notifications:
+    patch:
+      operationId: admin_setup_notifications_partial_update
+      tags:
+      - admin
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/admin/setup/profile:
+    patch:
+      operationId: admin_setup_profile_partial_update
+      tags:
+      - admin
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/admin/setup/tax:
+    patch:
+      operationId: admin_setup_tax_partial_update
+      tags:
+      - admin
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/admin/users:
+    get:
+      operationId: admin_users_list
+      tags:
+      - admin
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserAdmin'
+          description: ''
+    post:
+      operationId: admin_users_create
+      tags:
+      - admin
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSubAdminRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CreateSubAdminRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CreateSubAdminRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateSubAdmin'
+          description: ''
+  /api/admin/users/{id}:
+    patch:
+      operationId: admin_users_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - admin
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedUserAdminRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedUserAdminRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedUserAdminRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserAdmin'
+          description: ''
+    delete:
+      operationId: admin_users_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - admin
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/audit-logs/:
+    get:
+      operationId: audit_logs_retrieve
+      tags:
+      - audit-logs
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/audit-logs/{id}/:
+    get:
+      operationId: audit_logs_retrieve_2
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - audit-logs
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/audit-logs/actions/:
+    get:
+      operationId: audit_logs_actions_retrieve
+      description: Returns all distinct action strings for the filter dropdown.
+      tags:
+      - audit-logs
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/auth/agents/companies:
+    get:
+      operationId: auth_agents_companies_retrieve
+      tags:
+      - auth
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentMembership'
+          description: ''
+  /api/auth/agents/join:
+    post:
+      operationId: auth_agents_join_create
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentJoinRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AgentJoinRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AgentJoinRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentJoin'
+          description: ''
+  /api/auth/agents/performance:
+    get:
+      operationId: auth_agents_performance_retrieve
+      tags:
+      - auth
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentMembership'
+          description: ''
+  /api/auth/agents/register:
+    post:
+      operationId: auth_agents_register_create
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentRegisterRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AgentRegisterRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AgentRegisterRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentRegister'
+          description: ''
+  /api/auth/agents/switch-company:
+    post:
+      operationId: auth_agents_switch_company_create
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentMembershipRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AgentMembershipRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AgentMembershipRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentMembership'
+          description: ''
+  /api/auth/login:
+    post:
+      operationId: auth_login_create
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Login'
+          description: ''
+  /api/auth/logout:
+    post:
+      operationId: auth_logout_create
+      tags:
+      - auth
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/auth/me:
+    get:
+      operationId: auth_me_retrieve
+      tags:
+      - auth
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+          description: ''
+    patch:
+      operationId: auth_me_partial_update
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedUserProfileUpdateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedUserProfileUpdateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedUserProfileUpdateRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileUpdate'
+          description: ''
+  /api/auth/password/change:
+    post:
+      operationId: auth_password_change_create
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordChangeRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PasswordChangeRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PasswordChangeRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/auth/password/reset:
+    post:
+      operationId: auth_password_reset_create
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordResetRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PasswordResetRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PasswordResetRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PasswordReset'
+          description: ''
+  /api/auth/password/reset/confirm:
+    post:
+      operationId: auth_password_reset_confirm_create
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordResetConfirmRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PasswordResetConfirmRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PasswordResetConfirmRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PasswordResetConfirm'
+          description: ''
+  /api/auth/refresh:
+    post:
+      operationId: auth_refresh_create
+      description: |-
+        Takes a refresh type JSON web token and returns an access type JSON web
+        token if the refresh token is valid.
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenRefresh'
+          description: ''
+  /api/auth/signup:
+    post:
+      operationId: auth_signup_create
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignupRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SignupRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SignupRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Signup'
+          description: ''
+  /api/business/stats:
+    get:
+      operationId: business_stats_list
+      description: |-
+        Business home-page metrics:
+        customers (total/overdue), agents (total/active today) and
+        receivables (outstanding/overdue amount + overdue invoice count).
+      tags:
+      - business
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BusinessStats'
+          description: ''
+  /api/categories/:
+    get:
+      operationId: categories_retrieve
+      tags:
+      - categories
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: categories_create
+      tags:
+      - categories
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          description: No response body
+  /api/categories/{id}/:
+    get:
+      operationId: categories_retrieve_2
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - categories
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+    patch:
+      operationId: categories_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - categories
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+    delete:
+      operationId: categories_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - categories
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/commission-entries/:
+    get:
+      operationId: commission_entries_retrieve
+      tags:
+      - commission-entries
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/commission-entries/{id}/:
+    get:
+      operationId: commission_entries_retrieve_2
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - commission-entries
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/commission-entries/{id}/status/:
+    post:
+      operationId: commission_entries_status_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - commission-entries
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/commission-entries/settle/:
+    post:
+      operationId: commission_entries_settle_create
+      tags:
+      - commission-entries
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/commission-entries/summary/:
+    get:
+      operationId: commission_entries_summary_retrieve
+      tags:
+      - commission-entries
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/commission-plans/:
+    get:
+      operationId: commission_plans_retrieve
+      tags:
+      - commission-plans
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: commission_plans_create
+      tags:
+      - commission-plans
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          description: No response body
+  /api/commission-plans/{id}/:
+    get:
+      operationId: commission_plans_retrieve_2
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - commission-plans
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+    patch:
+      operationId: commission_plans_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - commission-plans
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+    delete:
+      operationId: commission_plans_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - commission-plans
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/commission-plans/{id}/category-rates/:
+    post:
+      operationId: commission_plans_category_rates_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - commission-plans
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/commission-plans/{id}/slabs/:
+    post:
+      operationId: commission_plans_slabs_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - commission-plans
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/commission-plans/{id}/slabs/{slab_pk}/:
+    delete:
+      operationId: commission_plans_slabs_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: slab_pk
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - commission-plans
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/dispatches/:
+    get:
+      operationId: dispatches_retrieve
+      tags:
+      - dispatches
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: dispatches_create
+      tags:
+      - dispatches
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          description: No response body
+  /api/dispatches/{id}/:
+    get:
+      operationId: dispatches_retrieve_2
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - dispatches
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+    patch:
+      operationId: dispatches_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - dispatches
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/dispatches/{id}/mark-delivered/:
+    post:
+      operationId: dispatches_mark_delivered_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - dispatches
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/invoices/:
+    get:
+      operationId: invoices_retrieve
+      tags:
+      - invoices
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: invoices_create
+      tags:
+      - invoices
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          description: No response body
+  /api/invoices/{id}/:
+    get:
+      operationId: invoices_retrieve_2
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - invoices
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/invoices/{id}/download/:
+    get:
+      operationId: invoices_download_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - invoices
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/invoices/{id}/regenerate-pdf/:
+    post:
+      operationId: invoices_regenerate_pdf_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - invoices
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/invoices/{id}/void/:
+    post:
+      operationId: invoices_void_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - invoices
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/my-subscription/:
+    get:
+      operationId: my_subscription_retrieve
+      description: |-
+        Admin-facing read-only subscription view.
+        Returns the current company's own subscription — no SuperAdmin required.
+      tags:
+      - my-subscription
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/my-subscription/plans/:
+    get:
+      operationId: my_subscription_plans_retrieve
+      description: |-
+        Returns all active plans for the pricing / upgrade page.
+        Available to any authenticated Admin — no SuperAdmin required.
+      tags:
+      - my-subscription
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/my-subscription/usage/:
+    get:
+      operationId: my_subscription_usage_retrieve
+      description: Usage snapshots for the current company's subscription.
+      tags:
+      - my-subscription
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/notification-templates/:
+    get:
+      operationId: notification_templates_retrieve
+      tags:
+      - notification-templates
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: notification_templates_create
+      tags:
+      - notification-templates
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          description: No response body
+  /api/notification-templates/{id}/:
+    get:
+      operationId: notification_templates_retrieve_2
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - notification-templates
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+    patch:
+      operationId: notification_templates_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - notification-templates
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+    delete:
+      operationId: notification_templates_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - notification-templates
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/notifications/:
+    get:
+      operationId: notifications_retrieve
+      tags:
+      - notifications
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/notifications/{id}/:
+    get:
+      operationId: notifications_retrieve_2
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - notifications
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/notifications/retry/:
+    post:
+      operationId: notifications_retry_create
+      tags:
+      - notifications
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/notifications/send/:
+    post:
+      operationId: notifications_send_create
+      tags:
+      - notifications
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/orders/:
+    get:
+      operationId: list_orders
+      description: Company-scoped order list. Agents automatically see only their
+        own orders. Each row includes the derived `packing_status`.
+      summary: List orders
+      parameters:
+      - in: query
+        name: agent_id
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: customer_id
+        schema:
+          type: string
+          format: uuid
+      - in: query
+        name: date_from
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: date_to
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: offline
+        schema:
+          type: boolean
+      - in: query
+        name: pending_approval
+        schema:
+          type: boolean
+      - in: query
+        name: search
+        schema:
+          type: string
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - cancelled
+          - confirmed
+          - delivered
+          - dispatched
+          - draft
+          - on_hold
+          - packed
+          - processing
+          - ready
+          - submitted
+      tags:
+      - Orders
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OrderList'
+          description: ''
+    post:
+      operationId: create_order
+      description: Calculates GST, checks the customer's credit limit, reserves stock
+        and triggers approval if required.
+      summary: Create an order
+      tags:
+      - Orders
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OrderCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OrderCreateRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderDetail'
+          description: ''
+  /api/orders/{id}/:
+    get:
+      operationId: retrieve_order
+      description: Full order detail including items (with `packed_quantity`, `pending_qty`
+        and per-item `packing_status`), status history and signature.
+      summary: Retrieve an order
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Orders
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderDetail'
+          description: ''
+        '404':
+          description: Order not found in your company.
+  /api/orders/{id}/approve/:
+    post:
+      operationId: approve_order
+      summary: Approve or reject a pending order
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Orders
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderApprovalRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OrderApprovalRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OrderApprovalRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderDetail'
+          description: ''
+  /api/orders/{id}/cancel/:
+    post:
+      operationId: cancel_order
+      description: Cancels the order and releases all reserved stock.
+      summary: Cancel an order
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Orders
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderCancelRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OrderCancelRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OrderCancelRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderDetail'
+          description: ''
+  /api/orders/{id}/pack-items/:
+    post:
+      operationId: pack_order_items
+      description: |-
+        Bulk-records how many units of each line item were physically packed. Packed quantity may be **equal to or less than** the ordered quantity — partial packing / shortfalls are expected and over-packing is rejected.
+
+        - Every `item_id` must belong to this order.
+        - Allowed until the order is dispatched, delivered or cancelled.
+        - The order-level `packing_status` (unpacked / partially_packed / packed) is **auto-derived** from its items; there is no separate 'mark as packed' call.
+        - Each change is appended to the order's status history for audit.
+      summary: Record packed quantities per item
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Orders
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PackItemsRequest'
+            examples:
+              PartialPacking(ordered100,Packed80):
+                value:
+                  items:
+                  - item_id: 6a3f8b2c-1d4e-4f5a-9b0c-7d8e6f5a4b3c
+                    packed_quantity: 80
+                  notes: 20 units short-packed
+                summary: Partial packing (ordered 100, packed 80)
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PackItemsRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PackItemsRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderDetail'
+          description: ''
+        '400':
+          description: Validation failed — over-packing, foreign/unknown item, duplicates,
+            or a terminal order status.
+        '403':
+          description: Only Admin / SubAdmin may record packed quantities.
+        '404':
+          description: Order not found in your company.
+  /api/orders/{id}/signature/:
+    post:
+      operationId: capture_order_signature
+      summary: Capture customer signature
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Orders
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderSignatureRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OrderSignatureRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OrderSignatureRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderSignature'
+          description: ''
+  /api/orders/{id}/status/:
+    post:
+      operationId: update_order_status
+      description: 'Sets the workflow status (draft → submitted → confirmed → processing
+        → packed → ready → dispatched / delivered / cancelled). Note: this is the
+        *workflow* status — packing progress is tracked separately via `pack-items`
+        and exposed as the derived `packing_status`.'
+      summary: Move order to another workflow status
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Orders
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderStatusUpdateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/OrderStatusUpdateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/OrderStatusUpdateRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderDetail'
+          description: ''
+  /api/orders/kanban/:
+    get:
+      operationId: kanban_orders
+      description: Orders grouped by workflow status (submitted → ready).
+      summary: Kanban board
+      tags:
+      - Orders
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: Map of status → order list
+  /api/orders/sync/:
+    post:
+      operationId: sync_offline_orders
+      description: |-
+        Agent mobile app bulk-syncs orders created offline.
+        Each item in the list is processed independently.
+      summary: Bulk offline order sync (Agent mobile app)
+      tags:
+      - Orders
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: Synced/failed offline refs
+  /api/outstanding/:
+    get:
+      operationId: outstanding_retrieve
+      tags:
+      - outstanding
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/outstanding/send-reminder/:
+    post:
+      operationId: outstanding_send_reminder_create
+      tags:
+      - outstanding
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/outstanding/summary/:
+    get:
+      operationId: outstanding_summary_retrieve
+      tags:
+      - outstanding
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/payments/:
+    get:
+      operationId: payments_retrieve
+      tags:
+      - payments
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: payments_create
+      tags:
+      - payments
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          description: No response body
+  /api/payments/{id}/:
+    get:
+      operationId: payments_retrieve_2
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - payments
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+    delete:
+      operationId: payments_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - payments
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/plans/:
+    get:
+      operationId: plans_retrieve
+      description: |-
+        SuperAdmin manages the 3 pricing tiers and their feature flags.
+        Plans are global (not company-scoped).
+      tags:
+      - plans
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: plans_create
+      description: |-
+        SuperAdmin manages the 3 pricing tiers and their feature flags.
+        Plans are global (not company-scoped).
+      tags:
+      - plans
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          description: No response body
+  /api/plans/{id}/:
+    get:
+      operationId: plans_retrieve_2
+      description: |-
+        SuperAdmin manages the 3 pricing tiers and their feature flags.
+        Plans are global (not company-scoped).
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - plans
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+    patch:
+      operationId: plans_partial_update
+      description: |-
+        SuperAdmin manages the 3 pricing tiers and their feature flags.
+        Plans are global (not company-scoped).
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - plans
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/plans/{id}/toggle-active/:
+    post:
+      operationId: plans_toggle_active_create
+      description: |-
+        SuperAdmin manages the 3 pricing tiers and their feature flags.
+        Plans are global (not company-scoped).
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - plans
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/plans/seed-defaults/:
+    post:
+      operationId: plans_seed_defaults_create
+      description: |-
+        Seeds the 3 default tiers (Starter / Professional / Enterprise)
+        if they don't already exist. Safe to call multiple times.
+      tags:
+      - plans
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/products/:
+    get:
+      operationId: products_retrieve
+      tags:
+      - products
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: products_create
+      tags:
+      - products
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          description: No response body
+  /api/products/{id}/:
+    get:
+      operationId: products_retrieve_2
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - products
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+    patch:
+      operationId: products_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - products
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+    delete:
+      operationId: products_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - products
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/products/{product_pk}/variants/:
+    get:
+      operationId: products_variants_retrieve
+      parameters:
+      - in: path
+        name: product_pk
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - products
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: products_variants_create
+      parameters:
+      - in: path
+        name: product_pk
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - products
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          description: No response body
+  /api/products/{product_pk}/variants/{id}/:
+    get:
+      operationId: products_variants_retrieve_2
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: product_pk
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - products
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+    delete:
+      operationId: products_variants_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: product_pk
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - products
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/products/scan/{qr_code}/:
+    get:
+      operationId: products_scan_retrieve
+      parameters:
+      - in: path
+        name: qr_code
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - products
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/size-charts/:
+    get:
+      operationId: size_charts_retrieve
+      tags:
+      - size-charts
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: size_charts_create
+      tags:
+      - size-charts
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          description: No response body
+  /api/size-charts/{id}/:
+    patch:
+      operationId: size_charts_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - size-charts
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+    delete:
+      operationId: size_charts_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - size-charts
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/stock/adjust/:
+    post:
+      operationId: stock_adjust_create
+      tags:
+      - stock
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/stock/movements/:
+    get:
+      operationId: stock_movements_retrieve
+      tags:
+      - stock
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/subscriptions/:
+    get:
+      operationId: subscriptions_retrieve
+      description: |-
+        SuperAdmin: full read + lifecycle management of any company's subscription.
+        Admin:      read-only access to their own company's subscription.
+      tags:
+      - subscriptions
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: subscriptions_create
+      description: |-
+        SuperAdmin: full read + lifecycle management of any company's subscription.
+        Admin:      read-only access to their own company's subscription.
+      tags:
+      - subscriptions
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          description: No response body
+  /api/subscriptions/{id}/:
+    get:
+      operationId: subscriptions_retrieve_2
+      description: |-
+        SuperAdmin: full read + lifecycle management of any company's subscription.
+        Admin:      read-only access to their own company's subscription.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - subscriptions
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/subscriptions/{id}/cancel/:
+    post:
+      operationId: subscriptions_cancel_create
+      description: |-
+        Cancel a subscription immediately.
+        Marks company as expired and writes a CANCELLED event.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - subscriptions
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/subscriptions/{id}/events/:
+    get:
+      operationId: subscriptions_events_retrieve
+      description: Full immutable event history for a subscription.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - subscriptions
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/subscriptions/{id}/extend/:
+    post:
+      operationId: subscriptions_extend_create
+      description: |-
+        Manually extend a subscription's current_period_end.
+        Used for trial extensions, goodwill extensions, or support resolutions.
+        Reactivates the subscription if it was expired or in grace period.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - subscriptions
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/subscriptions/{id}/reactivate/:
+    post:
+      operationId: subscriptions_reactivate_create
+      description: |-
+        Reactivate a cancelled, expired, or suspended subscription.
+        Sets a fresh 30-day period from today.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - subscriptions
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/subscriptions/{id}/upgrade/:
+    post:
+      operationId: subscriptions_upgrade_create
+      description: |-
+        Upgrade or downgrade a company's subscription plan.
+        Updates billing cycle, recalculates price_paid with discount,
+        and writes an immutable SubscriptionEvent.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - subscriptions
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/subscriptions/{id}/usage/:
+    get:
+      operationId: subscriptions_usage_retrieve
+      description: Monthly usage snapshots for a subscription (newest first).
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - subscriptions
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/super-admin/companies:
+    get:
+      operationId: super_admin_companies_list
+      tags:
+      - super-admin
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CompanyList'
+          description: ''
+  /api/super-admin/companies/{id}:
+    get:
+      operationId: super_admin_companies_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - super-admin
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyList'
+          description: ''
+    delete:
+      operationId: super_admin_companies_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - super-admin
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/super-admin/companies/{id}/activate:
+    post:
+      operationId: super_admin_companies_activate_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - super-admin
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyListRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CompanyListRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CompanyListRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyList'
+          description: ''
+  /api/super-admin/companies/{id}/extend-trial:
+    post:
+      operationId: super_admin_companies_extend_trial_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - super-admin
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyListRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CompanyListRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CompanyListRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyList'
+          description: ''
+  /api/super-admin/companies/{id}/impersonate:
+    post:
+      operationId: super_admin_companies_impersonate_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - super-admin
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyListRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CompanyListRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CompanyListRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyList'
+          description: ''
+  /api/super-admin/companies/{id}/status:
+    post:
+      operationId: super_admin_companies_status_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - super-admin
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyStatusUpdateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CompanyStatusUpdateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CompanyStatusUpdateRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyStatusUpdate'
+          description: ''
+  /api/super-admin/companies/{id}/suspend:
+    post:
+      operationId: super_admin_companies_suspend_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - super-admin
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyListRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CompanyListRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CompanyListRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyList'
+          description: ''
+  /api/super-admin/dashboard:
+    get:
+      operationId: super_admin_dashboard_list
+      tags:
+      - super-admin
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SuperAdminDashboard'
+          description: ''
+  /api/tally/ledger-mappings/:
+    get:
+      operationId: tally_ledger_mappings_retrieve
+      tags:
+      - tally
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: tally_ledger_mappings_create
+      tags:
+      - tally
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          description: No response body
+  /api/tally/ledger-mappings/{id}/:
+    delete:
+      operationId: tally_ledger_mappings_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - tally
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/tally/logs/:
+    get:
+      operationId: tally_logs_retrieve
+      tags:
+      - tally
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/tally/logs/{id}/:
+    get:
+      operationId: tally_logs_retrieve_2
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - tally
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/tally/retry/:
+    post:
+      operationId: tally_retry_create
+      tags:
+      - tally
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/tally/status/:
+    get:
+      operationId: tally_status_retrieve
+      tags:
+      - tally
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/tally/test-connection/:
+    post:
+      operationId: tally_test_connection_create
+      tags:
+      - tally
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/tally/trigger/:
+    post:
+      operationId: tally_trigger_create
+      tags:
+      - tally
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+components:
+  schemas:
+    ActionEnum:
+      enum:
+      - approve
+      - reject
+      type: string
+      description: |-
+        * `approve` - approve
+        * `reject` - reject
+    AdminAnalytics:
+      type: object
+      properties:
+        sales_trend:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+        top_products:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+        agent_comparison:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+        outstanding_aging:
+          type: object
+          additionalProperties: {}
+        customer_acquisition:
+          type: object
+          additionalProperties: {}
+      required:
+      - agent_comparison
+      - customer_acquisition
+      - outstanding_aging
+      - sales_trend
+      - top_products
+    AdminDashboard:
+      type: object
+      properties:
+        sales_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        orders_pending:
+          type: integer
+        outstanding_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        overdue_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        receivables_ageing:
+          $ref: '#/components/schemas/ReceivablesAgeing'
+        tally_sync:
+          $ref: '#/components/schemas/TallySync'
+      required:
+      - orders_pending
+      - outstanding_total
+      - overdue_total
+      - receivables_ageing
+      - sales_total
+      - tally_sync
+    AgentJoin:
+      type: object
+      properties:
+        invite_code:
+          type: string
+          maxLength: 64
+      required:
+      - invite_code
+    AgentJoinRequest:
+      type: object
+      properties:
+        invite_code:
+          type: string
+          minLength: 1
+          maxLength: 64
+      required:
+      - invite_code
+    AgentMembership:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        agent_id:
+          type: string
+          format: uuid
+          readOnly: true
+        user:
+          allOf:
+          - $ref: '#/components/schemas/AgentUser'
+          readOnly: true
+        company_name:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/AgentMembershipStatusEnum'
+          readOnly: true
+        territory:
+          type: string
+          maxLength: 200
+        clients_count:
+          type: integer
+          readOnly: true
+          default: 0
+        commission_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+          default: '0.00'
+        commission_pending:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+          default: '0.00'
+        monthly_target:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          nullable: true
+        custom_commission_plan:
+          type: string
+          format: uuid
+          nullable: true
+        commission_plan_name:
+          type: string
+          readOnly: true
+        invitation_method:
+          allOf:
+          - $ref: '#/components/schemas/InvitationMethodEnum'
+          readOnly: true
+        joined_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        removed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        approved_by:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        reviewed_by:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        reviewed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - agent_id
+      - approved_by
+      - clients_count
+      - commission_pending
+      - commission_plan_name
+      - commission_total
+      - company_name
+      - created_at
+      - id
+      - invitation_method
+      - joined_at
+      - removed_at
+      - reviewed_at
+      - reviewed_by
+      - status
+      - updated_at
+      - user
+    AgentMembershipRequest:
+      type: object
+      properties:
+        territory:
+          type: string
+          maxLength: 200
+        monthly_target:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          nullable: true
+        custom_commission_plan:
+          type: string
+          format: uuid
+          nullable: true
+    AgentMembershipStatusEnum:
+      enum:
+      - pending
+      - reviewed
+      - active
+      - suspended
+      - removed
+      type: string
+      description: |-
+        * `pending` - Pending Approval
+        * `reviewed` - Reviewed by Sub Admin
+        * `active` - Active
+        * `suspended` - Suspended
+        * `removed` - Removed
+    AgentMembershipUpdate:
+      type: object
+      properties:
+        territory:
+          type: string
+          maxLength: 200
+        monthly_target:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          nullable: true
+        custom_commission_plan:
+          type: string
+          format: uuid
+          nullable: true
+    AgentRegister:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        full_name:
+          type: string
+          maxLength: 150
+        phone:
+          type: string
+          maxLength: 15
+      required:
+      - email
+      - full_name
+    AgentRegisterRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+        full_name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        phone:
+          type: string
+          maxLength: 15
+      required:
+      - email
+      - full_name
+      - password
+    AgentUser:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        full_name:
+          type: string
+          maxLength: 150
+        phone:
+          type: string
+          maxLength: 15
+        is_active:
+          type: boolean
+      required:
+      - email
+      - full_name
+      - id
+    AgentUserRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+          maxLength: 254
+        full_name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        phone:
+          type: string
+          maxLength: 15
+        is_active:
+          type: boolean
+      required:
+      - email
+      - full_name
+    BlankEnum:
+      enum:
+      - ''
+    BusinessStats:
+      type: object
+      properties:
+        total_customers:
+          type: integer
+        overdue_customers:
+          type: integer
+        overdue_invoices:
+          type: integer
+        total_agents:
+          type: integer
+        active_agents_today:
+          type: integer
+        outstanding_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        overdue_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+      required:
+      - active_agents_today
+      - outstanding_total
+      - overdue_customers
+      - overdue_invoices
+      - overdue_total
+      - total_agents
+      - total_customers
+    ChannelEnum:
+      enum:
+      - whatsapp
+      - email
+      - call
+      - visit
+      - sms
+      type: string
+      description: |-
+        * `whatsapp` - WhatsApp
+        * `email` - Email
+        * `call` - Phone Call
+        * `visit` - Visit
+        * `sms` - SMS
+    CompanyList:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 200
+        slug:
+          type: string
+          maxLength: 200
+        logo:
+          type: string
+          format: uri
+          nullable: true
+        gstin:
+          type: string
+          nullable: true
+          maxLength: 15
+        gstin_verified:
+          type: boolean
+        contact_email:
+          type: string
+          format: email
+          maxLength: 254
+        contact_phone:
+          type: string
+          maxLength: 15
+        city:
+          type: string
+          maxLength: 100
+        state:
+          type: string
+          maxLength: 100
+        status:
+          $ref: '#/components/schemas/Status82aEnum'
+        plan_tier:
+          type: string
+          readOnly: true
+        subscription_status:
+          type: string
+          readOnly: true
+        trial_end:
+          type: string
+          format: date
+          readOnly: true
+        period_end:
+          type: string
+          format: date
+          readOnly: true
+        tally_enabled:
+          type: boolean
+        whatsapp_enabled:
+          type: boolean
+        setup_completed:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - contact_email
+      - contact_phone
+      - created_at
+      - id
+      - name
+      - period_end
+      - plan_tier
+      - slug
+      - subscription_status
+      - trial_end
+      - updated_at
+    CompanyListRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        slug:
+          type: string
+          minLength: 1
+          maxLength: 200
+        logo:
+          type: string
+          format: binary
+          nullable: true
+        gstin:
+          type: string
+          nullable: true
+          maxLength: 15
+        gstin_verified:
+          type: boolean
+        contact_email:
+          type: string
+          format: email
+          minLength: 1
+          maxLength: 254
+        contact_phone:
+          type: string
+          minLength: 1
+          maxLength: 15
+        city:
+          type: string
+          maxLength: 100
+        state:
+          type: string
+          maxLength: 100
+        status:
+          $ref: '#/components/schemas/Status82aEnum'
+        tally_enabled:
+          type: boolean
+        whatsapp_enabled:
+          type: boolean
+        setup_completed:
+          type: boolean
+      required:
+      - contact_email
+      - contact_phone
+      - name
+      - slug
+    CompanyStatusUpdate:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/Status82aEnum'
+        reason:
+          type: string
+      required:
+      - status
+    CompanyStatusUpdateRequest:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/Status82aEnum'
+        reason:
+          type: string
+      required:
+      - status
+    CreateSubAdmin:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        full_name:
+          type: string
+          maxLength: 150
+        phone:
+          type: string
+          maxLength: 15
+      required:
+      - email
+      - full_name
+    CreateSubAdminRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+        full_name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        phone:
+          type: string
+          maxLength: 15
+      required:
+      - email
+      - full_name
+      - password
+    Customer:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        legal_name:
+          type: string
+          maxLength: 200
+        trade_name:
+          type: string
+          maxLength: 200
+        owner_name:
+          type: string
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        phone:
+          type: string
+          maxLength: 15
+        whatsapp_number:
+          type: string
+          maxLength: 15
+        gstin:
+          type: string
+          maxLength: 15
+        gstin_verified:
+          type: boolean
+          readOnly: true
+        gstin_legal_name:
+          type: string
+          readOnly: true
+        gstin_status:
+          allOf:
+          - $ref: '#/components/schemas/GstinStatusEnum'
+          readOnly: true
+        gstin_type:
+          type: string
+          readOnly: true
+        gstin_verified_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        pan:
+          type: string
+          maxLength: 10
+        tags: {}
+        billing_address_line1:
+          type: string
+          maxLength: 255
+        billing_address_line2:
+          type: string
+          maxLength: 255
+        billing_city:
+          type: string
+          maxLength: 100
+        billing_state:
+          type: string
+          maxLength: 100
+        billing_pincode:
+          type: string
+          maxLength: 10
+        shipping_address_line1:
+          type: string
+          maxLength: 255
+        shipping_address_line2:
+          type: string
+          maxLength: 255
+        shipping_city:
+          type: string
+          maxLength: 100
+        shipping_state:
+          type: string
+          maxLength: 100
+        shipping_pincode:
+          type: string
+          maxLength: 10
+        same_as_billing:
+          type: boolean
+        assigned_agent:
+          type: string
+          format: uuid
+          nullable: true
+        assigned_agent_name:
+          type: string
+          readOnly: true
+        credit_limit:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        credit_utilized:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          readOnly: true
+        credit_utilization_pct:
+          type: string
+          readOnly: true
+        is_credit_blocked:
+          type: boolean
+        payment_terms_days:
+          type: integer
+        auto_block_on_exceed:
+          type: boolean
+        total_outstanding:
+          type: string
+          readOnly: true
+        overdue_outstanding:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          readOnly: true
+        segment:
+          allOf:
+          - $ref: '#/components/schemas/SegmentEnum'
+          readOnly: true
+        status:
+          $ref: '#/components/schemas/Status21cEnum'
+        internal_notes:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - assigned_agent_name
+      - created_at
+      - credit_utilization_pct
+      - credit_utilized
+      - gstin_legal_name
+      - gstin_status
+      - gstin_type
+      - gstin_verified
+      - gstin_verified_at
+      - id
+      - overdue_outstanding
+      - phone
+      - segment
+      - total_outstanding
+      - updated_at
+    CustomerCommunicationLog:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        customer:
+          type: string
+          format: uuid
+        channel:
+          $ref: '#/components/schemas/ChannelEnum'
+        subject:
+          type: string
+          maxLength: 200
+        message:
+          type: string
+        performed_by:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - channel
+      - created_at
+      - customer
+      - id
+      - message
+      - performed_by
+    CustomerCreate:
+      type: object
+      properties:
+        legal_name:
+          type: string
+          maxLength: 200
+        trade_name:
+          type: string
+          maxLength: 200
+        owner_name:
+          type: string
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        phone:
+          type: string
+          maxLength: 15
+        whatsapp_number:
+          type: string
+          maxLength: 15
+        gstin:
+          type: string
+          maxLength: 15
+        pan:
+          type: string
+          maxLength: 10
+        tags: {}
+        billing_address_line1:
+          type: string
+          maxLength: 255
+        billing_address_line2:
+          type: string
+          maxLength: 255
+        billing_city:
+          type: string
+          maxLength: 100
+        billing_state:
+          type: string
+          maxLength: 100
+        billing_pincode:
+          type: string
+          maxLength: 10
+        shipping_address_line1:
+          type: string
+          maxLength: 255
+        shipping_address_line2:
+          type: string
+          maxLength: 255
+        shipping_city:
+          type: string
+          maxLength: 100
+        shipping_state:
+          type: string
+          maxLength: 100
+        shipping_pincode:
+          type: string
+          maxLength: 10
+        same_as_billing:
+          type: boolean
+        assigned_agent:
+          type: string
+          format: uuid
+          nullable: true
+        credit_limit:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        payment_terms_days:
+          type: integer
+        auto_block_on_exceed:
+          type: boolean
+        status:
+          $ref: '#/components/schemas/Status21cEnum'
+        internal_notes:
+          type: string
+      required:
+      - phone
+    CustomerCreateRequest:
+      type: object
+      properties:
+        legal_name:
+          type: string
+          maxLength: 200
+        trade_name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        owner_name:
+          type: string
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        phone:
+          type: string
+          minLength: 1
+          maxLength: 15
+        whatsapp_number:
+          type: string
+          maxLength: 15
+        gstin:
+          type: string
+          maxLength: 15
+        pan:
+          type: string
+          maxLength: 10
+        tags: {}
+        billing_address_line1:
+          type: string
+          maxLength: 255
+        billing_address_line2:
+          type: string
+          maxLength: 255
+        billing_city:
+          type: string
+          maxLength: 100
+        billing_state:
+          type: string
+          maxLength: 100
+        billing_pincode:
+          type: string
+          maxLength: 10
+        shipping_address_line1:
+          type: string
+          maxLength: 255
+        shipping_address_line2:
+          type: string
+          maxLength: 255
+        shipping_city:
+          type: string
+          maxLength: 100
+        shipping_state:
+          type: string
+          maxLength: 100
+        shipping_pincode:
+          type: string
+          maxLength: 10
+        same_as_billing:
+          type: boolean
+        assigned_agent:
+          type: string
+          format: uuid
+          nullable: true
+        credit_limit:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        payment_terms_days:
+          type: integer
+        auto_block_on_exceed:
+          type: boolean
+        status:
+          $ref: '#/components/schemas/Status21cEnum'
+        internal_notes:
+          type: string
+      required:
+      - phone
+    CustomerDocument:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        customer:
+          type: string
+          format: uuid
+        doc_type:
+          $ref: '#/components/schemas/DocTypeEnum'
+        title:
+          type: string
+          maxLength: 200
+        file:
+          type: string
+          format: uri
+        uploaded_by:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        notes:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - customer
+      - doc_type
+      - file
+      - id
+      - title
+      - uploaded_by
+    CustomerDocumentRequest:
+      type: object
+      properties:
+        customer:
+          type: string
+          format: uuid
+        doc_type:
+          $ref: '#/components/schemas/DocTypeEnum'
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        file:
+          type: string
+          format: binary
+        notes:
+          type: string
+      required:
+      - customer
+      - doc_type
+      - file
+      - title
+    CustomerRequest:
+      type: object
+      properties:
+        legal_name:
+          type: string
+          maxLength: 200
+        trade_name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        owner_name:
+          type: string
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        phone:
+          type: string
+          minLength: 1
+          maxLength: 15
+        whatsapp_number:
+          type: string
+          maxLength: 15
+        gstin:
+          type: string
+          maxLength: 15
+        pan:
+          type: string
+          maxLength: 10
+        tags: {}
+        billing_address_line1:
+          type: string
+          maxLength: 255
+        billing_address_line2:
+          type: string
+          maxLength: 255
+        billing_city:
+          type: string
+          maxLength: 100
+        billing_state:
+          type: string
+          maxLength: 100
+        billing_pincode:
+          type: string
+          maxLength: 10
+        shipping_address_line1:
+          type: string
+          maxLength: 255
+        shipping_address_line2:
+          type: string
+          maxLength: 255
+        shipping_city:
+          type: string
+          maxLength: 100
+        shipping_state:
+          type: string
+          maxLength: 100
+        shipping_pincode:
+          type: string
+          maxLength: 10
+        same_as_billing:
+          type: boolean
+        assigned_agent:
+          type: string
+          format: uuid
+          nullable: true
+        credit_limit:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        is_credit_blocked:
+          type: boolean
+        payment_terms_days:
+          type: integer
+        auto_block_on_exceed:
+          type: boolean
+        status:
+          $ref: '#/components/schemas/Status21cEnum'
+        internal_notes:
+          type: string
+      required:
+      - phone
+    CustomerUpdate:
+      type: object
+      properties:
+        legal_name:
+          type: string
+          maxLength: 200
+        trade_name:
+          type: string
+          maxLength: 200
+        owner_name:
+          type: string
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        phone:
+          type: string
+          maxLength: 15
+        whatsapp_number:
+          type: string
+          maxLength: 15
+        gstin:
+          type: string
+          maxLength: 15
+        pan:
+          type: string
+          maxLength: 10
+        tags: {}
+        billing_address_line1:
+          type: string
+          maxLength: 255
+        billing_address_line2:
+          type: string
+          maxLength: 255
+        billing_city:
+          type: string
+          maxLength: 100
+        billing_state:
+          type: string
+          maxLength: 100
+        billing_pincode:
+          type: string
+          maxLength: 10
+        shipping_address_line1:
+          type: string
+          maxLength: 255
+        shipping_address_line2:
+          type: string
+          maxLength: 255
+        shipping_city:
+          type: string
+          maxLength: 100
+        shipping_state:
+          type: string
+          maxLength: 100
+        shipping_pincode:
+          type: string
+          maxLength: 10
+        same_as_billing:
+          type: boolean
+        assigned_agent:
+          type: string
+          format: uuid
+          nullable: true
+        credit_limit:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        payment_terms_days:
+          type: integer
+        auto_block_on_exceed:
+          type: boolean
+        status:
+          $ref: '#/components/schemas/Status21cEnum'
+        internal_notes:
+          type: string
+      required:
+      - phone
+    DocTypeEnum:
+      enum:
+      - gst_cert
+      - pan_card
+      - aadhar
+      - trade_lic
+      - other
+      type: string
+      description: |-
+        * `gst_cert` - GST Certificate
+        * `pan_card` - PAN Card
+        * `aadhar` - Aadhar Card
+        * `trade_lic` - Trade License
+        * `other` - Other
+    GstinStatusEnum:
+      enum:
+      - active
+      - cancelled
+      - suspended
+      - unverified
+      type: string
+      description: |-
+        * `active` - Active
+        * `cancelled` - Cancelled
+        * `suspended` - Suspended
+        * `unverified` - Unverified
+    InvitationMethodEnum:
+      enum:
+      - whatsapp
+      - email
+      - qr_code
+      - in_app
+      type: string
+      description: |-
+        * `whatsapp` - WhatsApp
+        * `email` - Email
+        * `qr_code` - QR Code
+        * `in_app` - In-App
+    Login:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+      required:
+      - email
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - email
+      - password
+    OrderApprovalRequest:
+      type: object
+      properties:
+        action:
+          $ref: '#/components/schemas/ActionEnum'
+        rejection_reason:
+          type: string
+      required:
+      - action
+    OrderCancelRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          minLength: 5
+          maxLength: 500
+      required:
+      - reason
+    OrderCreateRequest:
+      type: object
+      properties:
+        customer:
+          type: string
+          format: uuid
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderItemCreateRequest'
+        discount_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          default: '0.00'
+        delivery_address_line1:
+          type: string
+          maxLength: 255
+        delivery_address_line2:
+          type: string
+          maxLength: 255
+        delivery_city:
+          type: string
+          maxLength: 100
+        delivery_state:
+          type: string
+          maxLength: 100
+        delivery_pincode:
+          type: string
+          maxLength: 10
+        expected_delivery_date:
+          type: string
+          format: date
+          nullable: true
+        order_notes:
+          type: string
+        is_offline_order:
+          type: boolean
+          default: false
+        offline_created_at:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+      - customer
+      - items
+    OrderDetail:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        order_number:
+          type: string
+          maxLength: 30
+        po_number:
+          type: string
+          maxLength: 30
+        customer:
+          type: string
+          format: uuid
+        customer_details:
+          allOf:
+          - $ref: '#/components/schemas/Customer'
+          readOnly: true
+        agent:
+          type: string
+          format: uuid
+          nullable: true
+        agent_details:
+          allOf:
+          - $ref: '#/components/schemas/AgentUser'
+          readOnly: true
+        status:
+          $ref: '#/components/schemas/ToStatusEnum'
+        packing_status:
+          allOf:
+          - $ref: '#/components/schemas/PackingStatusEnum'
+          readOnly: true
+          description: |-
+            Order-level packing state, auto-derived from its items: unpacked | partially_packed | packed.
+
+            * `unpacked` - Unpacked
+            * `partially_packed` - Partially Packed
+            * `packed` - Packed
+        subtotal:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        discount_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        discount_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        taxable_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        cgst_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        sgst_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        igst_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        total_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        is_interstate:
+          type: boolean
+        delivery_address_line1:
+          type: string
+          maxLength: 255
+        delivery_address_line2:
+          type: string
+          maxLength: 255
+        delivery_city:
+          type: string
+          maxLength: 100
+        delivery_state:
+          type: string
+          maxLength: 100
+        delivery_pincode:
+          type: string
+          maxLength: 10
+        expected_delivery_date:
+          type: string
+          format: date
+          nullable: true
+        order_notes:
+          type: string
+        internal_notes:
+          type: string
+        requires_approval:
+          type: boolean
+        approved_by_name:
+          type: string
+          readOnly: true
+        approved_at:
+          type: string
+          format: date-time
+          nullable: true
+        rejection_reason:
+          type: string
+        is_offline_order:
+          type: boolean
+        offline_created_at:
+          type: string
+          format: date-time
+          nullable: true
+        sync_status:
+          type: string
+          maxLength: 20
+        tally_invoice_id:
+          type: string
+          maxLength: 100
+        tally_synced_at:
+          type: string
+          format: date-time
+          nullable: true
+        submitted_at:
+          type: string
+          format: date-time
+          nullable: true
+        confirmed_at:
+          type: string
+          format: date-time
+          nullable: true
+        dispatched_at:
+          type: string
+          format: date-time
+          nullable: true
+        delivered_at:
+          type: string
+          format: date-time
+          nullable: true
+        cancelled_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderItem'
+          readOnly: true
+        status_history:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderStatusHistory'
+          readOnly: true
+        signature:
+          allOf:
+          - $ref: '#/components/schemas/OrderSignature'
+          readOnly: true
+      required:
+      - agent_details
+      - approved_by_name
+      - created_at
+      - customer
+      - customer_details
+      - id
+      - items
+      - packing_status
+      - signature
+      - status_history
+      - updated_at
+    OrderItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        variant_size:
+          type: string
+          format: uuid
+        variant_details:
+          allOf:
+          - $ref: '#/components/schemas/VariantSize'
+          readOnly: true
+        product_name:
+          type: string
+          maxLength: 200
+        color_name:
+          type: string
+          maxLength: 100
+        size:
+          type: string
+          maxLength: 20
+        sku:
+          type: string
+          maxLength: 60
+        hsn_code:
+          type: string
+          maxLength: 10
+        unit_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        quantity:
+          type: integer
+        packed_quantity:
+          type: integer
+          description: Quantity actually packed. May be less than ordered quantity.
+        pending_qty:
+          type: integer
+          readOnly: true
+          description: Ordered quantity minus packed quantity.
+        packing_status:
+          allOf:
+          - $ref: '#/components/schemas/PackingStatusEnum'
+          readOnly: true
+          description: |-
+            Derived: unpacked | partially_packed | packed.
+
+            * `unpacked` - Unpacked
+            * `partially_packed` - Partially Packed
+            * `packed` - Packed
+        discount_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        line_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        gst_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        gst_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+      required:
+      - color_name
+      - id
+      - line_total
+      - packing_status
+      - pending_qty
+      - product_name
+      - quantity
+      - size
+      - sku
+      - unit_price
+      - variant_details
+      - variant_size
+    OrderItemCreateRequest:
+      type: object
+      properties:
+        variant_size:
+          type: string
+          format: uuid
+        quantity:
+          type: integer
+        discount_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+      required:
+      - quantity
+      - variant_size
+    OrderList:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        order_number:
+          type: string
+          maxLength: 30
+        po_number:
+          type: string
+          maxLength: 30
+        customer:
+          type: string
+          format: uuid
+        customer_name:
+          type: string
+          readOnly: true
+        agent:
+          type: string
+          format: uuid
+          nullable: true
+        agent_name:
+          type: string
+          readOnly: true
+        status:
+          $ref: '#/components/schemas/ToStatusEnum'
+        packing_status:
+          allOf:
+          - $ref: '#/components/schemas/PackingStatusEnum'
+          readOnly: true
+          description: |-
+            Order-level packing state, auto-derived from its items: unpacked | partially_packed | packed.
+
+            * `unpacked` - Unpacked
+            * `partially_packed` - Partially Packed
+            * `packed` - Packed
+        total_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        item_count:
+          type: integer
+          readOnly: true
+        is_offline_order:
+          type: boolean
+        sync_status:
+          type: string
+          maxLength: 20
+        requires_approval:
+          type: boolean
+        submitted_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - agent_name
+      - created_at
+      - customer
+      - customer_name
+      - id
+      - item_count
+      - packing_status
+    OrderSignature:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        signature_image:
+          type: string
+          format: uri
+        captured_at:
+          type: string
+          format: date-time
+          readOnly: true
+        captured_by_name:
+          type: string
+          readOnly: true
+      required:
+      - captured_at
+      - captured_by_name
+      - id
+      - signature_image
+    OrderSignatureRequest:
+      type: object
+      properties:
+        signature_image:
+          type: string
+          format: binary
+      required:
+      - signature_image
+    OrderStatusHistory:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        from_status:
+          oneOf:
+          - $ref: '#/components/schemas/ToStatusEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+        to_status:
+          $ref: '#/components/schemas/ToStatusEnum'
+        changed_by_name:
+          type: string
+          readOnly: true
+        notes:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - changed_by_name
+      - created_at
+      - id
+      - to_status
+    OrderStatusUpdateRequest:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/ToStatusEnum'
+        notes:
+          type: string
+      required:
+      - status
+    PackItemRequest:
+      type: object
+      properties:
+        item_id:
+          type: string
+          format: uuid
+          description: ID of an item on this order.
+        packed_quantity:
+          type: integer
+          minimum: 0
+          description: Units physically packed. Must be ≤ the ordered quantity.
+      required:
+      - item_id
+      - packed_quantity
+    PackItemsRequest:
+      type: object
+      description: |-
+        Records packed quantities for order items. Packed quantity may be equal
+        to or less than the ordered quantity — over-packing is rejected.
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PackItemRequest'
+          description: Per-item packed quantities. Partial updates allowed.
+        notes:
+          type: string
+          description: Optional note recorded in the order's status history.
+      required:
+      - items
+    PackingStatusEnum:
+      enum:
+      - unpacked
+      - partially_packed
+      - packed
+      type: string
+      description: |-
+        * `unpacked` - Unpacked
+        * `partially_packed` - Partially Packed
+        * `packed` - Packed
+    PaginatedAgentMembershipList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/AgentMembership'
+    PaginatedCustomerList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Customer'
+    PasswordChangeRequest:
+      type: object
+      properties:
+        old_password:
+          type: string
+          writeOnly: true
+          minLength: 1
+        new_password:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - new_password
+      - old_password
+    PasswordReset:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+      required:
+      - email
+    PasswordResetConfirm:
+      type: object
+      properties:
+        token:
+          type: string
+        uid:
+          type: string
+      required:
+      - token
+      - uid
+    PasswordResetConfirmRequest:
+      type: object
+      properties:
+        token:
+          type: string
+          minLength: 1
+        uid:
+          type: string
+          minLength: 1
+        new_password:
+          type: string
+          writeOnly: true
+          minLength: 1
+      required:
+      - new_password
+      - token
+      - uid
+    PasswordResetRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+      required:
+      - email
+    PatchedAgentMembershipUpdateRequest:
+      type: object
+      properties:
+        territory:
+          type: string
+          maxLength: 200
+        monthly_target:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          nullable: true
+        custom_commission_plan:
+          type: string
+          format: uuid
+          nullable: true
+    PatchedCustomerUpdateRequest:
+      type: object
+      properties:
+        legal_name:
+          type: string
+          maxLength: 200
+        trade_name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        owner_name:
+          type: string
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        phone:
+          type: string
+          minLength: 1
+          maxLength: 15
+        whatsapp_number:
+          type: string
+          maxLength: 15
+        gstin:
+          type: string
+          maxLength: 15
+        pan:
+          type: string
+          maxLength: 10
+        tags: {}
+        billing_address_line1:
+          type: string
+          maxLength: 255
+        billing_address_line2:
+          type: string
+          maxLength: 255
+        billing_city:
+          type: string
+          maxLength: 100
+        billing_state:
+          type: string
+          maxLength: 100
+        billing_pincode:
+          type: string
+          maxLength: 10
+        shipping_address_line1:
+          type: string
+          maxLength: 255
+        shipping_address_line2:
+          type: string
+          maxLength: 255
+        shipping_city:
+          type: string
+          maxLength: 100
+        shipping_state:
+          type: string
+          maxLength: 100
+        shipping_pincode:
+          type: string
+          maxLength: 10
+        same_as_billing:
+          type: boolean
+        assigned_agent:
+          type: string
+          format: uuid
+          nullable: true
+        credit_limit:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        payment_terms_days:
+          type: integer
+        auto_block_on_exceed:
+          type: boolean
+        status:
+          $ref: '#/components/schemas/Status21cEnum'
+        internal_notes:
+          type: string
+    PatchedUserAdminRequest:
+      type: object
+      properties:
+        full_name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        phone:
+          type: string
+          maxLength: 15
+        role:
+          $ref: '#/components/schemas/RoleEnum'
+        company:
+          type: string
+          format: uuid
+          nullable: true
+        is_active:
+          type: boolean
+    PatchedUserProfileUpdateRequest:
+      type: object
+      properties:
+        full_name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        phone:
+          type: string
+          maxLength: 15
+    ReceivablesAgeing:
+      type: object
+      properties:
+        _0_30:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          title: ' 0 30'
+        _31_60:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          title: ' 31 60'
+        _60_plus:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+          title: ' 60 plus'
+      required:
+      - _0_30
+      - _31_60
+      - _60_plus
+    RoleEnum:
+      enum:
+      - superadmin
+      - admin
+      - subadmin
+      - agent
+      - customer
+      type: string
+      description: |-
+        * `superadmin` - Super Admin
+        * `admin` - Admin
+        * `subadmin` - Sub Admin
+        * `agent` - Agent
+        * `customer` - Customer
+    SegmentEnum:
+      enum:
+      - platinum
+      - gold
+      - silver
+      - bronze
+      type: string
+      description: |-
+        * `platinum` - Platinum
+        * `gold` - Gold
+        * `silver` - Silver
+        * `bronze` - Bronze
+    Signup:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        full_name:
+          type: string
+          maxLength: 150
+        phone:
+          type: string
+          maxLength: 15
+        company_name:
+          type: string
+          maxLength: 200
+        company_slug:
+          type: string
+          maxLength: 200
+          pattern: ^[-a-zA-Z0-9_]+$
+      required:
+      - company_name
+      - company_slug
+      - email
+      - full_name
+    SignupRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+        full_name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        phone:
+          type: string
+          maxLength: 15
+        company_name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        company_slug:
+          type: string
+          minLength: 1
+          maxLength: 200
+          pattern: ^[-a-zA-Z0-9_]+$
+      required:
+      - company_name
+      - company_slug
+      - email
+      - full_name
+      - password
+    Status21cEnum:
+      enum:
+      - active
+      - inactive
+      - blocked
+      - prospect
+      type: string
+      description: |-
+        * `active` - Active
+        * `inactive` - Inactive
+        * `blocked` - Blocked
+        * `prospect` - Prospect
+    Status82aEnum:
+      enum:
+      - pending
+      - trial
+      - active
+      - suspended
+      - expired
+      - grace
+      type: string
+      description: |-
+        * `pending` - Pending Approval
+        * `trial` - Trial
+        * `active` - Active
+        * `suspended` - Suspended
+        * `expired` - Expired
+        * `grace` - Grace Period
+    SuperAdminDashboard:
+      type: object
+      properties:
+        total_companies:
+          type: integer
+        active_companies:
+          type: integer
+        trial_companies:
+          type: integer
+        expired_companies:
+          type: integer
+        mrr:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        arr:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        churn_rate:
+          type: number
+          format: double
+        ltv:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+      required:
+      - active_companies
+      - arr
+      - churn_rate
+      - expired_companies
+      - ltv
+      - mrr
+      - total_companies
+      - trial_companies
+    TallySync:
+      type: object
+      properties:
+        status:
+          type: string
+        last_synced_at:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+      - last_synced_at
+      - status
+    ToStatusEnum:
+      enum:
+      - draft
+      - submitted
+      - confirmed
+      - processing
+      - packed
+      - ready
+      - dispatched
+      - delivered
+      - cancelled
+      - on_hold
+      type: string
+      description: |-
+        * `draft` - Draft (Cart)
+        * `submitted` - Submitted
+        * `confirmed` - Confirmed
+        * `processing` - Processing
+        * `packed` - Packed
+        * `ready` - Ready to Dispatch
+        * `dispatched` - Dispatched
+        * `delivered` - Delivered
+        * `cancelled` - Cancelled
+        * `on_hold` - On Hold
+    TokenRefresh:
+      type: object
+      properties:
+        access:
+          type: string
+          readOnly: true
+        refresh:
+          type: string
+      required:
+      - access
+      - refresh
+    TokenRefreshRequest:
+      type: object
+      properties:
+        refresh:
+          type: string
+          minLength: 1
+      required:
+      - refresh
+    UserAdmin:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        email:
+          type: string
+          format: email
+          readOnly: true
+        full_name:
+          type: string
+          maxLength: 150
+        phone:
+          type: string
+          maxLength: 15
+        role:
+          $ref: '#/components/schemas/RoleEnum'
+        company:
+          type: string
+          format: uuid
+          nullable: true
+        is_active:
+          type: boolean
+        last_login:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - email
+      - full_name
+      - id
+      - last_login
+      - role
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        email:
+          type: string
+          format: email
+          readOnly: true
+        full_name:
+          type: string
+          maxLength: 150
+        phone:
+          type: string
+          maxLength: 15
+        role:
+          allOf:
+          - $ref: '#/components/schemas/RoleEnum'
+          readOnly: true
+        company:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
+        company_name:
+          type: string
+          readOnly: true
+        company_status:
+          type: string
+          readOnly: true
+        is_active:
+          type: boolean
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - company
+      - company_name
+      - company_status
+      - created_at
+      - email
+      - full_name
+      - id
+      - is_active
+      - role
+      - updated_at
+    UserProfileUpdate:
+      type: object
+      properties:
+        full_name:
+          type: string
+          maxLength: 150
+        phone:
+          type: string
+          maxLength: 15
+      required:
+      - full_name
+    VariantSize:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        size:
+          type: string
+          maxLength: 20
+        sku:
+          type: string
+          maxLength: 60
+        price_override:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+          nullable: true
+        stock_quantity:
+          type: integer
+        reserved_qty:
+          type: integer
+          description: Reserved for pending orders
+        available_qty:
+          type: integer
+          readOnly: true
+        reorder_level:
+          type: integer
+        is_low_stock:
+          type: boolean
+          readOnly: true
+        is_active:
+          type: boolean
+      required:
+      - available_qty
+      - id
+      - is_low_stock
+      - size
+      - sku
+  securitySchemes:
+    jwtAuth:
+      type: http
+      scheme: bearer
