@@ -4,15 +4,17 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('orders', '0001_initial'),
+        ("orders", "0001_initial"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='orderitem',
-            name='packed_quantity',
-            field=models.PositiveIntegerField(default=0, help_text='Quantity actually packed. May be less than ordered quantity.'),
+            model_name="orderitem",
+            name="packed_quantity",
+            field=models.PositiveIntegerField(
+                default=0,
+                help_text="Quantity actually packed. May be less than ordered quantity.",
+            ),
         ),
     ]

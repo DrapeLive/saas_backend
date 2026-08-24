@@ -1,4 +1,7 @@
-from django.db.models import Q
+from decimal import Decimal
+
+from django.db.models import DecimalField, Q, Sum, TextField, Value
+from django.db.models.functions import Cast, Coalesce
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -8,15 +11,18 @@ from rest_framework.viewsets import GenericViewSet
 from apps.accounts.authentication import CustomJWTAuthentication
 from apps.accounts.models import RoleType
 from apps.accounts.permissions import CompanyApproved, IsCompanyStaff
+from apps.core.pagination import DefaultPageNumberPagination
 from apps.customers.models import CustomerProfile
 from apps.customers.serializers import (
     CustomerCommunicationLogSerializer,
     CustomerCreateSerializer,
     CustomerDocumentSerializer,
+    CustomerOverviewSerializer,
     CustomerSerializer,
     CustomerUpdateSerializer,
 )
 from apps.customers.services import compute_segment, verify_gstin
+from apps.invoices.models import Invoice, InvoiceStatus
 
 
 class IsAdminOrSubAdmin(IsCompanyStaff):
@@ -29,6 +35,21 @@ class IsAdminOrSubAdmin(IsCompanyStaff):
 class CustomerViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
     permission_classes = (IsAuthenticated,)
+    pagination_class = DefaultPageNumberPagination
+
+    # Invoice statuses whose remaining balance counts as outstanding receivable.
+    UNPAID_STATUSES = (
+        InvoiceStatus.ISSUED,
+        InvoiceStatus.PARTIAL,
+        InvoiceStatus.OVERDUE,
+    )
+
+    ORDERING_FIELDS = {
+        "trade_name",
+        "created_at",
+        "total_outstanding",
+        "overdue_outstanding",
+    }
 
     def get_serializer_class(self):
         if self.action == "create":
@@ -42,8 +63,14 @@ class CustomerViewSet(GenericViewSet):
         return CustomerSerializer
 
     def get_permissions(self):
-        if self.action in ("import_preview", "import_confirm", "verify_gstin",
-                           "compute_segment", "credit_block", "credit_unblock"):
+        if self.action in (
+            "import_preview",
+            "import_confirm",
+            "verify_gstin",
+            "compute_segment",
+            "credit_block",
+            "credit_unblock",
+        ):
             return [IsAuthenticated(), CompanyApproved(), IsAdminOrSubAdmin()]
         if self.action in ("documents", "communication_logs"):
             return [IsAuthenticated(), CompanyApproved(), IsCompanyStaff()]
@@ -79,17 +106,67 @@ class CustomerViewSet(GenericViewSet):
         if assigned_agent:
             customers = customers.filter(assigned_agent_id=assigned_agent)
 
-        ordering = request.query_params.get("ordering", "-created_at")
-        customers = customers.order_by(ordering)
-
         tag = request.query_params.get("tag")
         if tag:
-            customers = [c for c in customers if tag in c.tags]
-        else:
-            customers = list(customers)
+            # No portable JSON-array membership lookup across backends
+            # (SQLite lacks JSONField contains in Django 4.2), so match the
+            # quoted tag against the array's serialized form instead.
+            customers = customers.annotate(
+                tags_text=Cast("tags", output_field=TextField()),
+            ).filter(tags_text__icontains=f'"{tag}"')
 
-        serializer = CustomerSerializer(customers, many=True)
-        return Response(serializer.data)
+        ordering = request.query_params.get("ordering", "-created_at")
+        descending = ordering.startswith("-")
+        ordering_field = ordering.lstrip("-")
+        if ordering_field not in self.ORDERING_FIELDS:
+            descending, ordering_field = True, "created_at"
+        # Client-facing total_outstanding maps to the annotated live sum.
+        if ordering_field == "total_outstanding":
+            ordering_field = "computed_total_outstanding"
+
+        # Temporary: computed_total_outstanding is a live sum of unpaid
+        # invoice balances, because the denormalized total_outstanding column
+        # is not yet maintained on invoice creation/status changes. Remove
+        # this annotation (and the serializer bridge) once sync lands.
+        customers = customers.annotate(
+            computed_total_outstanding=Coalesce(
+                Sum(
+                    "invoices__amount_due",
+                    filter=Q(invoices__status__in=self.UNPAID_STATUSES),
+                ),
+                Value(Decimal("0.00")),
+                output_field=DecimalField(max_digits=14, decimal_places=2),
+            )
+        ).order_by(f"-{ordering_field}" if descending else ordering_field)
+
+        page = self.paginate_queryset(customers)
+        serializer = CustomerSerializer(page, many=True)
+        return self.get_paginated_response(serializer.data)
+
+    @action(detail=False, methods=["get"], url_path="overview")
+    def overview(self, request):
+        company = request.user.company
+        active_count = CustomerProfile.objects.filter(
+            company=company,
+            status=CustomerProfile.CustomerStatus.ACTIVE,
+        ).count()
+        total_outstanding_receivable = Invoice.objects.filter(
+            company=company,
+            status__in=self.UNPAID_STATUSES,
+        ).aggregate(
+            total=Coalesce(
+                Sum("amount_due"),
+                Value(Decimal("0.00")),
+                output_field=DecimalField(max_digits=14, decimal_places=2),
+            )
+        )["total"]
+        data = CustomerOverviewSerializer(
+            {
+                "active_customer_count": active_count,
+                "total_outstanding_receivable": total_outstanding_receivable,
+            }
+        ).data
+        return Response(data)
 
     def retrieve(self, request, *args, **kwargs):
         customer = self.get_object()
@@ -98,7 +175,12 @@ class CustomerViewSet(GenericViewSet):
 
     def create(self, request, *args, **kwargs):
         gstin = request.data.get("gstin", "")
-        if gstin and CustomerProfile.objects.filter(company=request.user.company, gstin=gstin).exists():
+        if (
+            gstin
+            and CustomerProfile.objects.filter(
+                company=request.user.company, gstin=gstin
+            ).exists()
+        ):
             return Response(
                 {"gstin": ["Customer with this GSTIN already exists in your company."]},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -113,10 +195,17 @@ class CustomerViewSet(GenericViewSet):
                 customer.gstin_legal_name = result["legal_name"]
                 customer.gstin_status = result["status"]
                 customer.gstin_type = result["type"]
-                customer.save(update_fields=[
-                    "gstin_verified", "gstin_legal_name", "gstin_status", "gstin_type"
-                ])
-        return Response(CustomerSerializer(customer).data, status=status.HTTP_201_CREATED)
+                customer.save(
+                    update_fields=[
+                        "gstin_verified",
+                        "gstin_legal_name",
+                        "gstin_status",
+                        "gstin_type",
+                    ]
+                )
+        return Response(
+            CustomerSerializer(customer).data, status=status.HTTP_201_CREATED
+        )
 
     def partial_update(self, request, *args, **kwargs):
         customer = self.get_object()
@@ -130,9 +219,14 @@ class CustomerViewSet(GenericViewSet):
                 customer.gstin_legal_name = result["legal_name"]
                 customer.gstin_status = result["status"]
                 customer.gstin_type = result["type"]
-                customer.save(update_fields=[
-                    "gstin_verified", "gstin_legal_name", "gstin_status", "gstin_type"
-                ])
+                customer.save(
+                    update_fields=[
+                        "gstin_verified",
+                        "gstin_legal_name",
+                        "gstin_status",
+                        "gstin_type",
+                    ]
+                )
         return Response(CustomerSerializer(customer).data)
 
     def destroy(self, request, *args, **kwargs):
@@ -183,9 +277,14 @@ class CustomerViewSet(GenericViewSet):
             customer.gstin_legal_name = result["legal_name"]
             customer.gstin_status = result["status"]
             customer.gstin_type = result["type"]
-            customer.save(update_fields=[
-                "gstin_verified", "gstin_legal_name", "gstin_status", "gstin_type"
-            ])
+            customer.save(
+                update_fields=[
+                    "gstin_verified",
+                    "gstin_legal_name",
+                    "gstin_status",
+                    "gstin_type",
+                ]
+            )
         return Response(result)
 
     @action(detail=True, methods=["post"], url_path="compute-segment")
@@ -220,7 +319,9 @@ class CustomerViewSet(GenericViewSet):
         serializer = CustomerDocumentSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         doc = serializer.save(customer=customer, uploaded_by=request.user)
-        return Response(CustomerDocumentSerializer(doc).data, status=status.HTTP_201_CREATED)
+        return Response(
+            CustomerDocumentSerializer(doc).data, status=status.HTTP_201_CREATED
+        )
 
     @action(detail=True, methods=["get"], url_path="communication-logs")
     def communication_logs(self, request, *args, **kwargs):

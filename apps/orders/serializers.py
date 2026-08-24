@@ -97,7 +97,6 @@ class OrderItemCreateSerializer(serializers.ModelSerializer):
         return value
 
     def validate(self, attrs):
-
         variant = attrs["variant_size"]
         qty = attrs["quantity"]
         if variant.available_qty < qty:
@@ -346,7 +345,9 @@ class PackItemsSerializer(serializers.Serializer):
         missing = set(requested) - set(order_items)
         if missing:
             raise serializers.ValidationError(
-                {"items": f"Items not found on this order: {', '.join(sorted(missing))}."}
+                {
+                    "items": f"Items not found on this order: {', '.join(sorted(missing))}."
+                }
             )
 
         for item_id, packed_qty in requested.items():
@@ -361,6 +362,7 @@ class PackItemsSerializer(serializers.Serializer):
                     }
                 )
         attrs["_resolved_items"] = [
-            (order_items[item_id], packed_qty) for item_id, packed_qty in requested.items()
+            (order_items[item_id], packed_qty)
+            for item_id, packed_qty in requested.items()
         ]
         return attrs

@@ -31,9 +31,7 @@ def upsert_payout(agent_id, company_id, month, paid_by=None, notes=None):
         status=CommissionEntry.EntryStatus.PAID,
         settlement_month=month,
     )
-    agg = paid_entries.aggregate(
-        total=Sum("commission_amount"), count=Count("id")
-    )
+    agg = paid_entries.aggregate(total=Sum("commission_amount"), count=Count("id"))
     last_paid = paid_entries.order_by("-paid_at").first()
 
     if not agg["count"]:

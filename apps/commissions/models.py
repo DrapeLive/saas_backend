@@ -128,6 +128,4 @@ class CommissionPayout(CompanyScopeModel):
         ]
 
     def __str__(self):
-        return (
-            f"{self.agent} — {self.settlement_month:%Y-%m}: {self.amount}"
-        )
+        return f"{self.agent} — {self.settlement_month:%Y-%m}: {self.amount}"

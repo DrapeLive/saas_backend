@@ -26,9 +26,7 @@ class PayoutTestCase(TestCase):
             email="payout-agent@x.com",
             full_name="Payout Agent",
         )
-        self.agent = AgentProfile.objects.create(
-            user=user, employee_code="AG-PAYOUT"
-        )
+        self.agent = AgentProfile.objects.create(user=user, employee_code="AG-PAYOUT")
         AgentCompanyMembership.objects.create(
             agent=self.agent,
             company=self.company,
@@ -78,8 +76,7 @@ class SettleCreatesPayoutTests(PayoutTestCase):
     def test_settle_creates_payout_snapshot(self):
         resp = self.client.post(
             "/api/commission-entries/settle/",
-            data='{"agent_id": "%s", "settlement_month": "2026-08-01"}'
-            % self.agent.id,
+            data='{"agent_id": "%s", "settlement_month": "2026-08-01"}' % self.agent.id,
             content_type="application/json",
             **get_jwt_headers(self.admin),
         )
@@ -96,8 +93,7 @@ class SettleCreatesPayoutTests(PayoutTestCase):
     def test_resettle_recomputes_instead_of_duplicating(self):
         self.client.post(
             "/api/commission-entries/settle/",
-            data='{"agent_id": "%s", "settlement_month": "2026-08-01"}'
-            % self.agent.id,
+            data='{"agent_id": "%s", "settlement_month": "2026-08-01"}' % self.agent.id,
             content_type="application/json",
             **get_jwt_headers(self.admin),
         )

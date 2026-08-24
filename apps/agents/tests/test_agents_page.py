@@ -182,18 +182,14 @@ class AgentListPageTests(TestCase):
         self.assertEqual(resp.data["count"], 2)
 
     def test_search_filter(self):
-        resp = self.client.get(
-            f"{self.url}?search=Beta", **get_jwt_headers(self.admin)
-        )
+        resp = self.client.get(f"{self.url}?search=Beta", **get_jwt_headers(self.admin))
         self.assertEqual(resp.data["count"], 1)
-        self.assertEqual(
-            resp.data["results"][0]["user"]["full_name"], "Beta Agent"
-        )
+        self.assertEqual(resp.data["results"][0]["user"]["full_name"], "Beta Agent")
 
     def test_status_filter(self):
-        AgentCompanyMembership.objects.filter(
-            agent=self.agent_b
-        ).update(status="suspended")
+        AgentCompanyMembership.objects.filter(agent=self.agent_b).update(
+            status="suspended"
+        )
 
         resp = self.client.get(
             f"{self.url}?status=suspended", **get_jwt_headers(self.admin)

@@ -89,9 +89,7 @@ class AgentMembershipViewSet(GenericViewSet):
         return {
             "clients_count": Subquery(clients, output_field=IntegerField()),
             "commission_total": total_subquery(),
-            "commission_pending": total_subquery(
-                Q(status__in=["pending", "approved"])
-            ),
+            "commission_pending": total_subquery(Q(status__in=["pending", "approved"])),
         }
 
     def get_permissions(self):
@@ -139,9 +137,8 @@ class AgentMembershipViewSet(GenericViewSet):
                 | Q(agent__employee_code__icontains=search)
             )
 
-        queryset = (
-            queryset.annotate(**self._agent_stats_annotations())
-            .order_by("-created_at")
+        queryset = queryset.annotate(**self._agent_stats_annotations()).order_by(
+            "-created_at"
         )
 
         page = self.paginate_queryset(queryset)

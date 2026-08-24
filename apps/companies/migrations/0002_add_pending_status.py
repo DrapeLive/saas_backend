@@ -4,15 +4,25 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('companies', '0001_initial'),
+        ("companies", "0001_initial"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='company',
-            name='status',
-            field=models.CharField(choices=[('pending', 'Pending Approval'), ('trial', 'Trial'), ('active', 'Active'), ('suspended', 'Suspended'), ('expired', 'Expired'), ('grace', 'Grace Period')], default='trial', max_length=20),
+            model_name="company",
+            name="status",
+            field=models.CharField(
+                choices=[
+                    ("pending", "Pending Approval"),
+                    ("trial", "Trial"),
+                    ("active", "Active"),
+                    ("suspended", "Suspended"),
+                    ("expired", "Expired"),
+                    ("grace", "Grace Period"),
+                ],
+                default="trial",
+                max_length=20,
+            ),
         ),
     ]

@@ -6,73 +6,116 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = [
-        ('agents', '0001_initial'),
-        ('commissions', '0001_initial'),
-        ('companies', '0001_initial'),
-        ('customers', '0001_initial'),
+        ("agents", "0001_initial"),
+        ("commissions", "0001_initial"),
+        ("companies", "0001_initial"),
+        ("customers", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='agentcompanymembership',
-            name='custom_commission_plan',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to='commissions.commissionplan'),
+            model_name="agentcompanymembership",
+            name="custom_commission_plan",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                to="commissions.commissionplan",
+            ),
         ),
         migrations.AddField(
-            model_name='agentinvitation',
-            name='accepted_by',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='accepted_invitations', to=settings.AUTH_USER_MODEL),
+            model_name="agentinvitation",
+            name="accepted_by",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="accepted_invitations",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.AddField(
-            model_name='agentinvitation',
-            name='company',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='agent_invitations', to='companies.company'),
+            model_name="agentinvitation",
+            name="company",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="agent_invitations",
+                to="companies.company",
+            ),
         ),
         migrations.AddField(
-            model_name='agentinvitation',
-            name='invited_by',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='+', to=settings.AUTH_USER_MODEL),
+            model_name="agentinvitation",
+            name="invited_by",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="+",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.AddField(
-            model_name='agentprofile',
-            name='user',
-            field=models.OneToOneField(limit_choices_to={'role': 'agent'}, on_delete=django.db.models.deletion.CASCADE, related_name='agent_profile', to=settings.AUTH_USER_MODEL),
+            model_name="agentprofile",
+            name="user",
+            field=models.OneToOneField(
+                limit_choices_to={"role": "agent"},
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="agent_profile",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.AddField(
-            model_name='agentcompanymembership',
-            name='agent',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='memberships', to='agents.agentprofile'),
+            model_name="agentcompanymembership",
+            name="agent",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="memberships",
+                to="agents.agentprofile",
+            ),
         ),
         migrations.AddField(
-            model_name='agentvisitlog',
-            name='agent',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='visit_logs', to='agents.agentprofile'),
+            model_name="agentvisitlog",
+            name="agent",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="visit_logs",
+                to="agents.agentprofile",
+            ),
         ),
         migrations.AddField(
-            model_name='agentvisitlog',
-            name='company',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='%(app_label)s_%(class)s_set', to='companies.company'),
+            model_name="agentvisitlog",
+            name="company",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="%(app_label)s_%(class)s_set",
+                to="companies.company",
+            ),
         ),
         migrations.AddField(
-            model_name='agentvisitlog',
-            name='customer',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='agent_visits', to='customers.customerprofile'),
+            model_name="agentvisitlog",
+            name="customer",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="agent_visits",
+                to="customers.customerprofile",
+            ),
         ),
         migrations.AddIndex(
-            model_name='agentinvitation',
-            index=models.Index(fields=['token', 'status'], name='agents_invi_token_61ffea_idx'),
+            model_name="agentinvitation",
+            index=models.Index(
+                fields=["token", "status"], name="agents_invi_token_61ffea_idx"
+            ),
         ),
         migrations.AddIndex(
-            model_name='agentcompanymembership',
-            index=models.Index(fields=['status', 'company'], name='agents_comp_status_eeb081_idx'),
+            model_name="agentcompanymembership",
+            index=models.Index(
+                fields=["status", "company"], name="agents_comp_status_eeb081_idx"
+            ),
         ),
         migrations.AlterUniqueTogether(
-            name='agentcompanymembership',
-            unique_together={('agent', 'company')},
+            name="agentcompanymembership",
+            unique_together={("agent", "company")},
         ),
     ]

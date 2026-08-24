@@ -49,7 +49,9 @@ def create_super_admin(email=None, **extra) -> User:
     )
 
 
-def create_customer(company: Company, trade_name="Fashion Hub", phone="9123456780", **extra) -> CustomerProfile:
+def create_customer(
+    company: Company, trade_name="Fashion Hub", phone="9123456780", **extra
+) -> CustomerProfile:
     return CustomerProfile.objects.create(
         company=company,
         trade_name=trade_name,

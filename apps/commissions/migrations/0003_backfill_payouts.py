@@ -54,7 +54,6 @@ def remove_backfilled_payouts(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("commissions", "0002_commissionpayout"),
     ]

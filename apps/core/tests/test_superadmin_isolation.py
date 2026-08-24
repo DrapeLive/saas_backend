@@ -83,7 +83,5 @@ class TenantRoleAccessTests(TestCase):
 
     def test_agent_cannot_access_admin_endpoints(self):
         agent = create_user(role=RoleType.AGENT, company=self.company)
-        resp = self.client.get(
-            "/api/admin/agents", **get_jwt_headers(agent)
-        )
+        resp = self.client.get("/api/admin/agents", **get_jwt_headers(agent))
         self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN)

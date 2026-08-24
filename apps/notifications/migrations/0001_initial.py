@@ -7,58 +7,172 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = [
-        ('companies', '0001_initial'),
+        ("companies", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='NotificationTemplate',
+            name="NotificationTemplate",
             fields=[
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('event_type', models.CharField(choices=[('order_submitted', 'Order Submitted'), ('order_confirmed', 'Order Confirmed'), ('order_dispatched', 'Order Dispatched'), ('order_delivered', 'Order Delivered'), ('order_cancelled', 'Order Cancelled'), ('payment_received', 'Payment Received'), ('payment_reminder', 'Payment Reminder'), ('low_stock_alert', 'Low Stock Alert'), ('subscription_expiry', 'Subscription Expiry'), ('agent_invitation', 'Agent Invitation'), ('commission_settled', 'Commission Settled')], max_length=30)),
-                ('channel', models.CharField(choices=[('whatsapp', 'WhatsApp'), ('email', 'Email'), ('push', 'Push Notification'), ('in_app', 'In-App'), ('sms', 'SMS')], max_length=15)),
-                ('subject', models.CharField(blank=True, max_length=200)),
-                ('body', models.TextField()),
-                ('whatsapp_template_name', models.CharField(blank=True, max_length=100)),
-                ('is_active', models.BooleanField(default=True)),
-                ('company', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, to='companies.company')),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                (
+                    "event_type",
+                    models.CharField(
+                        choices=[
+                            ("order_submitted", "Order Submitted"),
+                            ("order_confirmed", "Order Confirmed"),
+                            ("order_dispatched", "Order Dispatched"),
+                            ("order_delivered", "Order Delivered"),
+                            ("order_cancelled", "Order Cancelled"),
+                            ("payment_received", "Payment Received"),
+                            ("payment_reminder", "Payment Reminder"),
+                            ("low_stock_alert", "Low Stock Alert"),
+                            ("subscription_expiry", "Subscription Expiry"),
+                            ("agent_invitation", "Agent Invitation"),
+                            ("commission_settled", "Commission Settled"),
+                        ],
+                        max_length=30,
+                    ),
+                ),
+                (
+                    "channel",
+                    models.CharField(
+                        choices=[
+                            ("whatsapp", "WhatsApp"),
+                            ("email", "Email"),
+                            ("push", "Push Notification"),
+                            ("in_app", "In-App"),
+                            ("sms", "SMS"),
+                        ],
+                        max_length=15,
+                    ),
+                ),
+                ("subject", models.CharField(blank=True, max_length=200)),
+                ("body", models.TextField()),
+                (
+                    "whatsapp_template_name",
+                    models.CharField(blank=True, max_length=100),
+                ),
+                ("is_active", models.BooleanField(default=True)),
+                (
+                    "company",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to="companies.company",
+                    ),
+                ),
             ],
             options={
-                'db_table': 'notifications_template',
-                'unique_together': {('company', 'event_type', 'channel')},
+                "db_table": "notifications_template",
+                "unique_together": {("company", "event_type", "channel")},
             },
         ),
         migrations.CreateModel(
-            name='Notification',
+            name="Notification",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('recipient_phone', models.CharField(blank=True, max_length=15)),
-                ('recipient_email', models.EmailField(blank=True, max_length=254)),
-                ('channel', models.CharField(choices=[('whatsapp', 'WhatsApp'), ('email', 'Email'), ('push', 'Push Notification'), ('in_app', 'In-App'), ('sms', 'SMS')], max_length=15)),
-                ('subject', models.CharField(blank=True, max_length=200)),
-                ('body', models.TextField()),
-                ('status', models.CharField(choices=[('queued', 'Queued'), ('sent', 'Sent'), ('delivered', 'Delivered'), ('failed', 'Failed'), ('read', 'Read')], default='queued', max_length=15)),
-                ('external_id', models.CharField(blank=True, max_length=200)),
-                ('sent_at', models.DateTimeField(blank=True, null=True)),
-                ('delivered_at', models.DateTimeField(blank=True, null=True)),
-                ('read_at', models.DateTimeField(blank=True, null=True)),
-                ('error_message', models.TextField(blank=True)),
-                ('retry_count', models.PositiveSmallIntegerField(default=0)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('company', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, to='companies.company')),
-                ('recipient', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to=settings.AUTH_USER_MODEL)),
-                ('template', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to='notifications.notificationtemplate')),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                ("recipient_phone", models.CharField(blank=True, max_length=15)),
+                ("recipient_email", models.EmailField(blank=True, max_length=254)),
+                (
+                    "channel",
+                    models.CharField(
+                        choices=[
+                            ("whatsapp", "WhatsApp"),
+                            ("email", "Email"),
+                            ("push", "Push Notification"),
+                            ("in_app", "In-App"),
+                            ("sms", "SMS"),
+                        ],
+                        max_length=15,
+                    ),
+                ),
+                ("subject", models.CharField(blank=True, max_length=200)),
+                ("body", models.TextField()),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("queued", "Queued"),
+                            ("sent", "Sent"),
+                            ("delivered", "Delivered"),
+                            ("failed", "Failed"),
+                            ("read", "Read"),
+                        ],
+                        default="queued",
+                        max_length=15,
+                    ),
+                ),
+                ("external_id", models.CharField(blank=True, max_length=200)),
+                ("sent_at", models.DateTimeField(blank=True, null=True)),
+                ("delivered_at", models.DateTimeField(blank=True, null=True)),
+                ("read_at", models.DateTimeField(blank=True, null=True)),
+                ("error_message", models.TextField(blank=True)),
+                ("retry_count", models.PositiveSmallIntegerField(default=0)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "company",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to="companies.company",
+                    ),
+                ),
+                (
+                    "recipient",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "template",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        to="notifications.notificationtemplate",
+                    ),
+                ),
             ],
             options={
-                'db_table': 'notifications_notification',
-                'indexes': [models.Index(fields=['recipient', 'status', 'created_at'], name='notificatio_recipie_3f77fb_idx'), models.Index(fields=['channel', 'status'], name='notificatio_channel_289841_idx')],
+                "db_table": "notifications_notification",
+                "indexes": [
+                    models.Index(
+                        fields=["recipient", "status", "created_at"],
+                        name="notificatio_recipie_3f77fb_idx",
+                    ),
+                    models.Index(
+                        fields=["channel", "status"],
+                        name="notificatio_channel_289841_idx",
+                    ),
+                ],
             },
         ),
     ]

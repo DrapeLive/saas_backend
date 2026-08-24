@@ -38,10 +38,14 @@ class DispatchWithPartialPackingTests(APITestCase, PackingTestBase):
         )
         packs = {}
         if pack_a is not None:
-            order.items.filter(variant_size=self.variant_a).update(packed_quantity=pack_a)
+            order.items.filter(variant_size=self.variant_a).update(
+                packed_quantity=pack_a
+            )
             packs[self.variant_a.sku] = pack_a
         if pack_b is not None:
-            order.items.filter(variant_size=self.variant_b).update(packed_quantity=pack_b)
+            order.items.filter(variant_size=self.variant_b).update(
+                packed_quantity=pack_b
+            )
             packs[self.variant_b.sku] = pack_b
         order.refresh_from_db()
         return order
@@ -62,7 +66,9 @@ class DispatchWithPartialPackingTests(APITestCase, PackingTestBase):
         order = self._create_packed_order(qty_a=10, pack_a=10, qty_b=20, pack_b=15)
 
         response = self._create_dispatch(order)
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.content)
+        self.assertEqual(
+            response.status_code, status.HTTP_201_CREATED, response.content
+        )
 
         va = VariantSize.objects.get(pk=self.variant_a.pk)
         vb = VariantSize.objects.get(pk=self.variant_b.pk)

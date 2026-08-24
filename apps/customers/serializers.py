@@ -10,6 +10,7 @@ from apps.customers.models import (
 class CustomerSerializer(serializers.ModelSerializer):
     credit_utilization_pct = serializers.ReadOnlyField()
     assigned_agent_name = serializers.SerializerMethodField()
+    total_outstanding = serializers.SerializerMethodField()
 
     class Meta:
         model = CustomerProfile
@@ -76,6 +77,19 @@ class CustomerSerializer(serializers.ModelSerializer):
         if obj.assigned_agent and obj.assigned_agent.user:
             return obj.assigned_agent.user.full_name
         return None
+
+    def get_total_outstanding(self, obj):
+        # The list endpoint annotates a live sum of unpaid invoice balances
+        # (computed_total_outstanding); fall back to the denormalized column
+        # elsewhere until invoice lifecycle sync maintains it.
+        return getattr(obj, "computed_total_outstanding", obj.total_outstanding)
+
+
+class CustomerOverviewSerializer(serializers.Serializer):
+    active_customer_count = serializers.IntegerField()
+    total_outstanding_receivable = serializers.DecimalField(
+        max_digits=14, decimal_places=2
+    )
 
 
 class CustomerCreateSerializer(serializers.ModelSerializer):
