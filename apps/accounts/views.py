@@ -37,7 +37,6 @@ from apps.accounts.permissions import (
     CompanyApproved,
     IsAdmin,
     IsAgent,
-    IsCompanyAdminOrAbove,
     IsSuperAdmin,
 )
 from apps.accounts.serializers import (
@@ -367,24 +366,12 @@ class AdminUserViewSet(GenericViewSet):
         return UserAdminSerializer
 
     def list(self, request, *args, **kwargs):
-        if request.user.role == RoleType.SUPER_ADMIN:
-            users = User.objects.all()
-        else:
-            users = User.objects.filter(company=request.user.company)
+        users = User.objects.filter(company=request.user.company)
         serializer = UserAdminSerializer(users, many=True)
         return Response(serializer.data)
 
     def create_sub_admin(self, request, *args, **kwargs):
         company = request.user.company
-        if request.user.role == RoleType.SUPER_ADMIN:
-            company_id = request.data.get("company")
-            try:
-                company = Company.objects.get(pk=company_id)
-            except Company.DoesNotExist:
-                return Response(
-                    {"detail": "Company not found."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
 
         serializer = CreateSubAdminSerializer(
             data=request.data, context={"company": company}
@@ -402,12 +389,11 @@ class AdminUserViewSet(GenericViewSet):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        if request.user.role != RoleType.SUPER_ADMIN:
-            if user.company_id != request.user.company_id:
-                return Response(
-                    {"detail": "You can only manage users in your company."},
-                    status=status.HTTP_403_FORBIDDEN,
-                )
+        if user.company_id != request.user.company_id:
+            return Response(
+                {"detail": "You can only manage users in your company."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
         serializer = UserAdminSerializer(user, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
@@ -423,12 +409,11 @@ class AdminUserViewSet(GenericViewSet):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        if request.user.role != RoleType.SUPER_ADMIN:
-            if user.company_id != request.user.company_id:
-                return Response(
-                    {"detail": "You can only manage users in your company."},
-                    status=status.HTTP_403_FORBIDDEN,
-                )
+        if user.company_id != request.user.company_id:
+            return Response(
+                {"detail": "You can only manage users in your company."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
         user.is_active = False
         user.save(update_fields=["is_active"])
@@ -580,7 +565,7 @@ class SuperAdminDashboardViewSet(GenericViewSet):
 
 class AdminDashboardViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
-    permission_classes = (IsAuthenticated, CompanyApproved, IsCompanyAdminOrAbove)
+    permission_classes = (IsAuthenticated, CompanyApproved, IsAdmin)
     serializer_class = AdminDashboardSerializer
 
     def list(self, request, *args, **kwargs):
@@ -742,7 +727,7 @@ class BusinessStatsViewSet(GenericViewSet):
     """
 
     authentication_classes = (CustomJWTAuthentication,)
-    permission_classes = (IsAuthenticated, CompanyApproved, IsCompanyAdminOrAbove)
+    permission_classes = (IsAuthenticated, CompanyApproved, IsAdmin)
     serializer_class = BusinessStatsSerializer
 
     def list(self, request, *args, **kwargs):
@@ -826,7 +811,7 @@ class BusinessStatsViewSet(GenericViewSet):
 
 class AdminAnalyticsViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
-    permission_classes = (IsAuthenticated, CompanyApproved, IsCompanyAdminOrAbove)
+    permission_classes = (IsAuthenticated, CompanyApproved, IsAdmin)
     serializer_class = AdminAnalyticsSerializer
 
     def list(self, request, *args, **kwargs):

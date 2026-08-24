@@ -23,7 +23,7 @@ class IsAdminOrSubAdmin(IsCompanyStaff):
     def has_permission(self, request, view):
         if not super().has_permission(request, view):
             return False
-        return request.user.role in (RoleType.SUPER_ADMIN, RoleType.ADMIN, RoleType.SUB_ADMIN)
+        return request.user.role in (RoleType.ADMIN, RoleType.SUB_ADMIN)
 
 
 class CustomerViewSet(GenericViewSet):
@@ -55,10 +55,7 @@ class CustomerViewSet(GenericViewSet):
         )
 
     def list(self, request, *args, **kwargs):
-        if request.user.role == "superadmin":
-            customers = self.get_queryset()
-        else:
-            customers = self.get_queryset().filter(company=request.user.company)
+        customers = self.get_queryset().filter(company=request.user.company)
 
         search = request.query_params.get("search")
         if search:

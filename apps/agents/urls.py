@@ -30,6 +30,11 @@ urlpatterns = [
         name="admin-agents-list",
     ),  # ✅
     path(
+        "admin/agents/overview",
+        AgentMembershipViewSet.as_view({"get": "overview"}),
+        name="admin-agents-overview",
+    ),
+    path(
         "admin/agents/leaderboard",
         AgentMembershipViewSet.as_view({"get": "leaderboard"}),
         name="admin-agents-leaderboard",

@@ -94,3 +94,40 @@ class CommissionEntry(CompanyScopeModel):
         indexes = [
             models.Index(fields=["agent", "status", "settlement_month"]),
         ]
+
+
+class CommissionPayout(CompanyScopeModel):
+    """
+    Monthly payout snapshot per agent. Created/updated automatically
+    whenever commission entries are marked PAID for a settlement month.
+    """
+
+    agent = models.ForeignKey(
+        "agents.AgentProfile", on_delete=models.CASCADE, related_name="payouts"
+    )
+    settlement_month = models.DateField()
+    amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    entries_count = models.PositiveIntegerField(default=0)
+    paid_at = models.DateTimeField(null=True, blank=True)
+    paid_by = models.ForeignKey(
+        "accounts.User", null=True, blank=True, on_delete=models.SET_NULL
+    )
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        db_table = "commissions_payout"
+        ordering = ["-paid_at", "-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["company", "agent", "settlement_month"],
+                name="unique_payout_per_agent_month",
+            )
+        ]
+        indexes = [
+            models.Index(fields=["company", "paid_at"]),
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.agent} — {self.settlement_month:%Y-%m}: {self.amount}"
+        )

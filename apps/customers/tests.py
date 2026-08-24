@@ -98,8 +98,7 @@ class CustomerListCreateTests(TestCase):
         resp = self.client.get(
             "/api/admin/customers/", **get_jwt_headers(super_admin)
         )
-        self.assertEqual(resp.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(resp.data), 2)
+        self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_list_customers_unauthorized(self):
         resp = self.client.get("/api/admin/customers/")
@@ -470,7 +469,7 @@ class CustomerPermissionsTests(TestCase):
             "/api/admin/customers/",
             **get_jwt_headers(super_admin),
         )
-        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_data_isolation(self):
         other_company = create_company(name="Other", slug="other-co", status="active")

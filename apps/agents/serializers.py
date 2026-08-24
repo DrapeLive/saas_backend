@@ -2,6 +2,7 @@ from rest_framework import serializers
 
 from apps.accounts.models import User
 from apps.agents.models import AgentCompanyMembership, AgentProfile
+from apps.commissions.models import CommissionPayout
 
 
 class AgentUserSerializer(serializers.ModelSerializer):
@@ -17,6 +18,13 @@ class AgentMembershipSerializer(serializers.ModelSerializer):
     commission_plan_name = serializers.CharField(
         source="custom_commission_plan.name", read_only=True, default=None
     )
+    clients_count = serializers.IntegerField(read_only=True, default=0)
+    commission_total = serializers.DecimalField(
+        max_digits=14, decimal_places=2, read_only=True, default=0
+    )
+    commission_pending = serializers.DecimalField(
+        max_digits=14, decimal_places=2, read_only=True, default=0
+    )
 
     class Meta:
         model = AgentCompanyMembership
@@ -27,6 +35,9 @@ class AgentMembershipSerializer(serializers.ModelSerializer):
             "company_name",
             "status",
             "territory",
+            "clients_count",
+            "commission_total",
+            "commission_pending",
             "monthly_target",
             "custom_commission_plan",
             "commission_plan_name",
@@ -94,3 +105,35 @@ class AgentLeaderboardSerializer(serializers.Serializer):
     orders_this_month = serializers.IntegerField()
     sales_this_month = serializers.DecimalField(max_digits=14, decimal_places=2)
     rank = serializers.IntegerField()
+
+
+class RecentPayoutSerializer(serializers.ModelSerializer):
+    agent_name = serializers.CharField(source="agent.user.full_name", read_only=True)
+    paid_by_name = serializers.CharField(
+        source="paid_by.full_name", read_only=True, default=None
+    )
+
+    class Meta:
+        model = CommissionPayout
+        fields = [
+            "id",
+            "agent_id",
+            "agent_name",
+            "amount",
+            "entries_count",
+            "settlement_month",
+            "paid_at",
+            "paid_by_name",
+            "notes",
+        ]
+
+
+class AgentOverviewSummarySerializer(serializers.Serializer):
+    active_agents = serializers.IntegerField()
+    pending_payout_amount = serializers.DecimalField(max_digits=14, decimal_places=2)
+    paid_payout_amount = serializers.DecimalField(max_digits=14, decimal_places=2)
+
+
+class AgentOverviewSerializer(serializers.Serializer):
+    summary = AgentOverviewSummarySerializer()
+    recent_payouts = RecentPayoutSerializer(many=True)
