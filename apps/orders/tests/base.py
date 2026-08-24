@@ -51,7 +51,9 @@ class PackingTestBase:
         )
 
     @classmethod
-    def create_variant(cls, company: Company, sku: str, stock: int = 100) -> VariantSize:
+    def create_variant(
+        cls, company: Company, sku: str, stock: int = 100
+    ) -> VariantSize:
         category, _ = Category.objects.get_or_create(
             company=company,
             slug="mens",

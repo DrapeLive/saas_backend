@@ -37,7 +37,6 @@ from apps.accounts.permissions import (
     CompanyApproved,
     IsAdmin,
     IsAgent,
-    IsCompanyAdminOrAbove,
     IsSuperAdmin,
 )
 from apps.accounts.serializers import (
@@ -367,24 +366,12 @@ class AdminUserViewSet(GenericViewSet):
         return UserAdminSerializer
 
     def list(self, request, *args, **kwargs):
-        if request.user.role == RoleType.SUPER_ADMIN:
-            users = User.objects.all()
-        else:
-            users = User.objects.filter(company=request.user.company)
+        users = User.objects.filter(company=request.user.company)
         serializer = UserAdminSerializer(users, many=True)
         return Response(serializer.data)
 
     def create_sub_admin(self, request, *args, **kwargs):
         company = request.user.company
-        if request.user.role == RoleType.SUPER_ADMIN:
-            company_id = request.data.get("company")
-            try:
-                company = Company.objects.get(pk=company_id)
-            except Company.DoesNotExist:
-                return Response(
-                    {"detail": "Company not found."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
 
         serializer = CreateSubAdminSerializer(
             data=request.data, context={"company": company}
@@ -402,12 +389,11 @@ class AdminUserViewSet(GenericViewSet):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        if request.user.role != RoleType.SUPER_ADMIN:
-            if user.company_id != request.user.company_id:
-                return Response(
-                    {"detail": "You can only manage users in your company."},
-                    status=status.HTTP_403_FORBIDDEN,
-                )
+        if user.company_id != request.user.company_id:
+            return Response(
+                {"detail": "You can only manage users in your company."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
         serializer = UserAdminSerializer(user, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
@@ -423,12 +409,11 @@ class AdminUserViewSet(GenericViewSet):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        if request.user.role != RoleType.SUPER_ADMIN:
-            if user.company_id != request.user.company_id:
-                return Response(
-                    {"detail": "You can only manage users in your company."},
-                    status=status.HTTP_403_FORBIDDEN,
-                )
+        if user.company_id != request.user.company_id:
+            return Response(
+                {"detail": "You can only manage users in your company."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
         user.is_active = False
         user.save(update_fields=["is_active"])
@@ -580,7 +565,7 @@ class SuperAdminDashboardViewSet(GenericViewSet):
 
 class AdminDashboardViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
-    permission_classes = (IsAuthenticated, CompanyApproved, IsCompanyAdminOrAbove)
+    permission_classes = (IsAuthenticated, CompanyApproved, IsAdmin)
     serializer_class = AdminDashboardSerializer
 
     def list(self, request, *args, **kwargs):
@@ -672,12 +657,16 @@ class AdminDashboardViewSet(GenericViewSet):
         orders = Order.objects.filter(company=company).order_by("-created_at")[:3]
         data = []
         for o in orders:
-            data.append({
-                "order_name": o.order_number,
-                "customer_name": o.customer.trade_name if getattr(o, "customer", None) else None,
-                "payment": o.total_amount,
-                "status": o.status
-            })
+            data.append(
+                {
+                    "order_name": o.order_number,
+                    "customer_name": o.customer.trade_name
+                    if getattr(o, "customer", None)
+                    else None,
+                    "payment": o.total_amount,
+                    "status": o.status,
+                }
+            )
         return Response(data)
 
     @action(detail=False, methods=["get"], url_path="low-stock-items")
@@ -685,35 +674,34 @@ class AdminDashboardViewSet(GenericViewSet):
         company = request.user.company
         items = VariantSize.objects.filter(
             color_variant__product__company=company,
-            stock_quantity__lte=F("reorder_level") + F("reserved_qty")
+            stock_quantity__lte=F("reorder_level") + F("reserved_qty"),
         )
         data = []
         for item in items:
             name = f"{item.color_variant.product.name} - {item.color_variant.color_name} - {item.size}"
-            data.append({
-                "name": name,
-                "units": item.available_qty,
-                "minimum_stock": item.reorder_level,
-            })
-        return Response({
-            "total_low_stock_items": items.count(),
-            "items": data
-        })
+            data.append(
+                {
+                    "name": name,
+                    "units": item.available_qty,
+                    "minimum_stock": item.reorder_level,
+                }
+            )
+        return Response({"total_low_stock_items": items.count(), "items": data})
 
     @action(detail=False, methods=["get"], url_path="top-agents")
     def top_agents(self, request, *args, **kwargs):
         company = request.user.company
         today = now().date()
-        
+
         # Get orders submitted today by agents
-        agent_stats = Order.objects.filter(
-            company=company,
-            agent__isnull=False,
-            submitted_at__date=today
-        ).values("agent_id").annotate(
-            orders_today=Count("id"),
-            payment_today=Sum("total_amount")
-        ).order_by("-payment_today")[:2]
+        agent_stats = (
+            Order.objects.filter(
+                company=company, agent__isnull=False, submitted_at__date=today
+            )
+            .values("agent_id")
+            .annotate(orders_today=Count("id"), payment_today=Sum("total_amount"))
+            .order_by("-payment_today")[:2]
+        )
 
         data = []
         for stat in agent_stats:
@@ -725,12 +713,14 @@ class AdminDashboardViewSet(GenericViewSet):
             except AgentProfile.DoesNotExist:
                 continue
 
-            data.append({
-                "image": image,
-                "name": name,
-                "number_of_orders_today": stat["orders_today"],
-                "total_order_payment_today": stat["payment_today"]
-            })
+            data.append(
+                {
+                    "image": image,
+                    "name": name,
+                    "number_of_orders_today": stat["orders_today"],
+                    "total_order_payment_today": stat["payment_today"],
+                }
+            )
         return Response(data)
 
 
@@ -742,7 +732,7 @@ class BusinessStatsViewSet(GenericViewSet):
     """
 
     authentication_classes = (CustomJWTAuthentication,)
-    permission_classes = (IsAuthenticated, CompanyApproved, IsCompanyAdminOrAbove)
+    permission_classes = (IsAuthenticated, CompanyApproved, IsAdmin)
     serializer_class = BusinessStatsSerializer
 
     def list(self, request, *args, **kwargs):
@@ -768,9 +758,7 @@ class BusinessStatsViewSet(GenericViewSet):
             )["total"]
             or 0
         )
-        overdue_total = (
-            overdue_qs.aggregate(total=Sum("amount_due"))["total"] or 0
-        )
+        overdue_total = overdue_qs.aggregate(total=Sum("amount_due"))["total"] or 0
         overdue_invoices = overdue_qs.count()
         overdue_customers = overdue_qs.values("customer").distinct().count()
 
@@ -826,7 +814,7 @@ class BusinessStatsViewSet(GenericViewSet):
 
 class AdminAnalyticsViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
-    permission_classes = (IsAuthenticated, CompanyApproved, IsCompanyAdminOrAbove)
+    permission_classes = (IsAuthenticated, CompanyApproved, IsAdmin)
     serializer_class = AdminAnalyticsSerializer
 
     def list(self, request, *args, **kwargs):

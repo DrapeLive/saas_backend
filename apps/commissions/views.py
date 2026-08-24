@@ -27,6 +27,7 @@ from apps.commissions.serializers import (
     CommissionSettlementSerializer,
     CommissionSlabSerializer,
 )
+from apps.commissions.services import settlement_month_for, upsert_payout
 
 
 class CommissionPlanViewSet(GenericViewSet):
@@ -182,7 +183,7 @@ class CommissionEntryViewSet(GenericViewSet):
         try:
             return CommissionEntry.objects.select_related(
                 "agent__user", "order", "plan", "paid_by"
-            ).get(pk=pk, tenant=company)
+            ).get(pk=pk, company=company)
         except CommissionEntry.DoesNotExist:
             return None
 
@@ -231,6 +232,9 @@ class CommissionEntryViewSet(GenericViewSet):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
+        old_status = entry.status
+        old_month = entry.settlement_month
+
         entry.status = data["status"]
         if data.get("dispute_reason"):
             entry.dispute_reason = data["dispute_reason"]
@@ -239,7 +243,24 @@ class CommissionEntryViewSet(GenericViewSet):
         if data["status"] == CommissionEntry.EntryStatus.PAID:
             entry.paid_at = now()
             entry.paid_by = request.user
+            if entry.settlement_month is None:
+                entry.settlement_month = settlement_month_for(entry)
         entry.save()
+
+        # Keep the monthly payout ledger in sync for any affected month.
+        affected_months = set()
+        if old_status == CommissionEntry.EntryStatus.PAID:
+            affected_months.add(old_month or settlement_month_for(entry))
+        if entry.status == CommissionEntry.EntryStatus.PAID:
+            affected_months.add(entry.settlement_month)
+        for month in affected_months:
+            if month is not None:
+                upsert_payout(
+                    agent_id=entry.agent_id,
+                    company_id=company.id,
+                    month=month,
+                    paid_by=request.user,
+                )
 
         return Response(CommissionEntryDetailSerializer(entry).data)
 
@@ -273,6 +294,13 @@ class CommissionEntryViewSet(GenericViewSet):
             paid_at=now(),
             paid_by=request.user,
             adjustment_notes=data.get("notes", ""),
+        )
+        upsert_payout(
+            agent_id=data["agent_id"],
+            company_id=company.id,
+            month=data["settlement_month"],
+            paid_by=request.user,
+            notes=data.get("notes"),
         )
         return Response(
             {

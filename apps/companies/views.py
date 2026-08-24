@@ -92,9 +92,14 @@ class SuperAdminCompanyViewSet(GenericViewSet):
     def suspend(self, request, pk=None):
         company = self._get_company(pk, request)
         if company is None:
-            return Response({"detail": "Company not found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"detail": "Company not found."}, status=status.HTTP_404_NOT_FOUND
+            )
         if company.status == "suspended":
-            return Response({"detail": "Company is already suspended."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "Company is already suspended."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         old = company.status
         company.status = "suspended"
@@ -107,16 +112,32 @@ class SuperAdminCompanyViewSet(GenericViewSet):
             notes="Suspended by super admin",
         ) if company.subscription else None
 
-        self._log_audit(request, company, "company.suspend", old_value={"status": old}, new_value={"status": "suspended"})
-        return Response({"detail": f"Company {company.name} suspended.", "company": CompanySerializer(company).data})
+        self._log_audit(
+            request,
+            company,
+            "company.suspend",
+            old_value={"status": old},
+            new_value={"status": "suspended"},
+        )
+        return Response(
+            {
+                "detail": f"Company {company.name} suspended.",
+                "company": CompanySerializer(company).data,
+            }
+        )
 
     @action(detail=True, methods=["post"], url_path="activate")
     def activate(self, request, pk=None):
         company = self._get_company(pk, request)
         if company is None:
-            return Response({"detail": "Company not found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"detail": "Company not found."}, status=status.HTTP_404_NOT_FOUND
+            )
         if company.status != "suspended":
-            return Response({"detail": "Only suspended companies can be activated."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "Only suspended companies can be activated."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         company.status = "active"
         company.save(update_fields=["status"])
@@ -128,14 +149,27 @@ class SuperAdminCompanyViewSet(GenericViewSet):
             notes="Reactivated by super admin",
         ) if company.subscription else None
 
-        self._log_audit(request, company, "company.activate", old_value={"status": "suspended"}, new_value={"status": "active"})
-        return Response({"detail": f"Company {company.name} activated.", "company": CompanySerializer(company).data})
+        self._log_audit(
+            request,
+            company,
+            "company.activate",
+            old_value={"status": "suspended"},
+            new_value={"status": "active"},
+        )
+        return Response(
+            {
+                "detail": f"Company {company.name} activated.",
+                "company": CompanySerializer(company).data,
+            }
+        )
 
     @action(detail=True, methods=["post"], url_path="extend-trial")
     def extend_trial(self, request, pk=None):
         company = self._get_company(pk, request)
         if company is None:
-            return Response({"detail": "Company not found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"detail": "Company not found."}, status=status.HTTP_404_NOT_FOUND
+            )
 
         serializer = ExtendTrialSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -145,12 +179,19 @@ class SuperAdminCompanyViewSet(GenericViewSet):
 
         sub = company.subscription
         if sub is None:
-            return Response({"detail": "Company has no subscription."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "Company has no subscription."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         if sub.status != "trial":
-            return Response({"detail": "Can only extend trial period."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "Can only extend trial period."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         old_end = sub.trial_end
         from datetime import timedelta as td
+
         sub.trial_end = (sub.trial_end or now().date()) + td(days=days)
         sub.save(update_fields=["trial_end"])
 
@@ -162,20 +203,31 @@ class SuperAdminCompanyViewSet(GenericViewSet):
             metadata={"days": days},
         )
 
-        self._log_audit(request, company, "company.extend_trial",
-                        old_value={"trial_end": str(old_end) if old_end else None},
-                        new_value={"trial_end": str(sub.trial_end), "reason": reason, "days": days})
-        return Response({"detail": f"Trial extended by {days} days.", "trial_end": sub.trial_end})
+        self._log_audit(
+            request,
+            company,
+            "company.extend_trial",
+            old_value={"trial_end": str(old_end) if old_end else None},
+            new_value={"trial_end": str(sub.trial_end), "reason": reason, "days": days},
+        )
+        return Response(
+            {"detail": f"Trial extended by {days} days.", "trial_end": sub.trial_end}
+        )
 
     @action(detail=True, methods=["post"], url_path="impersonate")
     def impersonate(self, request, pk=None):
         company = self._get_company(pk, request)
         if company is None:
-            return Response({"detail": "Company not found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"detail": "Company not found."}, status=status.HTTP_404_NOT_FOUND
+            )
 
         admin = company.members.filter(role="admin").first()
         if admin is None:
-            return Response({"detail": "Company has no admin user."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "Company has no admin user."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         refresh = RefreshToken.for_user(admin)
         refresh.set_exp(lifetime=timedelta(minutes=30))
@@ -184,14 +236,20 @@ class SuperAdminCompanyViewSet(GenericViewSet):
         refresh["is_super_admin"] = False
         refresh["impersonating"] = True
 
-        self._log_audit(request, company, "superadmin.impersonate",
-                        new_value={"impersonated_user": str(admin.pk), "expires_in": "30m"})
+        self._log_audit(
+            request,
+            company,
+            "superadmin.impersonate",
+            new_value={"impersonated_user": str(admin.pk), "expires_in": "30m"},
+        )
         return Response({"access": str(refresh.access_token), "expires_in": 1800})
 
     def destroy(self, request, pk=None):
         company = self._get_company(pk, request)
         if company is None:
-            return Response({"detail": "Company not found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"detail": "Company not found."}, status=status.HTTP_404_NOT_FOUND
+            )
         if company.status == "active":
             return Response(
                 {"detail": "Cannot delete a company with an active subscription."},

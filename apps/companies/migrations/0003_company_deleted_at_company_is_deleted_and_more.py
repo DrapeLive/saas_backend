@@ -4,25 +4,24 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('companies', '0002_add_pending_status'),
+        ("companies", "0002_add_pending_status"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='company',
-            name='deleted_at',
+            model_name="company",
+            name="deleted_at",
             field=models.DateTimeField(blank=True, null=True),
         ),
         migrations.AddField(
-            model_name='company',
-            name='is_deleted',
+            model_name="company",
+            name="is_deleted",
             field=models.BooleanField(db_index=True, default=False),
         ),
         migrations.AddField(
-            model_name='company',
-            name='setup_completed',
+            model_name="company",
+            name="setup_completed",
             field=models.BooleanField(default=False),
         ),
     ]

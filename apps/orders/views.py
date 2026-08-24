@@ -146,14 +146,20 @@ class OrderViewSet(GenericViewSet):
             "own orders. Each row includes the derived `packing_status`."
         ),
         parameters=[
-            OpenApiParameter("status", OpenApiTypes.STR, OpenApiParameter.QUERY,
-                             enum=[s for s, _ in OrderStatus.choices]),
+            OpenApiParameter(
+                "status",
+                OpenApiTypes.STR,
+                OpenApiParameter.QUERY,
+                enum=[s for s, _ in OrderStatus.choices],
+            ),
             OpenApiParameter("agent_id", OpenApiTypes.UUID, OpenApiParameter.QUERY),
             OpenApiParameter("customer_id", OpenApiTypes.UUID, OpenApiParameter.QUERY),
             OpenApiParameter("search", OpenApiTypes.STR, OpenApiParameter.QUERY),
             OpenApiParameter("date_from", OpenApiTypes.DATE, OpenApiParameter.QUERY),
             OpenApiParameter("date_to", OpenApiTypes.DATE, OpenApiParameter.QUERY),
-            OpenApiParameter("pending_approval", OpenApiTypes.BOOL, OpenApiParameter.QUERY),
+            OpenApiParameter(
+                "pending_approval", OpenApiTypes.BOOL, OpenApiParameter.QUERY
+            ),
             OpenApiParameter("offline", OpenApiTypes.BOOL, OpenApiParameter.QUERY),
         ],
         responses={200: OrderListSerializer(many=True)},

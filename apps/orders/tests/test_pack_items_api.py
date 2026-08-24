@@ -303,11 +303,15 @@ class PackItemsAPITests(APITestCase, PackingTestBase):
         authenticate(self.client, self.admin, self.company)
         self.client.post(
             PACK_ITEMS_URL.format(order_id=order.id),
-            self._payload(order, [(item_a, 6), (order.items.get(variant_size=self.variant_b), 20)]),
+            self._payload(
+                order, [(item_a, 6), (order.items.get(variant_size=self.variant_b), 20)]
+            ),
         )
 
         entry = OrderStatusHistory.objects.filter(order=order).first()
-        self.assertEqual(OrderStatusHistory.objects.filter(order=order).count(), before + 1)
+        self.assertEqual(
+            OrderStatusHistory.objects.filter(order=order).count(), before + 1
+        )
         self.assertEqual(entry.from_status, PackingStatus.UNPACKED)
         self.assertEqual(entry.to_status, PackingStatus.PARTIALLY_PACKED)
         self.assertIn("Packing update", entry.notes)
@@ -324,6 +328,4 @@ class PackItemsAPITests(APITestCase, PackingTestBase):
             PACK_ITEMS_URL.format(order_id=order.id),
             self._payload(order, [(item_a, 6)]),
         )
-        self.assertEqual(
-            OrderStatusHistory.objects.filter(order=order).count(), before
-        )
+        self.assertEqual(OrderStatusHistory.objects.filter(order=order).count(), before)

@@ -1,27 +1,32 @@
 opencollection: 1.0.0
 
 info:
-    name: Saas Backend
-    version: "1"
+  name: Saas Backend
+  version: "1"
 config:
-    proxy:
-        inherit: true
-        config:
-            protocol: http
-            hostname: ""
-            port: ""
-            auth:
-                username: ""
-                password: ""
-            bypassProxy: ""
+  proxy:
+    inherit: true
+    config:
+      protocol: http
+      hostname: ""
+      port: ""
+      auth:
+        username: ""
+        password: ""
+      bypassProxy: ""
 
 request:
-    auth:
-        type: bearer
-        token: "{{accessToken}}"
+  auth:
+    type: bearer
+    token: "{{accessToken}}"
 bundled: false
 extensions:
-    bruno:
-        ignore:
-            - node_modules
-            - .git
+  bruno:
+    ignore:
+      - node_modules
+      - .git
+    openapi:
+      - sourceUrl: ../../schema.yml
+        groupBy: tags
+        autoCheck: true
+        autoCheckInterval: 5

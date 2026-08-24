@@ -28,7 +28,9 @@ def create_agent(company, email=None):
     return profile
 
 
-def create_invoice(company, customer, status="issued", due_date=None, amount_due="1000.00"):
+def create_invoice(
+    company, customer, status="issued", due_date=None, amount_due="1000.00"
+):
     return Invoice.objects.create(
         company=company,
         invoice_type="sales_invoice",
@@ -113,15 +115,53 @@ class BusinessStatsOverdueTests(TestCase):
         c2 = create_customer(self.company, trade_name="Beta")
 
         # Overdue: issued + partial invoices past due date (two for Alpha -> distinct customers)
-        create_invoice(self.company, c1, status="issued", due_date=self.today - timedelta(days=1), amount_due="500.00")
-        create_invoice(self.company, c1, status="partial", due_date=self.today - timedelta(days=10), amount_due="250.00")
-        create_invoice(self.company, c2, status="overdue", due_date=self.today - timedelta(days=30), amount_due="1000.00")
+        create_invoice(
+            self.company,
+            c1,
+            status="issued",
+            due_date=self.today - timedelta(days=1),
+            amount_due="500.00",
+        )
+        create_invoice(
+            self.company,
+            c1,
+            status="partial",
+            due_date=self.today - timedelta(days=10),
+            amount_due="250.00",
+        )
+        create_invoice(
+            self.company,
+            c2,
+            status="overdue",
+            due_date=self.today - timedelta(days=30),
+            amount_due="1000.00",
+        )
 
         # Not overdue: due today, paid with past due date, draft, void
-        create_invoice(self.company, c2, status="issued", due_date=self.today, amount_due="700.00")
-        create_invoice(self.company, c2, status="paid", due_date=self.today - timedelta(days=5), amount_due="900.00")
-        create_invoice(self.company, c2, status="draft", due_date=self.today - timedelta(days=5), amount_due="50.00")
-        create_invoice(self.company, c2, status="void", due_date=self.today - timedelta(days=5), amount_due="60.00")
+        create_invoice(
+            self.company, c2, status="issued", due_date=self.today, amount_due="700.00"
+        )
+        create_invoice(
+            self.company,
+            c2,
+            status="paid",
+            due_date=self.today - timedelta(days=5),
+            amount_due="900.00",
+        )
+        create_invoice(
+            self.company,
+            c2,
+            status="draft",
+            due_date=self.today - timedelta(days=5),
+            amount_due="50.00",
+        )
+        create_invoice(
+            self.company,
+            c2,
+            status="void",
+            due_date=self.today - timedelta(days=5),
+            amount_due="60.00",
+        )
 
         resp = self.client.get(URL, **get_jwt_headers(self.admin))
         data = resp.data
@@ -146,7 +186,9 @@ class BusinessStatsAgentTests(TestCase):
         create_agent(self.company)
         suspended = create_agent(self.company)
         pending = create_agent(self.company)
-        AgentCompanyMembership.objects.filter(agent=suspended).update(status="suspended")
+        AgentCompanyMembership.objects.filter(agent=suspended).update(
+            status="suspended"
+        )
         AgentCompanyMembership.objects.filter(agent=pending).update(status="pending")
 
         resp = self.client.get(URL, **get_jwt_headers(self.admin))
@@ -161,14 +203,21 @@ class BusinessStatsAgentTests(TestCase):
 
     def test_login_yesterday_not_active(self):
         agent = create_agent(self.company)
-        User.objects.filter(pk=agent.user.pk).update(last_login=now() - timedelta(days=1))
+        User.objects.filter(pk=agent.user.pk).update(
+            last_login=now() - timedelta(days=1)
+        )
 
         resp = self.client.get(URL, **get_jwt_headers(self.admin))
         self.assertEqual(resp.data["active_agents_today"], 0)
 
     def test_active_agent_via_visit_log_today(self):
         agent = create_agent(self.company)
-        AgentVisitLog.objects.create(company=self.company, agent=agent, customer=self.customer, visit_date=self.today)
+        AgentVisitLog.objects.create(
+            company=self.company,
+            agent=agent,
+            customer=self.customer,
+            visit_date=self.today,
+        )
 
         resp = self.client.get(URL, **get_jwt_headers(self.admin))
         self.assertEqual(resp.data["active_agents_today"], 1)
@@ -176,7 +225,9 @@ class BusinessStatsAgentTests(TestCase):
     def test_visit_yesterday_not_active(self):
         agent = create_agent(self.company)
         AgentVisitLog.objects.create(
-            company=self.company, agent=agent, customer=self.customer,
+            company=self.company,
+            agent=agent,
+            customer=self.customer,
             visit_date=self.today - timedelta(days=1),
         )
 
@@ -199,7 +250,12 @@ class BusinessStatsAgentTests(TestCase):
     def test_activity_union_deduplicates_agent(self):
         agent = create_agent(self.company)
         User.objects.filter(pk=agent.user.pk).update(last_login=now())
-        AgentVisitLog.objects.create(company=self.company, agent=agent, customer=self.customer, visit_date=self.today)
+        AgentVisitLog.objects.create(
+            company=self.company,
+            agent=agent,
+            customer=self.customer,
+            visit_date=self.today,
+        )
         create_order(self.company, self.customer, agent=agent)
 
         resp = self.client.get(URL, **get_jwt_headers(self.admin))
@@ -208,7 +264,12 @@ class BusinessStatsAgentTests(TestCase):
     def test_two_active_agents_sum_distinctly(self):
         a1 = create_agent(self.company)
         a2 = create_agent(self.company)
-        AgentVisitLog.objects.create(company=self.company, agent=a1, customer=self.customer, visit_date=self.today)
+        AgentVisitLog.objects.create(
+            company=self.company,
+            agent=a1,
+            customer=self.customer,
+            visit_date=self.today,
+        )
         create_order(self.company, self.customer, agent=a2)
 
         resp = self.client.get(URL, **get_jwt_headers(self.admin))
@@ -222,9 +283,20 @@ class BusinessStatsScopingTests(TestCase):
         admin = create_user(role=RoleType.ADMIN, company=mine)
 
         their_customer = create_customer(theirs, trade_name="Foreign")
-        create_invoice(theirs, their_customer, status="issued", due_date=now().date() - timedelta(days=1), amount_due="999.00")
+        create_invoice(
+            theirs,
+            their_customer,
+            status="issued",
+            due_date=now().date() - timedelta(days=1),
+            amount_due="999.00",
+        )
         foreign_agent = create_agent(theirs)
-        AgentVisitLog.objects.create(company=theirs, agent=foreign_agent, customer=their_customer, visit_date=now().date())
+        AgentVisitLog.objects.create(
+            company=theirs,
+            agent=foreign_agent,
+            customer=their_customer,
+            visit_date=now().date(),
+        )
 
         resp = self.client.get(URL, **get_jwt_headers(admin))
         data = resp.data

@@ -4,29 +4,37 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('agents', '0003_agentcompanymembership_invitation_method_and_more'),
+        ("agents", "0003_agentcompanymembership_invitation_method_and_more"),
     ]
 
     operations = [
         migrations.RemoveField(
-            model_name='agentinvitation',
-            name='accepted_by',
+            model_name="agentinvitation",
+            name="accepted_by",
         ),
         migrations.AddField(
-            model_name='agentinvitation',
-            name='max_uses',
+            model_name="agentinvitation",
+            name="max_uses",
             field=models.PositiveSmallIntegerField(default=1),
         ),
         migrations.AddField(
-            model_name='agentinvitation',
-            name='used_count',
+            model_name="agentinvitation",
+            name="used_count",
             field=models.PositiveSmallIntegerField(default=0),
         ),
         migrations.AlterField(
-            model_name='agentinvitation',
-            name='delivery_method',
-            field=models.CharField(blank=True, choices=[('whatsapp', 'WhatsApp'), ('email', 'Email'), ('qr_code', 'QR Code'), ('in_app', 'In-App')], max_length=15),
+            model_name="agentinvitation",
+            name="delivery_method",
+            field=models.CharField(
+                blank=True,
+                choices=[
+                    ("whatsapp", "WhatsApp"),
+                    ("email", "Email"),
+                    ("qr_code", "QR Code"),
+                    ("in_app", "In-App"),
+                ],
+                max_length=15,
+            ),
         ),
     ]

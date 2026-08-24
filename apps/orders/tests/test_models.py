@@ -14,18 +14,14 @@ class OrderItemPackingStatusTests(TestCase, PackingTestBase):
         cls.variant_b = cls.create_variant(cls.company, sku="SHIRT-RED-L", stock=100)
 
     def test_new_item_is_unpacked(self):
-        order = self.create_order(
-            self.company, self.customer, [(self.variant_a, 10)]
-        )
+        order = self.create_order(self.company, self.customer, [(self.variant_a, 10)])
         item = order.items.get()
         self.assertEqual(item.packed_quantity, 0)
         self.assertEqual(item.packing_status, PackingStatus.UNPACKED)
         self.assertEqual(item.pending_qty, 10)
 
     def test_partial_pack_derives_partially_packed(self):
-        order = self.create_order(
-            self.company, self.customer, [(self.variant_a, 10)]
-        )
+        order = self.create_order(self.company, self.customer, [(self.variant_a, 10)])
         item = order.items.get()
         item.packed_quantity = 4
         item.save()
@@ -33,9 +29,7 @@ class OrderItemPackingStatusTests(TestCase, PackingTestBase):
         self.assertEqual(item.pending_qty, 6)
 
     def test_full_pack_derives_packed(self):
-        order = self.create_order(
-            self.company, self.customer, [(self.variant_a, 10)]
-        )
+        order = self.create_order(self.company, self.customer, [(self.variant_a, 10)])
         item = order.items.get()
         item.packed_quantity = 10
         item.save()

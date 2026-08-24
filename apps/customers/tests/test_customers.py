@@ -25,20 +25,18 @@ class CustomerListCreateTests(TestCase):
         self.admin = create_user(role=RoleType.ADMIN, company=self.company)
 
     def test_list_customers_empty(self):
-        resp = self.client.get(
-            "/api/admin/customers/", **get_jwt_headers(self.admin)
-        )
+        resp = self.client.get("/api/admin/customers/", **get_jwt_headers(self.admin))
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
-        self.assertEqual(resp.data, [])
+        self.assertEqual(resp.data["count"], 0)
+        self.assertEqual(resp.data["results"], [])
 
     def test_list_customers_with_data(self):
         c1 = create_customer(self.company, trade_name="Alpha")
         c2 = create_customer(self.company, trade_name="Beta")
-        resp = self.client.get(
-            "/api/admin/customers/", **get_jwt_headers(self.admin)
-        )
+        resp = self.client.get("/api/admin/customers/", **get_jwt_headers(self.admin))
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(resp.data), 2)
+        self.assertEqual(resp.data["count"], 2)
+        self.assertEqual(len(resp.data["results"]), 2)
 
     def test_list_customers_search(self):
         create_customer(self.company, trade_name="Searchable Corp", phone="1111111111")
@@ -47,8 +45,8 @@ class CustomerListCreateTests(TestCase):
             "/api/admin/customers/?search=Searchable", **get_jwt_headers(self.admin)
         )
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(resp.data), 1)
-        self.assertEqual(resp.data[0]["trade_name"], "Searchable Corp")
+        self.assertEqual(resp.data["count"], 1)
+        self.assertEqual(resp.data["results"][0]["trade_name"], "Searchable Corp")
 
     def test_list_customers_filter_status(self):
         create_customer(self.company, trade_name="Active One", status="active")
@@ -57,18 +55,20 @@ class CustomerListCreateTests(TestCase):
             "/api/admin/customers/?status=inactive", **get_jwt_headers(self.admin)
         )
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(resp.data), 1)
-        self.assertEqual(resp.data[0]["trade_name"], "Inactive One")
+        self.assertEqual(resp.data["count"], 1)
+        self.assertEqual(resp.data["results"][0]["trade_name"], "Inactive One")
 
     def test_list_customers_filter_tag(self):
-        create_customer(self.company, trade_name="Tagged", tags=["wholesale", "premium"])
+        create_customer(
+            self.company, trade_name="Tagged", tags=["wholesale", "premium"]
+        )
         create_customer(self.company, trade_name="Untagged")
         resp = self.client.get(
             "/api/admin/customers/?tag=wholesale", **get_jwt_headers(self.admin)
         )
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(resp.data), 1)
-        self.assertEqual(resp.data[0]["trade_name"], "Tagged")
+        self.assertEqual(resp.data["count"], 1)
+        self.assertEqual(resp.data["results"][0]["trade_name"], "Tagged")
 
     def test_list_customers_filter_segment(self):
         create_customer(self.company, trade_name="Gold One", segment="gold")
@@ -77,8 +77,8 @@ class CustomerListCreateTests(TestCase):
             "/api/admin/customers/?segment=gold", **get_jwt_headers(self.admin)
         )
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(resp.data), 1)
-        self.assertEqual(resp.data[0]["trade_name"], "Gold One")
+        self.assertEqual(resp.data["count"], 1)
+        self.assertEqual(resp.data["results"][0]["trade_name"], "Gold One")
 
     def test_list_customers_ordering(self):
         create_customer(self.company, trade_name="B")
@@ -87,19 +87,16 @@ class CustomerListCreateTests(TestCase):
             "/api/admin/customers/?ordering=trade_name", **get_jwt_headers(self.admin)
         )
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
-        self.assertEqual(resp.data[0]["trade_name"], "A")
-        self.assertEqual(resp.data[1]["trade_name"], "B")
+        self.assertEqual(resp.data["results"][0]["trade_name"], "A")
+        self.assertEqual(resp.data["results"][1]["trade_name"], "B")
 
     def test_list_customers_superadmin_sees_all(self):
         other_company = create_company(name="Other", slug="other", status="active")
         create_customer(self.company, trade_name="Company A")
         create_customer(other_company, trade_name="Company B")
         super_admin = create_super_admin()
-        resp = self.client.get(
-            "/api/admin/customers/", **get_jwt_headers(super_admin)
-        )
-        self.assertEqual(resp.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(resp.data), 2)
+        resp = self.client.get("/api/admin/customers/", **get_jwt_headers(super_admin))
+        self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_list_customers_unauthorized(self):
         resp = self.client.get("/api/admin/customers/")
@@ -174,8 +171,12 @@ class CustomerListCreateTests(TestCase):
         self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_create_customer_pending_company_blocked(self):
-        pending_company = create_company(name="Pending Co", slug="pending-co", status="pending")
-        admin_pending = create_user(role=RoleType.ADMIN, company=pending_company, email="admin@pending.com")
+        pending_company = create_company(
+            name="Pending Co", slug="pending-co", status="pending"
+        )
+        admin_pending = create_user(
+            role=RoleType.ADMIN, company=pending_company, email="admin@pending.com"
+        )
         payload = {"trade_name": "Pending Test", "phone": "5555555555"}
         resp = self.client.post(
             "/api/admin/customers/",
@@ -209,7 +210,9 @@ class CustomerRetrieveUpdateDeleteTests(TestCase):
     def test_update_customer(self):
         resp = self.client.patch(
             f"/api/admin/customers/{self.customer.id}/",
-            data=json.dumps({"trade_name": "Updated Name", "internal_notes": "Updated notes"}),
+            data=json.dumps(
+                {"trade_name": "Updated Name", "internal_notes": "Updated notes"}
+            ),
             content_type="application/json",
             **get_jwt_headers(self.admin),
         )
@@ -470,7 +473,7 @@ class CustomerPermissionsTests(TestCase):
             "/api/admin/customers/",
             **get_jwt_headers(super_admin),
         )
-        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_data_isolation(self):
         other_company = create_company(name="Other", slug="other-co", status="active")
@@ -479,8 +482,6 @@ class CustomerPermissionsTests(TestCase):
         )
         create_customer(self.company, trade_name="Ours")
         create_customer(other_company, trade_name="Theirs")
-        resp = self.client.get(
-            "/api/admin/customers/", **get_jwt_headers(other_admin)
-        )
-        self.assertEqual(len(resp.data), 1)
-        self.assertEqual(resp.data[0]["trade_name"], "Theirs")
+        resp = self.client.get("/api/admin/customers/", **get_jwt_headers(other_admin))
+        self.assertEqual(resp.data["count"], 1)
+        self.assertEqual(resp.data["results"][0]["trade_name"], "Theirs")

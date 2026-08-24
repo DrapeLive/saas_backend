@@ -19,22 +19,11 @@ class IsAdmin(BasePermission):
         )
 
 
-class IsCompanyAdminOrAbove(BasePermission):
-    def has_permission(self, request, view):
-        if not request.user.is_authenticated:
-            return False
-        return request.user.role in (
-            RoleType.SUPER_ADMIN,
-            RoleType.ADMIN,
-        )
-
-
 class IsCompanyStaff(BasePermission):
     def has_permission(self, request, view):
         if not request.user.is_authenticated:
             return False
         return request.user.role in (
-            RoleType.SUPER_ADMIN,
             RoleType.ADMIN,
             RoleType.SUB_ADMIN,
             RoleType.AGENT,
@@ -77,14 +66,15 @@ class CompanyApproved(BasePermission):
 
 
 class CanManageUsers(BasePermission):
+    """
+    Tenant user management: admins only. Superadmin is intentionally
+    excluded from tenant business data (privacy).
+    """
+
     def has_permission(self, request, view):
         if not request.user.is_authenticated:
             return False
-        if request.user.role == RoleType.SUPER_ADMIN:
-            return True
-        if request.user.role == RoleType.ADMIN:
-            return True
-        return False
+        return request.user.role == RoleType.ADMIN
 
 
 class IsAdminOrSubAdmin(BasePermission):

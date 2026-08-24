@@ -6,51 +6,106 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = [
-        ('companies', '0001_initial'),
+        ("companies", "0001_initial"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='TallyLedgerMapping',
+            name="TallyLedgerMapping",
             fields=[
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('entity_type', models.CharField(max_length=50)),
-                ('entity_id', models.UUIDField()),
-                ('tally_ledger_name', models.CharField(max_length=200)),
-                ('tally_group', models.CharField(blank=True, max_length=200)),
-                ('company', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='%(app_label)s_%(class)s_set', to='companies.company')),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                ("entity_type", models.CharField(max_length=50)),
+                ("entity_id", models.UUIDField()),
+                ("tally_ledger_name", models.CharField(max_length=200)),
+                ("tally_group", models.CharField(blank=True, max_length=200)),
+                (
+                    "company",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="%(app_label)s_%(class)s_set",
+                        to="companies.company",
+                    ),
+                ),
             ],
             options={
-                'db_table': 'tally_ledger_mapping',
-                'unique_together': {('company', 'entity_type', 'entity_id')},
+                "db_table": "tally_ledger_mapping",
+                "unique_together": {("company", "entity_type", "entity_id")},
             },
         ),
         migrations.CreateModel(
-            name='TallySyncLog',
+            name="TallySyncLog",
             fields=[
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('direction', models.CharField(choices=[('push', 'Push to Tally'), ('pull', 'Pull from Tally')], max_length=5)),
-                ('entity_type', models.CharField(max_length=50)),
-                ('entity_id', models.UUIDField(blank=True, null=True)),
-                ('status', models.CharField(choices=[('pending', 'Pending'), ('success', 'Success'), ('failed', 'Failed'), ('retry', 'Retrying')], default='pending', max_length=10)),
-                ('request_payload', models.JSONField(default=dict)),
-                ('response_payload', models.JSONField(default=dict)),
-                ('error_message', models.TextField(blank=True)),
-                ('retry_count', models.PositiveSmallIntegerField(default=0)),
-                ('synced_at', models.DateTimeField(blank=True, null=True)),
-                ('company', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='%(app_label)s_%(class)s_set', to='companies.company')),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                (
+                    "direction",
+                    models.CharField(
+                        choices=[
+                            ("push", "Push to Tally"),
+                            ("pull", "Pull from Tally"),
+                        ],
+                        max_length=5,
+                    ),
+                ),
+                ("entity_type", models.CharField(max_length=50)),
+                ("entity_id", models.UUIDField(blank=True, null=True)),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("pending", "Pending"),
+                            ("success", "Success"),
+                            ("failed", "Failed"),
+                            ("retry", "Retrying"),
+                        ],
+                        default="pending",
+                        max_length=10,
+                    ),
+                ),
+                ("request_payload", models.JSONField(default=dict)),
+                ("response_payload", models.JSONField(default=dict)),
+                ("error_message", models.TextField(blank=True)),
+                ("retry_count", models.PositiveSmallIntegerField(default=0)),
+                ("synced_at", models.DateTimeField(blank=True, null=True)),
+                (
+                    "company",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="%(app_label)s_%(class)s_set",
+                        to="companies.company",
+                    ),
+                ),
             ],
             options={
-                'db_table': 'tally_sync_log',
-                'indexes': [models.Index(fields=['company', 'status', 'entity_type'], name='tally_sync__company_be35e8_idx')],
+                "db_table": "tally_sync_log",
+                "indexes": [
+                    models.Index(
+                        fields=["company", "status", "entity_type"],
+                        name="tally_sync__company_be35e8_idx",
+                    )
+                ],
             },
         ),
     ]

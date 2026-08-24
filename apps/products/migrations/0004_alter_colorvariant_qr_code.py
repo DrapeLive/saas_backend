@@ -5,15 +5,14 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('products', '0003_remove_colorvariant_qr_data'),
+        ("products", "0003_remove_colorvariant_qr_data"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='colorvariant',
-            name='qr_code',
+            model_name="colorvariant",
+            name="qr_code",
             field=models.UUIDField(default=uuid.uuid4, editable=False, unique=True),
         ),
     ]

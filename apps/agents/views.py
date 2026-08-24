@@ -1,6 +1,10 @@
 from django.db.models import (
     Count,
     DecimalField,
+    IntegerField,
+    OuterRef,
+    Q,
+    Subquery,
     Sum,
     Value,
 )
@@ -17,8 +21,8 @@ from apps.accounts.permissions import (
     CanManageUsers,
     CompanyApproved,
     IsAdmin,
+    IsAdminOrSubAdmin,
     IsAgent,
-    IsCompanyAdminOrAbove,
 )
 from apps.agents.models import AgentCompanyMembership, AgentProfile
 from apps.agents.serializers import (
@@ -26,15 +30,18 @@ from apps.agents.serializers import (
     AgentLeaderboardSerializer,
     AgentMembershipSerializer,
     AgentMembershipUpdateSerializer,
+    AgentOverviewSerializer,
     AgentPerformanceSerializer,
 )
-from apps.commissions.models import CommissionEntry
+from apps.commissions.models import CommissionEntry, CommissionPayout
+from apps.core.pagination import DefaultPageNumberPagination
 from apps.orders.models import Order
 
 
 class AgentMembershipViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
     permission_classes = (IsAuthenticated,)
+    pagination_class = DefaultPageNumberPagination
 
     def get_queryset(self):
         return AgentCompanyMembership.objects.select_related(
@@ -45,9 +52,50 @@ class AgentMembershipViewSet(GenericViewSet):
             "reviewed_by",
         )
 
+    @staticmethod
+    def _agent_stats_annotations():
+        """
+        Subquery-based aggregates so multi-join annotations never
+        multiply rows across each other.
+        """
+        commissions = CommissionEntry.objects.filter(
+            agent=OuterRef("agent"),
+            company=OuterRef("company"),
+        )
+        clients = (
+            Order.objects.filter(
+                agent=OuterRef("agent"),
+                company=OuterRef("company"),
+            )
+            .values("agent")
+            .annotate(c=Count("customer", distinct=True))
+            .values("c")[:1]
+        )
+
+        def total_subquery(extra_filter=None):
+            qs = commissions
+            if extra_filter is not None:
+                qs = qs.filter(extra_filter)
+            return Coalesce(
+                Subquery(
+                    qs.values("agent")
+                    .annotate(t=Sum("commission_amount"))
+                    .values("t")[:1]
+                ),
+                Value(0),
+                output_field=DecimalField(),
+            )
+
+        return {
+            "clients_count": Subquery(clients, output_field=IntegerField()),
+            "commission_total": total_subquery(),
+            "commission_pending": total_subquery(Q(status__in=["pending", "approved"])),
+        }
+
     def get_permissions(self):
+        if self.action in ("list", "overview"):
+            return [IsAuthenticated(), CompanyApproved(), IsAdminOrSubAdmin()]
         if self.action in (
-            "list",
             "retrieve",
             "partial_update",
             "destroy",
@@ -75,12 +123,70 @@ class AgentMembershipViewSet(GenericViewSet):
         return AgentMembershipSerializer
 
     def list(self, request, *args, **kwargs):
-        if request.user.role == "superadmin":
-            memberships = self.get_queryset()
-        else:
-            memberships = self.get_queryset().filter(company=request.user.company)
-        serializer = AgentMembershipSerializer(memberships, many=True)
+        queryset = self.get_queryset().filter(company=request.user.company)
+
+        status_filter = request.query_params.get("status")
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+
+        search = request.query_params.get("search")
+        if search:
+            queryset = queryset.filter(
+                Q(agent__user__full_name__icontains=search)
+                | Q(agent__user__email__icontains=search)
+                | Q(agent__employee_code__icontains=search)
+            )
+
+        queryset = queryset.annotate(**self._agent_stats_annotations()).order_by(
+            "-created_at"
+        )
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = AgentMembershipSerializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = AgentMembershipSerializer(queryset, many=True)
         return Response(serializer.data)
+
+    @action(detail=False, methods=["get"], url_path="overview")
+    def overview(self, request, *args, **kwargs):
+        company = request.user.company
+
+        active_agents = AgentCompanyMembership.objects.filter(
+            company=company,
+            status=AgentCompanyMembership.MembershipStatus.ACTIVE,
+        ).count()
+
+        pending_amount = CommissionEntry.objects.filter(company=company).aggregate(
+            total=Coalesce(
+                Sum(
+                    "commission_amount",
+                    filter=Q(status__in=["pending", "approved"]),
+                ),
+                Value(0),
+                output_field=DecimalField(),
+            )
+        )["total"]
+
+        paid_amount = CommissionPayout.objects.filter(company=company).aggregate(
+            total=Coalesce(Sum("amount"), Value(0), output_field=DecimalField())
+        )["total"]
+
+        recent_payouts = (
+            CommissionPayout.objects.filter(company=company)
+            .select_related("agent__user", "paid_by")
+            .order_by("-paid_at", "-created_at")[:10]
+        )
+
+        data = {
+            "summary": {
+                "active_agents": active_agents,
+                "pending_payout_amount": pending_amount,
+                "paid_payout_amount": paid_amount,
+            },
+            "recent_payouts": recent_payouts,
+        }
+        return Response(AgentOverviewSerializer(data).data)
 
     def retrieve(self, request, pk=None, *args, **kwargs):
         try:
@@ -90,7 +196,7 @@ class AgentMembershipViewSet(GenericViewSet):
                 {"detail": "Membership not found."},
                 status=status.HTTP_404_NOT_FOUND,
             )
-        if request.user.role != "superadmin" and membership.company_id != request.user.company_id:
+        if membership.company_id != request.user.company_id:
             return Response(
                 {"detail": "You can only view agents in your company."},
                 status=status.HTTP_403_FORBIDDEN,
@@ -106,7 +212,7 @@ class AgentMembershipViewSet(GenericViewSet):
                 {"detail": "Membership not found."},
                 status=status.HTTP_404_NOT_FOUND,
             )
-        if request.user.role != "superadmin" and membership.company_id != request.user.company_id:
+        if membership.company_id != request.user.company_id:
             return Response(
                 {"detail": "You can only manage agents in your company."},
                 status=status.HTTP_403_FORBIDDEN,
@@ -126,7 +232,7 @@ class AgentMembershipViewSet(GenericViewSet):
                 {"detail": "Membership not found."},
                 status=status.HTTP_404_NOT_FOUND,
             )
-        if request.user.role != "superadmin" and membership.company_id != request.user.company_id:
+        if membership.company_id != request.user.company_id:
             return Response(
                 {"detail": "You can only manage agents in your company."},
                 status=status.HTTP_403_FORBIDDEN,
@@ -471,10 +577,7 @@ class AgentMembershipViewSet(GenericViewSet):
                 {"detail": "Membership not found."},
                 status=status.HTTP_404_NOT_FOUND,
             )
-        if (
-            request.user.role != "superadmin"
-            and membership.company_id != request.user.company_id
-        ):
+        if membership.company_id != request.user.company_id:
             return Response(
                 {"detail": "You can only view agents in your company."},
                 status=status.HTTP_403_FORBIDDEN,
@@ -485,17 +588,7 @@ class AgentMembershipViewSet(GenericViewSet):
 
     @action(detail=False, methods=["get"])
     def leaderboard(self, request, *args, **kwargs):
-        if request.user.role == "superadmin":
-            company_id = request.query_params.get("company_id")
-            if not company_id:
-                return Response(
-                    {
-                        "detail": "company_id query parameter is required for super admin."
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-        else:
-            company_id = request.user.company_id
+        company_id = request.user.company_id
 
         today = now()
         month_start = today.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
