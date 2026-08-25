@@ -300,7 +300,9 @@ class ProductCreateSerializer(serializers.ModelSerializer):
         return value
 
     def validate(self, attrs):
-        if attrs.get("wholesale_price", 0) > attrs.get("mrp", 0):
+        wholesale = attrs.get("wholesale_price", 0)
+        mrp = attrs.get("mrp")
+        if mrp is not None and wholesale > mrp:
             raise serializers.ValidationError(
                 {"wholesale_price": "Wholesale price cannot exceed MRP."}
             )
@@ -407,3 +409,78 @@ class StockAdjustmentSerializer(serializers.Serializer):
         if value == 0:
             raise serializers.ValidationError("Quantity cannot be zero.")
         return value
+
+
+# ─────────────────────────────────────────────────────────────────
+# INVENTORY LISTING (VariantSize-level)
+# ─────────────────────────────────────────────────────────────────
+
+
+class ProductInventoryListSerializer(serializers.ModelSerializer):
+    """One inventory row per VariantSize (SKU)."""
+
+    product = serializers.SerializerMethodField()
+    image = serializers.SerializerMethodField()
+    category = serializers.SerializerMethodField()
+    color = serializers.SerializerMethodField()
+    price_per_unit = serializers.SerializerMethodField()
+    stock = serializers.SerializerMethodField()
+
+    class Meta:
+        model = VariantSize
+        fields = [
+            "id",
+            "product",
+            "image",
+            "sku",
+            "category",
+            "color",
+            "size",
+            "price_per_unit",
+            "stock",
+        ]
+
+    def get_product(self, obj):
+        p = obj.color_variant.product
+        return {"id": str(p.id), "name": p.name}
+
+    def get_image(self, obj):
+        image = obj.color_variant.image
+        if not image:
+            return None
+        request = self.context.get("request")
+        return request.build_absolute_uri(image.url) if request else image.url
+
+    def get_category(self, obj):
+        c = obj.color_variant.product.category
+        return {"id": str(c.id), "name": c.name}
+
+    def get_color(self, obj):
+        return {
+            "name": obj.color_variant.color_name,
+            "hex": obj.color_variant.color_hex,
+        }
+
+    def get_price_per_unit(self, obj):
+        price = (
+            obj.price_override
+            if obj.price_override is not None
+            else obj.color_variant.product.wholesale_price
+        )
+        return str(price)
+
+    def get_stock(self, obj):
+        return {
+            "stock_quantity": obj.stock_quantity,
+            "reserved_quantity": obj.reserved_qty,
+            "available_quantity": obj.available_qty,
+            "reorder_level": obj.reorder_level,
+            "is_low_stock": obj.is_low_stock,
+            "is_out_of_stock": obj.available_qty <= 0,
+        }
+
+
+class ProductInventorySummarySerializer(serializers.Serializer):
+    """Summary stats computed over the full filtered queryset."""
+
+    stock_valuation = serializers.DecimalField(max_digits=14, decimal_places=2)

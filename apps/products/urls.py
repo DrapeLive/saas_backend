@@ -62,13 +62,11 @@ urlpatterns = [
     # ─────────────────────────────────────────────────────────────
     # PRODUCTS
     # ─────────────────────────────────────────────────────────────
-    # GET    /api/products/                         List (?category= ?status= ?search= ?featured= ?low_stock=)
+    # GET    /api/products/                         Inventory listing (?page= ?page_size= ?search= ?category= ?status= ?size= ?low_stock= ?out_of_stock= ?ordering=)
     # POST   /api/products/                         Create product (with nested color_variants)
     # GET    /api/products/<pk>/                    Full detail (images + variants + sizes)
     # PATCH  /api/products/<pk>/                    Update product fields
     # DELETE /api/products/<pk>/                    Soft-delete
-    # POST   /api/products/<pk>/toggle-featured/    Toggle is_featured flag
-    # POST   /api/products/<pk>/images/             Upload product image
     path(
         "products/",
         ProductViewSet.as_view({"get": "list", "post": "create"}),

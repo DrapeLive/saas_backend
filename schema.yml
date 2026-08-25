@@ -307,7 +307,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AgentMembership'
+                $ref: '#/components/schemas/AgentOverview'
           description: ''
   /api/admin/analytics:
     get:
@@ -3371,6 +3371,35 @@ components:
           type: string
           format: uuid
           nullable: true
+    AgentOverview:
+      type: object
+      properties:
+        summary:
+          $ref: '#/components/schemas/AgentOverviewSummary'
+        recent_payouts:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecentPayout'
+      required:
+      - recent_payouts
+      - summary
+    AgentOverviewSummary:
+      type: object
+      properties:
+        active_agents:
+          type: integer
+        pending_payout_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        paid_payout_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+      required:
+      - active_agents
+      - paid_payout_amount
+      - pending_payout_amount
     AgentRegister:
       type: object
       properties:
@@ -5061,6 +5090,44 @@ components:
       - _0_30
       - _31_60
       - _60_plus
+    RecentPayout:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        agent_id:
+          type: string
+          format: uuid
+          readOnly: true
+        agent_name:
+          type: string
+          readOnly: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        entries_count:
+          type: integer
+        settlement_month:
+          type: string
+          format: date
+        paid_at:
+          type: string
+          format: date-time
+          nullable: true
+        paid_by_name:
+          type: string
+          readOnly: true
+        notes:
+          type: string
+      required:
+      - agent_id
+      - agent_name
+      - id
+      - paid_by_name
+      - settlement_month
     RoleEnum:
       enum:
       - superadmin

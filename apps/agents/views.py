@@ -118,6 +118,8 @@ class AgentMembershipViewSet(GenericViewSet):
     def get_serializer_class(self):
         if self.action == "partial_update":
             return AgentMembershipUpdateSerializer
+        if self.action == "overview":
+            return AgentOverviewSerializer
         if self.action in ("list", "retrieve"):
             return AgentMembershipSerializer
         return AgentMembershipSerializer
