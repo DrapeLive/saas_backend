@@ -2,6 +2,12 @@ from decimal import Decimal
 
 from django.db import transaction
 from django.utils.timezone import now
+from drf_spectacular.utils import (
+    OpenApiParameter,
+    OpenApiTypes,
+    extend_schema,
+    extend_schema_view,
+)
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -9,21 +15,100 @@ from rest_framework.viewsets import GenericViewSet
 
 from apps.accounts.authentication import CustomJWTAuthentication
 from apps.accounts.permissions import IsAdminOrSubAdmin
+from apps.core.openapi import RESPONSE_400, RESPONSE_404
 from apps.invoices.models import Invoice, InvoiceItem, InvoiceStatus, InvoiceType
 from apps.invoices.serializers import (
     InvoiceCreateSerializer,
     InvoiceDetailSerializer,
+    InvoiceDownloadResponseSerializer,
     InvoiceItemSerializer,
     InvoiceListSerializer,
+    InvoicePDFQueuedSerializer,
     InvoicePDFRegenerateSerializer,
     InvoiceStatusUpdateSerializer,
     InvoiceVoidSerializer,
 )
 
 
+@extend_schema_view(
+    list=extend_schema(
+        tags=["Invoices"],
+        summary="List invoices",
+        parameters=[
+            OpenApiParameter(
+                "type", OpenApiTypes.STR, OpenApiParameter.QUERY,
+                enum=[c.value for c in InvoiceType],
+                description="Invoice type (sales_invoice, credit_note, debit_note, purchase_order).",
+            ),
+            OpenApiParameter(
+                "status", OpenApiTypes.STR, OpenApiParameter.QUERY,
+                enum=[c.value for c in InvoiceStatus],
+                description="Invoice status.",
+            ),
+            OpenApiParameter(
+                "customer_id", OpenApiTypes.UUID, OpenApiParameter.QUERY, description="Filter by customer.",
+            ),
+            OpenApiParameter(
+                "overdue", OpenApiTypes.BOOL, OpenApiParameter.QUERY,
+                description="`true` for issued/overdue invoices past their due date.",
+            ),
+            OpenApiParameter(
+                "date_from", OpenApiTypes.DATE, OpenApiParameter.QUERY, description="Invoice date from.",
+            ),
+            OpenApiParameter(
+                "date_to", OpenApiTypes.DATE, OpenApiParameter.QUERY, description="Invoice date to.",
+            ),
+            OpenApiParameter(
+                "search", OpenApiTypes.STR, OpenApiParameter.QUERY,
+                description="Search by invoice number or customer name.",
+            ),
+        ],
+        responses={200: InvoiceListSerializer(many=True)},
+    ),
+    retrieve=extend_schema(
+        tags=["Invoices"],
+        summary="Get invoice",
+        responses={200: InvoiceDetailSerializer, 404: RESPONSE_404},
+    ),
+    create=extend_schema(
+        tags=["Invoices"],
+        summary="Create manual invoice",
+        description="Manual credit/debit notes only — sales invoices are auto-generated from orders.",
+        responses={201: InvoiceDetailSerializer, 400: RESPONSE_400},
+    ),
+    void=extend_schema(
+        tags=["Invoices"],
+        summary="Void invoice",
+        description="Irreversibly voids a draft/issued invoice with no recorded payments.",
+        responses={200: InvoiceDetailSerializer, 400: RESPONSE_400, 404: RESPONSE_404},
+    ),
+    regenerate_pdf=extend_schema(
+        tags=["Invoices"],
+        summary="Regenerate PDF",
+        description="Queues a background job to regenerate the invoice PDF.",
+        responses={200: InvoicePDFQueuedSerializer, 400: RESPONSE_400, 404: RESPONSE_404},
+    ),
+    download=extend_schema(
+        tags=["Invoices"],
+        summary="Download PDF",
+        description="Returns the absolute URL of the generated PDF.",
+        responses={200: InvoiceDownloadResponseSerializer, 404: RESPONSE_404},
+    ),
+)
 class InvoiceViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
     permission_classes = (IsAdminOrSubAdmin,)
+
+    def get_serializer_class(self):
+        if self.action == "list":
+            return InvoiceListSerializer
+        if self.action == "create":
+            return InvoiceCreateSerializer
+        if self.action == "void":
+            return InvoiceVoidSerializer
+        if self.action == "regenerate_pdf":
+            return InvoicePDFRegenerateSerializer
+        return InvoiceDetailSerializer
 
     def _get_company(self, request):
         return request.user.company

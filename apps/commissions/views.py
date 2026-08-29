@@ -1,6 +1,12 @@
 from django.db import transaction
 from django.db.models import Q, Sum
 from django.utils.timezone import now
+from drf_spectacular.utils import (
+    OpenApiParameter,
+    OpenApiTypes,
+    extend_schema,
+    extend_schema_view,
+)
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -24,15 +30,78 @@ from apps.commissions.serializers import (
     CommissionPlanDetailSerializer,
     CommissionPlanListSerializer,
     CommissionPlanUpdateSerializer,
+    CommissionSettledSerializer,
     CommissionSettlementSerializer,
     CommissionSlabSerializer,
 )
 from apps.commissions.services import settlement_month_for, upsert_payout
+from apps.core.openapi import RESPONSE_400, RESPONSE_404
 
 
+@extend_schema_view(
+    list=extend_schema(
+        tags=["Commissions"],
+        summary="List commission plans",
+        responses={200: CommissionPlanListSerializer(many=True)},
+    ),
+    retrieve=extend_schema(
+        tags=["Commissions"],
+        summary="Get commission plan",
+        responses={200: CommissionPlanDetailSerializer, 404: RESPONSE_404},
+    ),
+    create=extend_schema(
+        tags=["Commissions"],
+        summary="Create commission plan",
+        description="Creates a plan with optional nested slabs and per-category rates.",
+        responses={201: CommissionPlanDetailSerializer, 400: RESPONSE_400},
+    ),
+    partial_update=extend_schema(
+        tags=["Commissions"],
+        summary="Update commission plan",
+        responses={200: CommissionPlanDetailSerializer, 400: RESPONSE_400, 404: RESPONSE_404},
+    ),
+    destroy=extend_schema(
+        tags=["Commissions"],
+        summary="Delete commission plan",
+        description="Blocked for the default plan and while assigned to active agents. Returns 204.",
+        responses={204: None, 400: RESPONSE_400, 404: RESPONSE_404},
+    ),
+    add_slab=extend_schema(
+        tags=["Commissions"],
+        summary="Add slab",
+        responses={201: CommissionSlabSerializer, 400: RESPONSE_400, 404: RESPONSE_404},
+    ),
+    remove_slab=extend_schema(
+        tags=["Commissions"],
+        summary="Remove slab",
+        description="Returns 204.",
+        responses={204: None, 404: RESPONSE_404},
+        parameters=[
+            OpenApiParameter("slab_pk", OpenApiTypes.UUID, OpenApiParameter.PATH)
+        ],
+    ),
+    add_category_rate=extend_schema(
+        tags=["Commissions"],
+        summary="Add category rate",
+        responses={201: CategoryCommissionRateSerializer, 400: RESPONSE_400, 404: RESPONSE_404},
+    ),
+)
 class CommissionPlanViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
     permission_classes = (IsAdmin,)
+
+    def get_serializer_class(self):
+        if self.action == "list":
+            return CommissionPlanListSerializer
+        if self.action == "create":
+            return CommissionPlanCreateSerializer
+        if self.action == "partial_update":
+            return CommissionPlanUpdateSerializer
+        if self.action == "add_slab":
+            return CommissionSlabSerializer
+        if self.action == "add_category_rate":
+            return CategoryCommissionRateSerializer
+        return CommissionPlanDetailSerializer
 
     def _get_company(self, request):
         return request.user.company
@@ -172,9 +241,69 @@ class CommissionPlanViewSet(GenericViewSet):
         )
 
 
+@extend_schema_view(
+    list=extend_schema(
+        tags=["Commissions"],
+        summary="List commission entries",
+        parameters=[
+            OpenApiParameter(
+                "agent_id", OpenApiTypes.UUID, OpenApiParameter.QUERY, description="Filter by agent.",
+            ),
+            OpenApiParameter(
+                "status", OpenApiTypes.STR, OpenApiParameter.QUERY,
+                enum=["pending", "approved", "paid", "disputed"],
+                description="Filter by entry status.",
+            ),
+            OpenApiParameter(
+                "month", OpenApiTypes.DATE, OpenApiParameter.QUERY,
+                description="Settlement month (YYYY-MM-01).",
+            ),
+        ],
+        responses={200: CommissionEntryListSerializer(many=True)},
+    ),
+    retrieve=extend_schema(
+        tags=["Commissions"],
+        summary="Get commission entry",
+        responses={200: CommissionEntryDetailSerializer, 404: RESPONSE_404},
+    ),
+    update_status=extend_schema(
+        tags=["Commissions"],
+        summary="Update entry status",
+        description="Approve, dispute or adjust an entry (admin only). Keeps the monthly payout ledger in sync.",
+        responses={200: CommissionEntryDetailSerializer, 400: RESPONSE_400, 404: RESPONSE_404},
+    ),
+    settle=extend_schema(
+        tags=["Commissions"],
+        summary="Settle commissions",
+        description="Bulk-settles all approved entries for an agent + month as paid (admin only).",
+        responses={200: CommissionSettledSerializer, 400: RESPONSE_400},
+        parameters=[],
+    ),
+    summary=extend_schema(
+        tags=["Commissions"],
+        summary="Commission summary",
+        description="Per-agent commission totals for the current (or given) settlement month.",
+        parameters=[
+            OpenApiParameter(
+                "month", OpenApiTypes.DATE, OpenApiParameter.QUERY,
+                description="Settlement month (YYYY-MM-01).",
+            ),
+        ],
+        responses={200: AgentCommissionSummarySerializer(many=True)},
+    ),
+)
 class CommissionEntryViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
     permission_classes = (IsAdminOrSubAdmin,)
+
+    def get_serializer_class(self):
+        if self.action == "list":
+            return CommissionEntryListSerializer
+        if self.action == "update_status":
+            return CommissionEntryStatusSerializer
+        if self.action == "settle":
+            return CommissionSettlementSerializer
+        return CommissionEntryDetailSerializer
 
     def _get_company(self, request):
         return request.user.company

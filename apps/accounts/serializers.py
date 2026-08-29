@@ -1,7 +1,9 @@
 from django.contrib.auth.password_validation import validate_password
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.accounts.models import RoleType, User
+from apps.agents.models import AgentCompanyMembership, AgentInvitation
 from apps.companies.models import Company, CompanySettings
 
 
@@ -170,11 +172,13 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
 
+    @extend_schema_field(serializers.CharField(allow_null=True))
     def get_company_name(self, obj):
         if obj.company_id:
             return obj.company.name
         return None
 
+    @extend_schema_field(serializers.CharField(allow_null=True))
     def get_company_status(self, obj):
         if obj.company_id:
             return obj.company.status
@@ -362,3 +366,91 @@ class SetupNotificationSerializer(serializers.ModelSerializer):
             "notify_low_stock",
             "notify_payment_due_days",
         ]
+
+
+class TokenResponseSerializer(serializers.Serializer):
+    """JWT access token issued by login/refresh/signup endpoints."""
+
+    access = serializers.CharField()
+    refresh = serializers.CharField()
+
+
+class RefreshResponseSerializer(serializers.Serializer):
+    """New access token returned by `POST /api/auth/refresh`."""
+
+    access = serializers.CharField()
+
+
+class LoginResponseSerializer(serializers.Serializer):
+    access = serializers.CharField()
+    refresh = serializers.CharField()
+    user = UserProfileSerializer()
+
+
+class LogoutSerializer(serializers.Serializer):
+    refresh = serializers.CharField(
+        write_only=True,
+        help_text="The refresh token to blacklist.",
+    )
+
+
+class PasswordResetResponseSerializer(serializers.Serializer):
+    detail = serializers.CharField()
+    uid = serializers.CharField()
+    token = serializers.CharField()
+
+
+class JoinCompanyResponseSerializer(serializers.Serializer):
+    detail = serializers.CharField()
+    membership_status = serializers.ChoiceField(
+        choices=AgentCompanyMembership.MembershipStatus.choices,  # type: ignore
+    )
+
+
+class AgentInvitationCreateSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=False, allow_blank=True)
+    phone = serializers.CharField(required=False, allow_blank=True, max_length=15)
+    max_uses = serializers.IntegerField(
+        required=False, default=1, min_value=1, max_value=100
+    )
+
+
+class AgentInvitationSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    email = serializers.EmailField(allow_null=True)
+    phone = serializers.CharField(allow_null=True)
+    token = serializers.CharField()
+    status = serializers.ChoiceField(
+        choices=AgentInvitation.InviteStatus.choices,  # type: ignore
+    )
+    max_uses = serializers.IntegerField()
+    used_count = serializers.IntegerField()
+    expires_at = serializers.DateTimeField(allow_null=True)
+    created_at = serializers.DateTimeField()
+
+
+class DashboardRecentOrderSerializer(serializers.Serializer):
+    order_name = serializers.CharField()
+    customer_name = serializers.CharField(allow_null=True)
+    payment = serializers.DecimalField(max_digits=14, decimal_places=2)
+    status = serializers.CharField()
+
+
+class LowStockItemSerializer(serializers.Serializer):
+    name = serializers.CharField()
+    units = serializers.IntegerField()
+    minimum_stock = serializers.IntegerField()
+
+
+class LowStockResponseSerializer(serializers.Serializer):
+    total_low_stock_items = serializers.IntegerField()
+    items = LowStockItemSerializer(many=True)
+
+
+class TopAgentSerializer(serializers.Serializer):
+    image = serializers.CharField(allow_null=True)
+    name = serializers.CharField()
+    number_of_orders_today = serializers.IntegerField()
+    total_order_payment_today = serializers.DecimalField(
+        max_digits=14, decimal_places=2, allow_null=True
+    )

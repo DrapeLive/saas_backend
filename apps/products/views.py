@@ -7,6 +7,12 @@ from django.db import models, transaction
 from django.db.models import Q
 from django.db.models import F, Case, Sum, When
 from django.utils.timezone import now
+from drf_spectacular.utils import (
+    OpenApiParameter,
+    OpenApiTypes,
+    extend_schema,
+    extend_schema_view,
+)
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -14,6 +20,7 @@ from rest_framework.viewsets import GenericViewSet
 
 from apps.accounts.authentication import CustomJWTAuthentication
 from apps.accounts.permissions import IsAdminOrSubAdmin
+from apps.core.openapi import RESPONSE_400, RESPONSE_404
 from apps.core.pagination import DefaultPageNumberPagination
 from apps.products.models import (
     Category,
@@ -33,8 +40,10 @@ from apps.products.serializers import (
     ProductCreateSerializer,
     ProductDetailSerializer,
     ProductInventoryListSerializer,
+    ProductInventoryPageSerializer,
     ProductListSerializer,
     ProductUpdateSerializer,
+    ScanQRResponseSerializer,
     SizeChartSerializer,
     StockAdjustmentSerializer,
     StockMovementSerializer,
@@ -46,9 +55,45 @@ from apps.products.serializers import (
 # ─────────────────────────────────────────────────────────────────
 
 
+@extend_schema_view(
+    list=extend_schema(
+        tags=["Categories"],
+        summary="List root categories",
+        description="Lists top-level categories with their active children nested inline.",
+        responses={200: CategoryListSerializer(many=True)},
+    ),
+    retrieve=extend_schema(
+        tags=["Categories"],
+        summary="Get category",
+        responses={200: CategorySerializer, 404: RESPONSE_404},
+    ),
+    create=extend_schema(
+        tags=["Categories"],
+        summary="Create category",
+        responses={201: CategorySerializer, 400: RESPONSE_400},
+    ),
+    partial_update=extend_schema(
+        tags=["Categories"],
+        summary="Update category",
+        responses={200: CategorySerializer, 400: RESPONSE_400, 404: RESPONSE_404},
+    ),
+    destroy=extend_schema(
+        tags=["Categories"],
+        summary="Delete category (soft)",
+        description="Soft-deletes a root/child category. Blocked if products are still attached. Returns 204.",
+        responses={204: None, 400: RESPONSE_400, 404: RESPONSE_404},
+    ),
+)
 class CategoryViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
     permission_classes = (IsAdminOrSubAdmin,)
+
+    def get_serializer_class(self):
+        if self.action == "list":
+            return CategoryListSerializer
+        if self.action in ("create", "partial_update"):
+            return CategoryCreateUpdateSerializer
+        return CategorySerializer
 
     def _get_company(self, request):
         return request.user.company
@@ -126,9 +171,33 @@ class CategoryViewSet(GenericViewSet):
 # ─────────────────────────────────────────────────────────────────
 
 
+@extend_schema_view(
+    list=extend_schema(
+        tags=["Size Charts"],
+        summary="List size charts",
+        responses={200: SizeChartSerializer(many=True)},
+    ),
+    create=extend_schema(
+        tags=["Size Charts"],
+        summary="Create size chart",
+        responses={201: SizeChartSerializer, 400: RESPONSE_400},
+    ),
+    partial_update=extend_schema(
+        tags=["Size Charts"],
+        summary="Update size chart",
+        responses={200: SizeChartSerializer, 400: RESPONSE_400, 404: RESPONSE_404},
+    ),
+    destroy=extend_schema(
+        tags=["Size Charts"],
+        summary="Delete size chart",
+        description="Blocked while any product references the chart. Returns 204.",
+        responses={204: None, 400: RESPONSE_400, 404: RESPONSE_404},
+    ),
+)
 class SizeChartViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
     permission_classes = (IsAdminOrSubAdmin,)
+    serializer_class = SizeChartSerializer
 
     def _get_company(self, request):
         return request.user.company
@@ -182,9 +251,101 @@ class SizeChartViewSet(GenericViewSet):
 # ─────────────────────────────────────────────────────────────────
 
 
+@extend_schema_view(
+    list=extend_schema(
+        tags=["Products"],
+        summary="Inventory listing",
+        description=(
+            "Paginated SKU-level inventory with search, filters, ordering, live "
+            "stock summary and facet values. Each row is a `VariantSize` (SKU)."
+        ),
+        parameters=[
+            OpenApiParameter(
+                "page", OpenApiTypes.INT, OpenApiParameter.QUERY, description="Page number (default 1)."
+            ),
+            OpenApiParameter(
+                "page_size", OpenApiTypes.INT, OpenApiParameter.QUERY, description="Page size (default 20, max 100)."
+            ),
+            OpenApiParameter(
+                "search", OpenApiTypes.STR, OpenApiParameter.QUERY,
+                description="Search product name, SKU, color name or category name.",
+            ),
+            OpenApiParameter(
+                "category", OpenApiTypes.UUID, OpenApiParameter.QUERY,
+                description="Filter by category id.",
+            ),
+            OpenApiParameter(
+                "status", OpenApiTypes.STR, OpenApiParameter.QUERY,
+                enum=["active", "inactive", "discontinued"],
+                description="Filter by product status.",
+            ),
+            OpenApiParameter(
+                "size", OpenApiTypes.STR, OpenApiParameter.QUERY, description="Filter by size label."
+            ),
+            OpenApiParameter(
+                "low_stock", OpenApiTypes.BOOL, OpenApiParameter.QUERY,
+                description="`true` to show items at or below reorder level.",
+            ),
+            OpenApiParameter(
+                "out_of_stock", OpenApiTypes.BOOL, OpenApiParameter.QUERY,
+                description="`true` to show items with zero available quantity.",
+            ),
+            OpenApiParameter(
+                "ordering", OpenApiTypes.STR, OpenApiParameter.QUERY,
+                enum=["name", "-name", "sku", "-sku", "price", "-price", "stock_quantity", "-stock_quantity", "created_at", "-created_at"],
+                description="Sort order (default `name`).",
+            ),
+        ],
+        responses={200: ProductInventoryPageSerializer},
+    ),
+    retrieve=extend_schema(
+        tags=["Products"],
+        summary="Get product details",
+        description="Full product record including images, color variants and per-size stock.",
+        responses={200: ProductDetailSerializer, 404: RESPONSE_404},
+    ),
+    create=extend_schema(
+        tags=["Products"],
+        summary="Create product",
+        description="Creates a product with optional nested `color_variants` (each with `sizes`).",
+        responses={201: ProductDetailSerializer, 400: RESPONSE_400},
+    ),
+    partial_update=extend_schema(
+        tags=["Products"],
+        summary="Update product",
+        responses={200: ProductDetailSerializer, 400: RESPONSE_400, 404: RESPONSE_404},
+    ),
+    destroy=extend_schema(
+        tags=["Products"],
+        summary="Delete product (soft)",
+        description="Soft-deletes a product. Returns 204.",
+        responses={204: None, 404: RESPONSE_404},
+    ),
+    scan_qr=extend_schema(
+        tags=["Products"],
+        summary="Look up variant by QR code",
+        description=(
+            "Resolves a variant QR code to the full product payload plus the "
+            "scanned `scanned_variant_id`."
+        ),
+        parameters=[
+            OpenApiParameter("qr_code", OpenApiTypes.UUID, OpenApiParameter.PATH, description="Variant QR code.")
+        ],
+        responses={200: ScanQRResponseSerializer, 404: RESPONSE_404},
+    ),
+)
 class ProductViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
     permission_classes = (IsAdminOrSubAdmin,)
+
+    def get_serializer_class(self):
+        if self.action == "list":
+            return ProductInventoryListSerializer
+        if self.action == "create":
+            return ProductCreateSerializer
+        if self.action == "partial_update":
+            return ProductUpdateSerializer
+        return ProductDetailSerializer
 
     def _get_company(self, request):
         return request.user.company
@@ -412,9 +573,41 @@ class ProductViewSet(GenericViewSet):
 # ─────────────────────────────────────────────────────────────────
 
 
+@extend_schema_view(
+    list=extend_schema(
+        tags=["Products"],
+        summary="List color variants",
+        description="Lists every color variant (with sizes) for a product.",
+        responses={200: ColorVariantListSerializer(many=True), 404: RESPONSE_404},
+    ),
+    retrieve=extend_schema(
+        tags=["Products"],
+        summary="Get color variant",
+        responses={200: ColorVariantDetailSerializer, 404: RESPONSE_404},
+    ),
+    create=extend_schema(
+        tags=["Products"],
+        summary="Add color variant",
+        description="Adds a color variant to a product, with optional nested `sizes`.",
+        responses={201: ColorVariantDetailSerializer, 400: RESPONSE_400, 404: RESPONSE_404},
+    ),
+    destroy=extend_schema(
+        tags=["Products"],
+        summary="Deactivate color variant",
+        description="Mark a variant inactive (soft). Returns 204.",
+        responses={204: None, 404: RESPONSE_404},
+    ),
+)
 class ColorVariantViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
     permission_classes = (IsAdminOrSubAdmin,)
+
+    def get_serializer_class(self):
+        if self.action == "create":
+            return ColorVariantCreateSerializer
+        if self.action == "retrieve":
+            return ColorVariantDetailSerializer
+        return ColorVariantListSerializer
 
     def _get_product(self, product_pk, company):
         try:
@@ -487,9 +680,35 @@ class ColorVariantViewSet(GenericViewSet):
 # ─────────────────────────────────────────────────────────────────
 
 
+@extend_schema_view(
+    list=extend_schema(
+        tags=["Stock"],
+        summary="Stock movement ledger",
+        description="Recent stock movements (last 200), newest first.",
+        responses={200: StockMovementSerializer(many=True)},
+    ),
+    adjust=extend_schema(
+        tags=["Stock"],
+        summary="Adjust stock manually",
+        description=(
+            "Adds or removes quantity on a variant size (`quantity` positive to "
+            "add, negative to remove). Denied if removal exceeds available stock. "
+            "Writes a `StockMovement` ledger entry and recomputes product totals."
+        ),
+        responses={
+            200: VariantSizeSerializer,
+            400: RESPONSE_400,
+        },
+    ),
+)
 class StockViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
     permission_classes = (IsAdminOrSubAdmin,)
+
+    def get_serializer_class(self):
+        if self.action == "adjust":
+            return StockAdjustmentSerializer
+        return StockMovementSerializer
 
     # GET /api/stock/movements/
     def list(self, request):
@@ -507,6 +726,7 @@ class StockViewSet(GenericViewSet):
         return Response(StockMovementSerializer(qs, many=True).data)
 
     # POST /api/stock/adjust/
+    @action(detail=False, methods=["post"])
     @transaction.atomic
     def adjust(self, request):
         serializer = StockAdjustmentSerializer(data=request.data)

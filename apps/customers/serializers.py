@@ -1,3 +1,4 @@
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.customers.models import (
@@ -8,7 +9,7 @@ from apps.customers.models import (
 
 
 class CustomerSerializer(serializers.ModelSerializer):
-    credit_utilization_pct = serializers.ReadOnlyField()
+    credit_utilization_pct = serializers.FloatField(read_only=True)
     assigned_agent_name = serializers.SerializerMethodField()
     total_outstanding = serializers.SerializerMethodField()
 
@@ -73,16 +74,27 @@ class CustomerSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
 
+    @extend_schema_field(serializers.CharField(allow_null=True))
     def get_assigned_agent_name(self, obj):
         if obj.assigned_agent and obj.assigned_agent.user:
             return obj.assigned_agent.user.full_name
         return None
 
+    @extend_schema_field(serializers.DecimalField(max_digits=14, decimal_places=2))
     def get_total_outstanding(self, obj):
         # The list endpoint annotates a live sum of unpaid invoice balances
         # (computed_total_outstanding); fall back to the denormalized column
         # elsewhere until invoice lifecycle sync maintains it.
         return getattr(obj, "computed_total_outstanding", obj.total_outstanding)
+
+
+class CustomerPageSerializer(serializers.Serializer):
+    """Paginated customer list envelope."""
+
+    count = serializers.IntegerField()
+    next = serializers.CharField(allow_null=True)
+    previous = serializers.CharField(allow_null=True)
+    results = CustomerSerializer(many=True)
 
 
 class CustomerOverviewSerializer(serializers.Serializer):
@@ -186,6 +198,39 @@ class CustomerImportRowSerializer(serializers.Serializer):
 
 class CustomerImportPreviewSerializer(serializers.Serializer):
     rows = CustomerImportRowSerializer(many=True)
+
+
+class ImportRowResultSerializer(serializers.Serializer):
+    row_number = serializers.IntegerField()
+    errors = serializers.DictField(child=serializers.ListField(child=serializers.CharField()), default=dict)
+
+
+class CustomerImportPreviewResponseSerializer(serializers.Serializer):
+    valid = serializers.ListField(child=serializers.DictField())
+    errors = ImportRowResultSerializer(many=True)
+    total = serializers.IntegerField()
+
+
+class CustomerImportConfirmResponseSerializer(serializers.Serializer):
+    created = CustomerSerializer(many=True)
+    errors = ImportRowResultSerializer(many=True)
+    total = serializers.IntegerField()
+
+
+class GstinVerifyResponseSerializer(serializers.Serializer):
+    valid = serializers.BooleanField()
+    legal_name = serializers.CharField()
+    status = serializers.CharField()
+    type = serializers.CharField()
+    message = serializers.CharField()
+
+
+class CustomerSegmentResponseSerializer(serializers.Serializer):
+    segment = serializers.CharField()
+
+
+class CreditActivityResponseSerializer(serializers.Serializer):
+    is_credit_blocked = serializers.BooleanField()
 
 
 class CustomerImportConfirmSerializer(serializers.Serializer):

@@ -1,5 +1,4 @@
 from django.urls import path
-from rest_framework_simplejwt.views import TokenRefreshView
 
 # ✅ Completely Verified
 from apps.accounts.views import (
@@ -14,13 +13,14 @@ from apps.accounts.views import (
     LoginView,
     SignupView,
     SuperAdminDashboardViewSet,
+    TokenRefreshApiView,
 )
 
 app_name = "accounts"
 
 urlpatterns = [
     path("auth/login", LoginView.as_view(), name="auth-login"),  # ✅
-    path("auth/refresh", TokenRefreshView.as_view(), name="auth-refresh"),  # ✅
+    path("auth/refresh", TokenRefreshApiView.as_view(), name="auth-refresh"),  # ✅
     path(
         "auth/signup", SignupView.as_view({"post": "create"}), name="auth-signup"
     ),  # ✅

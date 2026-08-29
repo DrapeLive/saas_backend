@@ -5,6 +5,12 @@ from decimal import Decimal
 
 from django.db import transaction
 from django.utils.timezone import now
+from drf_spectacular.utils import (
+    OpenApiParameter,
+    OpenApiTypes,
+    extend_schema,
+    extend_schema_view,
+)
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -24,6 +30,8 @@ from apps.subscriptions.models import (
 from apps.subscriptions.serializers import (
     PlanCreateUpdateSerializer,
     PlanListSerializer,
+    PlanToggleResponseSerializer,
+    SeedPlansResponseSerializer,
     SubscriptionCreateSerializer,
     SubscriptionDetailSerializer,
     SubscriptionEventSerializer,
@@ -32,12 +40,60 @@ from apps.subscriptions.serializers import (
     SubscriptionUpgradeSerializer,
     UsageSnapshotSerializer,
 )
+from apps.core.openapi import RESPONSE_400, RESPONSE_401, RESPONSE_404
 
 # ─────────────────────────────────────────────────────────────────
 # PLAN VIEWSET  (SuperAdmin only)
 # ─────────────────────────────────────────────────────────────────
 
 
+@extend_schema_view(
+    list=extend_schema(
+        tags=["Plans"],
+        summary="List pricing plans",
+        description=(
+            "Super-admin only. Lists every plan tier with its feature flags, "
+            "pricing and the number of active/trial subscriptions on it."
+        ),
+        responses={200: PlanListSerializer(many=True)},
+    ),
+    create=extend_schema(
+        tags=["Plans"],
+        summary="Create pricing plan",
+        description="Super-admin only. Creates a new plan tier with pricing and feature flags.",
+        responses={201: PlanListSerializer, 400: RESPONSE_400},
+    ),
+    retrieve=extend_schema(
+        tags=["Plans"],
+        summary="Get plan details",
+        responses={200: PlanListSerializer, 404: RESPONSE_404},
+    ),
+    partial_update=extend_schema(
+        tags=["Plans"],
+        summary="Update pricing plan",
+        responses={200: PlanListSerializer, 400: RESPONSE_400, 404: RESPONSE_404},
+    ),
+    toggle_active=extend_schema(
+        tags=["Plans"],
+        summary="Enable / disable plan",
+        description=(
+            "Flips `is_active`. Deactivation is blocked while active or trial "
+            "subscriptions remain on the plan — migrate those companies first."
+        ),
+        request=None,
+        responses={200: PlanToggleResponseSerializer, 400: RESPONSE_400, 404: RESPONSE_404},
+    ),
+    seed_defaults=extend_schema(
+        tags=["Plans"],
+        summary="Seed default tiers",
+        description=(
+            "Idempotently creates the three built-in tiers (Starter / "
+            "Professional / Enterprise) if they are missing."
+        ),
+        request=None,
+        responses={200: SeedPlansResponseSerializer},
+    ),
+)
 class PlanViewSet(GenericViewSet):
     """
     SuperAdmin manages the 3 pricing tiers and their feature flags.
@@ -46,6 +102,11 @@ class PlanViewSet(GenericViewSet):
 
     authentication_classes = (CustomJWTAuthentication,)
     permission_classes = (IsSuperAdmin,)
+
+    def get_serializer_class(self):
+        if self.action in ("create", "partial_update"):
+            return PlanCreateUpdateSerializer
+        return PlanListSerializer
 
     def _get_plan(self, pk):
         try:
@@ -172,6 +233,94 @@ class PlanViewSet(GenericViewSet):
 # ─────────────────────────────────────────────────────────────────
 
 
+@extend_schema_view(
+    list=extend_schema(
+        tags=["Subscriptions"],
+        summary="List subscriptions",
+        description=(
+            "Super-admin only. Lists all tenant subscriptions, newest first, "
+            "optionally filtered by `status` and `tier`."
+        ),
+        parameters=[
+            OpenApiParameter(
+                "status",
+                OpenApiTypes.STR,
+                OpenApiParameter.QUERY,
+                enum=SubscriptionStatus.values,  # type: ignore
+                description="Filter by subscription status.",
+                required=False,
+            ),
+            OpenApiParameter(
+                "tier",
+                OpenApiTypes.STR,
+                OpenApiParameter.QUERY,
+                enum=PlanTier.values,  # type: ignore
+                description="Filter by plan tier.",
+                required=False,
+            ),
+        ],
+        responses={200: SubscriptionListSerializer(many=True)},
+    ),
+    create=extend_schema(
+        tags=["Subscriptions"],
+        summary="Create subscription for a company",
+        responses={201: SubscriptionDetailSerializer, 400: RESPONSE_400},
+    ),
+    retrieve=extend_schema(
+        tags=["Subscriptions"],
+        summary="Get subscription details",
+        responses={200: SubscriptionDetailSerializer, 404: RESPONSE_404},
+    ),
+    upgrade=extend_schema(
+        tags=["Subscriptions"],
+        summary="Upgrade or downgrade plan",
+        description=(
+            "Switches the subscription to another plan, recalculates `price_paid` "
+            "from the billing cycle and discount, sets a fresh billing period and "
+            "marks the company active."
+        ),
+        request=SubscriptionUpgradeSerializer,
+        responses={200: SubscriptionDetailSerializer, 400: RESPONSE_400, 404: RESPONSE_404},
+    ),
+    extend=extend_schema(
+        tags=["Subscriptions"],
+        summary="Extend subscription period",
+        description=(
+            "Manually extends `current_period_end` by N days (trials, goodwill, "
+            "support). Reactivates expired, grace or suspended subscriptions."
+        ),
+        request=SubscriptionExtendSerializer,
+        responses={200: SubscriptionDetailSerializer, 400: RESPONSE_400, 404: RESPONSE_404},
+    ),
+    cancel=extend_schema(
+        tags=["Subscriptions"],
+        summary="Cancel subscription",
+        description="Immediately cancels the subscription and marks the company expired.",
+        request=None,
+        responses={200: SubscriptionDetailSerializer, 400: RESPONSE_400, 404: RESPONSE_404},
+    ),
+    reactivate=extend_schema(
+        tags=["Subscriptions"],
+        summary="Reactivate subscription",
+        description=(
+            "Restores a cancelled, expired, grace or suspended subscription with a "
+            "fresh billing period respecting the existing billing cycle."
+        ),
+        request=None,
+        responses={200: SubscriptionDetailSerializer, 400: RESPONSE_400, 404: RESPONSE_404},
+    ),
+    events=extend_schema(
+        tags=["Subscriptions"],
+        summary="Subscription event history",
+        description="Immutable audit history of the subscription, newest first.",
+        responses={200: SubscriptionEventSerializer(many=True), 404: RESPONSE_404},
+    ),
+    usage=extend_schema(
+        tags=["Subscriptions"],
+        summary="Subscription usage snapshots",
+        responses={200: UsageSnapshotSerializer(many=True), 404: RESPONSE_404},
+    ),
+)
 class SubscriptionViewSet(GenericViewSet):
     """
     SuperAdmin: full read + lifecycle management of any company's subscription.
@@ -180,6 +329,13 @@ class SubscriptionViewSet(GenericViewSet):
 
     authentication_classes = (CustomJWTAuthentication,)
     permission_classes = (IsSuperAdmin,)
+
+    def get_serializer_class(self):
+        return {
+            "create": SubscriptionCreateSerializer,
+            "upgrade": SubscriptionUpgradeSerializer,
+            "extend": SubscriptionExtendSerializer,
+        }.get(self.action, SubscriptionDetailSerializer)
 
     def _get_subscription(self, pk):
         try:
@@ -524,6 +680,25 @@ class SubscriptionViewSet(GenericViewSet):
 # ─────────────────────────────────────────────────────────────────
 
 
+@extend_schema_view(
+    list=extend_schema(
+        tags=["Subscriptions"],
+        summary="My company's subscription",
+        description="Read-only. Returns the caller's own company subscription",
+        responses={200: SubscriptionDetailSerializer, 404: RESPONSE_404},
+    ),
+    usage=extend_schema(
+        tags=["Subscriptions"],
+        summary="My subscription usage",
+        responses={200: UsageSnapshotSerializer(many=True), 404: RESPONSE_404},
+    ),
+    available_plans=extend_schema(
+        tags=["Subscriptions"],
+        summary="Available plans for upgrade",
+        description="All active plans for the pricing / upgrade page.",
+        responses={200: PlanListSerializer(many=True)},
+    ),
+)
 class MySubscriptionViewSet(GenericViewSet):
     """
     Admin-facing read-only subscription view.
@@ -532,6 +707,11 @@ class MySubscriptionViewSet(GenericViewSet):
 
     authentication_classes = (CustomJWTAuthentication,)
     permission_classes = (IsAdmin,)
+
+    def get_serializer_class(self):
+        if self.action == "available_plans":
+            return PlanListSerializer
+        return SubscriptionDetailSerializer
 
     def _get_subscription(self, request):
         company = getattr(request.user, "company", None)

@@ -1,5 +1,6 @@
 from typing import ClassVar
 
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.commissions.models import (
@@ -55,10 +56,8 @@ class CategoryCommissionRateSerializer(serializers.ModelSerializer):
 
 
 class CommissionPlanListSerializer(serializers.ModelSerializer):
-    slab_count = serializers.IntegerField(source="slabs.count", read_only=True)
-    category_rate_count = serializers.IntegerField(
-        source="category_rates.count", read_only=True
-    )
+    slab_count = serializers.SerializerMethodField()
+    category_rate_count = serializers.SerializerMethodField()
     agent_count = serializers.SerializerMethodField()
 
     class Meta:
@@ -74,6 +73,15 @@ class CommissionPlanListSerializer(serializers.ModelSerializer):
             "created_at",
         ]
 
+    @extend_schema_field(serializers.IntegerField())
+    def get_slab_count(self, obj):
+        return obj.slabs.count()
+
+    @extend_schema_field(serializers.IntegerField())
+    def get_category_rate_count(self, obj):
+        return obj.category_rates.count()
+
+    @extend_schema_field(serializers.IntegerField())
     def get_agent_count(self, obj):
         from apps.agents.models import AgentCompanyMembership
 
@@ -256,3 +264,12 @@ class AgentCommissionSummarySerializer(serializers.Serializer):
     paid_amount = serializers.DecimalField(max_digits=12, decimal_places=2)
     disputed_count = serializers.IntegerField()
     period = serializers.DateField()
+
+
+class CommissionSettledSerializer(serializers.Serializer):
+    """Confirmation for a bulk commission settlement run."""
+
+    detail = serializers.CharField()
+    total_paid = serializers.DecimalField(max_digits=12, decimal_places=2)
+    agent_id = serializers.UUIDField()
+    settlement_month = serializers.DateField()

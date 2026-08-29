@@ -2,6 +2,7 @@ from typing import ClassVar
 
 from django.db import transaction
 from django.utils.text import slugify
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.products.models import (
@@ -18,7 +19,7 @@ class CategoryListSerializer(serializers.ModelSerializer):
     parent_name = serializers.CharField(
         source="parent.name", read_only=True, default=None
     )
-    product_count = serializers.IntegerField(source="products.count", read_only=True)
+    product_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Category
@@ -34,6 +35,10 @@ class CategoryListSerializer(serializers.ModelSerializer):
             "default_commission_pct",
             "product_count",
         ]
+
+    @extend_schema_field(serializers.IntegerField())
+    def get_product_count(self, obj):
+        return obj.products.count()
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -56,6 +61,7 @@ class CategorySerializer(serializers.ModelSerializer):
             "updated_at",
         ]
 
+    @extend_schema_field(CategoryListSerializer(many=True))
     def get_children(self, obj):
         qs = obj.children.filter(is_deleted=False, is_active=True)
         return CategoryListSerializer(qs, many=True).data
@@ -154,6 +160,7 @@ class ColorVariantListSerializer(serializers.ModelSerializer):
             "total_stock",
         ]
 
+    @extend_schema_field(serializers.IntegerField())
     def get_total_stock(self, obj):
         return sum(s.available_qty for s in obj.sizes.filter(is_active=True))
 
@@ -203,9 +210,7 @@ class ColorVariantCreateSerializer(serializers.ModelSerializer):
 class ProductListSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source="category.name", read_only=True)
     primary_image = serializers.SerializerMethodField()
-    variant_count = serializers.IntegerField(
-        source="color_variants.count", read_only=True
-    )
+    variant_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
@@ -227,6 +232,7 @@ class ProductListSerializer(serializers.ModelSerializer):
             "created_at",
         ]
 
+    @extend_schema_field(serializers.CharField(allow_null=True))
     def get_primary_image(self, obj):
         variant = obj.color_variants.filter(is_primary=True).first()
         if not variant:
@@ -239,6 +245,10 @@ class ProductListSerializer(serializers.ModelSerializer):
                 else variant.image.url
             )
         return None
+
+    @extend_schema_field(serializers.IntegerField())
+    def get_variant_count(self, obj):
+        return obj.color_variants.count()
 
 
 class ProductDetailSerializer(serializers.ModelSerializer):
@@ -416,6 +426,30 @@ class StockAdjustmentSerializer(serializers.Serializer):
 # ─────────────────────────────────────────────────────────────────
 
 
+class ProductRefSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    name = serializers.CharField()
+
+
+class CategoryRefSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    name = serializers.CharField()
+
+
+class ColorRefSerializer(serializers.Serializer):
+    name = serializers.CharField()
+    hex = serializers.CharField(allow_null=True)
+
+
+class StockInfoSerializer(serializers.Serializer):
+    stock_quantity = serializers.IntegerField()
+    reserved_quantity = serializers.IntegerField()
+    available_quantity = serializers.IntegerField()
+    reorder_level = serializers.IntegerField()
+    is_low_stock = serializers.BooleanField()
+    is_out_of_stock = serializers.BooleanField()
+
+
 class ProductInventoryListSerializer(serializers.ModelSerializer):
     """One inventory row per VariantSize (SKU)."""
 
@@ -440,10 +474,12 @@ class ProductInventoryListSerializer(serializers.ModelSerializer):
             "stock",
         ]
 
+    @extend_schema_field(ProductRefSerializer)
     def get_product(self, obj):
         p = obj.color_variant.product
         return {"id": str(p.id), "name": p.name}
 
+    @extend_schema_field(serializers.CharField(allow_null=True))
     def get_image(self, obj):
         image = obj.color_variant.image
         if not image:
@@ -451,16 +487,19 @@ class ProductInventoryListSerializer(serializers.ModelSerializer):
         request = self.context.get("request")
         return request.build_absolute_uri(image.url) if request else image.url
 
+    @extend_schema_field(CategoryRefSerializer)
     def get_category(self, obj):
         c = obj.color_variant.product.category
         return {"id": str(c.id), "name": c.name}
 
+    @extend_schema_field(ColorRefSerializer)
     def get_color(self, obj):
         return {
             "name": obj.color_variant.color_name,
             "hex": obj.color_variant.color_hex,
         }
 
+    @extend_schema_field(serializers.CharField())
     def get_price_per_unit(self, obj):
         price = (
             obj.price_override
@@ -469,6 +508,7 @@ class ProductInventoryListSerializer(serializers.ModelSerializer):
         )
         return str(price)
 
+    @extend_schema_field(StockInfoSerializer)
     def get_stock(self, obj):
         return {
             "stock_quantity": obj.stock_quantity,
@@ -484,3 +524,27 @@ class ProductInventorySummarySerializer(serializers.Serializer):
     """Summary stats computed over the full filtered queryset."""
 
     stock_valuation = serializers.DecimalField(max_digits=14, decimal_places=2)
+
+
+class InventoryFiltersSerializer(serializers.Serializer):
+    """Facet values available in the current filtered result set."""
+
+    sizes = serializers.ListField(child=serializers.CharField())
+
+
+class ProductInventoryPageSerializer(serializers.Serializer):
+    """Paginated inventory listing envelope returned by `GET /api/products/`."""
+
+    count = serializers.IntegerField()
+    next = serializers.CharField(allow_null=True)
+    previous = serializers.CharField(allow_null=True)
+    summary = ProductInventorySummarySerializer()
+    filters = InventoryFiltersSerializer()
+    results = ProductInventoryListSerializer(many=True)
+
+
+class ScanQRResponseSerializer(serializers.Serializer):
+    """Result of scanning a variant QR code."""
+
+    scanned_variant_id = serializers.UUIDField()
+    product = ProductDetailSerializer()

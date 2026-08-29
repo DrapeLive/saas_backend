@@ -241,3 +241,18 @@ class CompanyStatusUpdateSerializer(serializers.Serializer):
 class ExtendTrialSerializer(serializers.Serializer):
     days = serializers.IntegerField(min_value=1, max_value=90)
     reason = serializers.CharField(max_length=500, required=False, allow_blank=True)
+
+
+class CompanyStatusChangeResponseSerializer(serializers.Serializer):
+    detail = serializers.CharField()
+    company = CompanySerializer()
+
+
+class TrialExtensionResponseSerializer(serializers.Serializer):
+    detail = serializers.CharField()
+    trial_end = serializers.DateField(allow_null=True)
+
+
+class ImpersonateResponseSerializer(serializers.Serializer):
+    access = serializers.CharField()
+    expires_in = serializers.IntegerField()

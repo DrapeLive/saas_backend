@@ -19,6 +19,13 @@ from django.db.models.functions import Coalesce, Extract, TruncMonth
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.utils.timezone import now
+from drf_spectacular.utils import (
+    OpenApiParameter,
+    OpenApiResponse,
+    OpenApiTypes,
+    extend_schema,
+    extend_schema_view,
+)
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.exceptions import AuthenticationFailed
@@ -26,7 +33,9 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.viewsets import GenericViewSet
+from rest_framework_simplejwt import token_blacklist  # noqa: F401
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
+from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenViewBase
 
@@ -42,21 +51,32 @@ from apps.accounts.permissions import (
 from apps.accounts.serializers import (
     AdminAnalyticsSerializer,
     AdminDashboardSerializer,
+    AgentInvitationCreateSerializer,
+    AgentInvitationSerializer,
     AgentJoinSerializer,
     AgentRegisterSerializer,
     BusinessStatsSerializer,
     CreateSubAdminSerializer,
+    JoinCompanyResponseSerializer,
+    LoginResponseSerializer,
     LoginSerializer,
+    LogoutSerializer,
+    LowStockResponseSerializer,
     PasswordChangeSerializer,
     PasswordResetConfirmSerializer,
+    PasswordResetResponseSerializer,
     PasswordResetSerializer,
+    DashboardRecentOrderSerializer,
     SetupBankSerializer,
     SetupInvoiceSerializer,
     SetupNotificationSerializer,
     SetupProfileSerializer,
     SetupTaxSettingsSerializer,
+    RefreshResponseSerializer,
     SignupSerializer,
     SuperAdminDashboardSerializer,
+    TokenResponseSerializer,
+    TopAgentSerializer,
     UserAdminSerializer,
     UserProfileSerializer,
     UserProfileUpdateSerializer,
@@ -69,6 +89,15 @@ from apps.agents.models import (
 )
 from apps.commissions.models import CommissionEntry
 from apps.companies.models import Company, CompanySettings
+from apps.core.openapi import (
+    DetailResponseSerializer,
+    RESPONSE_400,
+    RESPONSE_401,
+    RESPONSE_403,
+    RESPONSE_404,
+    RESPONSE_409,
+    RESPONSE_429,
+)
 from apps.customers.models import CustomerProfile
 from apps.dispatch.models import Dispatch
 from apps.invoices.models import Invoice, InvoiceStatus
@@ -94,6 +123,37 @@ def custom_exception_handler(exc, context):
     return response
 
 
+@extend_schema(
+    tags=["Authentication"],
+    summary="Refresh access token",
+    description=(
+        "Exchange a valid refresh token for a fresh access token. Returns only "
+        "the new `access` token in a flat `{access}` envelope."
+    ),
+    responses={200: RefreshResponseSerializer, 401: RESPONSE_401},
+)
+class TokenRefreshApiView(TokenViewBase):
+    permission_classes = (AllowAny,)
+    serializer_class = TokenRefreshSerializer
+
+
+@extend_schema(
+    tags=["Authentication"],
+    summary="Login",
+    description=(
+        "Authenticate with email + password. Returns an access token, a refresh "
+        "token and the full user profile. The JWT carries `company_id`, `role` "
+        "and `is_super_admin` claims.\n\n"
+        "Rate limited to 5 requests per minute per IP."
+    ),
+    request=LoginSerializer,
+    responses={
+        200: LoginResponseSerializer,
+        400: RESPONSE_400,
+        401: RESPONSE_401,
+        429: RESPONSE_429,
+    },
+)
 class LoginView(TokenViewBase):
     permission_classes = (AllowAny,)
     throttle_scope = "login"
@@ -140,6 +200,21 @@ class LoginView(TokenViewBase):
         )
 
 
+@extend_schema(
+    tags=["Authentication"],
+    summary="Create company + admin account (signup)",
+    description=(
+        "Registers a new tenant company with a `pending` approval status and "
+        "creates its first `admin` user. Returns the same token envelope as "
+        "login. Rate limited to 3 requests per minute per IP."
+    ),
+    request=SignupSerializer,
+    responses={
+        201: LoginResponseSerializer,
+        400: RESPONSE_400,
+        429: RESPONSE_429,
+    },
+)
 class SignupView(GenericViewSet):
     permission_classes = (AllowAny,)
     throttle_scope = "signup"
@@ -166,6 +241,17 @@ class SignupView(GenericViewSet):
         )
 
 
+@extend_schema(
+    tags=["Authentication"],
+    summary="Register agent account",
+    description=(
+        "Creates a standalone agent account (no company). The agent can then "
+        "join companies via an invitation code (`POST /api/auth/agents/join`). "
+        "Returns the created `UserProfile`."
+    ),
+    request=AgentRegisterSerializer,
+    responses={201: UserProfileSerializer, 400: RESPONSE_400},
+)
 class AgentRegisterView(GenericViewSet):
     permission_classes = (AllowAny,)
     serializer_class = AgentRegisterSerializer
@@ -183,6 +269,70 @@ class AgentRegisterView(GenericViewSet):
         )
 
 
+@extend_schema_view(
+    me=extend_schema(
+        tags=["Authentication"],
+        summary="Get / update my profile",
+        description=(
+            "GET returns the current user's profile. PATCH with `full_name`/"
+            "`phone` updates the profile and returns the refreshed profile."
+        ),
+        responses={200: UserProfileSerializer, 400: RESPONSE_400},
+    ),
+    password_change=extend_schema(
+        tags=["Authentication"],
+        summary="Change my password",
+        responses={
+            200: DetailResponseSerializer,
+            400: RESPONSE_400,
+            401: RESPONSE_401,
+        },
+    ),
+    password_reset=extend_schema(
+        tags=["Authentication"],
+        summary="Request password reset",
+        description=(
+            "Starts the password reset flow. Returns the `uid` and `token` "
+            "required by the confirm endpoint."
+        ),
+        responses={
+            200: PasswordResetResponseSerializer,
+            400: RESPONSE_400,
+        },
+    ),
+    password_reset_confirm=extend_schema(
+        tags=["Authentication"],
+        summary="Confirm password reset",
+        responses={
+            200: DetailResponseSerializer,
+            400: RESPONSE_400,
+        },
+    ),
+    logout=extend_schema(
+        tags=["Authentication"],
+        summary="Logout (blacklist refresh token)",
+        responses={
+            200: DetailResponseSerializer,
+            400: RESPONSE_400,
+        },
+    ),
+    join_company=extend_schema(
+        tags=["Authentication"],
+        summary="Accept agent invitation",
+        description=(
+            "Agents join a company by redeeming an invitation code. Creates or "
+            "reactivates a `pending` membership for the invited company (and the "
+            "inviter's company when they differ)."
+        ),
+        request=AgentJoinSerializer,
+        responses={
+            200: JoinCompanyResponseSerializer,
+            400: RESPONSE_400,
+            401: RESPONSE_401,
+            403: RESPONSE_403,
+        },
+    ),
+)
 class AuthViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
     permission_classes = (IsAuthenticated,)
@@ -206,7 +356,7 @@ class AuthViewSet(GenericViewSet):
         if self.action == "password_reset_confirm":
             return PasswordResetConfirmSerializer
         if self.action == "logout":
-            return None
+            return LogoutSerializer
         if self.action == "join_company":
             return AgentJoinSerializer
         return UserProfileSerializer
@@ -356,6 +506,43 @@ class AuthViewSet(GenericViewSet):
         )
 
 
+@extend_schema_view(
+    list=extend_schema(
+        tags=["Accounts"],
+        summary="List company users",
+        description="Lists all users (`admin`, `subadmin`, `agent`) in the caller's company.",
+        responses={200: UserAdminSerializer(many=True), 401: RESPONSE_401, 403: RESPONSE_403},
+    ),
+    create_sub_admin=extend_schema(
+        tags=["Accounts"],
+        summary="Create sub-admin",
+        description=(
+            "Creates a `subadmin` user inside the caller's company. The company is "
+            "taken from the JWT, never from the payload."
+        ),
+        request=CreateSubAdminSerializer,
+        responses={
+            201: UserAdminSerializer,
+            400: RESPONSE_400,
+            401: RESPONSE_401,
+            403: RESPONSE_403,
+        },
+    ),
+    update=extend_schema(
+        tags=["Accounts"],
+        summary="Update a company user",
+        description="Partially updates `full_name`, `phone` or `role` of a user in the caller's company.",
+        responses={200: UserAdminSerializer, 400: RESPONSE_400, 403: RESPONSE_403, 404: RESPONSE_404},
+    ),
+    destroy=extend_schema(
+        tags=["Accounts"],
+        summary="Deactivate a company user",
+        description=(
+            "Soft-deactivates a user by setting `is_active = false`. Returns " "204 on success."
+        ),
+        responses={204: None, 403: RESPONSE_403, 404: RESPONSE_404},
+    ),
+)
 class AdminUserViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
     permission_classes = (IsAuthenticated, CompanyApproved, CanManageUsers)
@@ -370,7 +557,10 @@ class AdminUserViewSet(GenericViewSet):
         serializer = UserAdminSerializer(users, many=True)
         return Response(serializer.data)
 
+    @action(detail=False, methods=["post"])
     def create_sub_admin(self, request, *args, **kwargs):
+        """Create a sub-admin user."""
+
         company = request.user.company
 
         serializer = CreateSubAdminSerializer(
@@ -420,12 +610,35 @@ class AdminUserViewSet(GenericViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+@extend_schema_view(
+    list=extend_schema(
+        tags=["Accounts"],
+        summary="List agent invitations",
+        description="Lists the agent invitation codes created by the caller's company, newest first.",
+        responses={200: AgentInvitationSerializer(many=True)},
+    ),
+    create=extend_schema(
+        tags=["Accounts"],
+        summary="Create agent invitation",
+        description=(
+            "Creates a redeemable agent invitation link/code for the company. "
+            "Generate the invite URL as `/api/auth/agents/join` with "
+            "`invite_code`, or give the returned `token` directly to the agent.\n\n"
+            "Either `email` or `phone` must be provided. Tokens expire after 7 days."
+        ),
+        request=AgentInvitationCreateSerializer,
+        responses={201: AgentInvitationSerializer, 400: RESPONSE_400},
+    ),
+)
 class InvitationViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
     permission_classes = (IsAuthenticated, CompanyApproved, IsAdmin)
+    serializer_class = AgentInvitationSerializer
 
     def get_serializer_class(self):
-        return None
+        if self.action == "create":
+            return AgentInvitationCreateSerializer
+        return AgentInvitationSerializer
 
     def list(self, request, *args, **kwargs):
         invitations = (
@@ -492,6 +705,17 @@ class InvitationViewSet(GenericViewSet):
         )
 
 
+@extend_schema_view(
+    list=extend_schema(
+        tags=["Super Admin"],
+        summary="Platform dashboard",
+        description=(
+            "Super-admin only. Returns platform-wide company, MRR/ARR, churn and "
+            "LTV metrics."
+        ),
+        responses={200: SuperAdminDashboardSerializer},
+    ),
+)
 class SuperAdminDashboardViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
     permission_classes = (IsSuperAdmin,)
@@ -563,6 +787,34 @@ class SuperAdminDashboardViewSet(GenericViewSet):
         )
 
 
+@extend_schema_view(
+    list=extend_schema(
+        tags=["Admin"],
+        summary="Admin dashboard",
+        description=(
+            "Company admin home-screen metrics: sales total, pending orders, "
+            "outstanding/overdue totals, receivables aging buckets and the most "
+            "recent Tally sync state."
+        ),
+        responses={200: AdminDashboardSerializer},
+    ),
+    recent_orders=extend_schema(
+        tags=["Admin"],
+        summary="Recent orders",
+        responses={200: DashboardRecentOrderSerializer(many=True)},
+    ),
+    low_stock_items=extend_schema(
+        tags=["Admin"],
+        summary="Low stock items",
+        responses={200: LowStockResponseSerializer},
+    ),
+    top_agents=extend_schema(
+        tags=["Admin"],
+        summary="Top agents today",
+        description="Agents with the highest order payment total today (top 2).",
+        responses={200: TopAgentSerializer(many=True)},
+    ),
+)
 class AdminDashboardViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
     permission_classes = (IsAuthenticated, CompanyApproved, IsAdmin)
@@ -724,6 +976,18 @@ class AdminDashboardViewSet(GenericViewSet):
         return Response(data)
 
 
+@extend_schema_view(
+    list=extend_schema(
+        tags=["Admin"],
+        summary="Business home metrics",
+        description=(
+            "Business-screen counters: total/overdue customers, agent counts, "
+            "outstanding/overdue receivables and overdue invoice count. Requires "
+            "an approved company."
+        ),
+        responses={200: BusinessStatsSerializer},
+    ),
+)
 class BusinessStatsViewSet(GenericViewSet):
     """
     Business home-page metrics:
@@ -812,6 +1076,18 @@ class BusinessStatsViewSet(GenericViewSet):
         )
 
 
+@extend_schema_view(
+    list=extend_schema(
+        tags=["Admin"],
+        summary="Admin analytics",
+        description=(
+            "Company analytics: 12-month sales trend, top 10 products, current "
+            "month agent comparison, outstanding aging buckets and customer "
+            "acquisition counters."
+        ),
+        responses={200: AdminAnalyticsSerializer},
+    ),
+)
 class AdminAnalyticsViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
     permission_classes = (IsAuthenticated, CompanyApproved, IsAdmin)
@@ -911,9 +1187,50 @@ class AdminAnalyticsViewSet(GenericViewSet):
         )
 
 
+@extend_schema_view(
+    update_profile=extend_schema(
+        tags=["Admin"],
+        summary="Setup wizard — company profile",
+        responses={200: SetupProfileSerializer},
+    ),
+    update_bank=extend_schema(
+        tags=["Admin"],
+        summary="Setup wizard — bank details",
+        responses={200: SetupBankSerializer},
+    ),
+    update_invoice=extend_schema(
+        tags=["Admin"],
+        summary="Setup wizard — invoice prefixes",
+        responses={200: SetupInvoiceSerializer},
+    ),
+    update_tax=extend_schema(
+        tags=["Admin"],
+        summary="Setup wizard — tax settings",
+        responses={200: SetupTaxSettingsSerializer},
+    ),
+    update_notifications=extend_schema(
+        tags=["Admin"],
+        summary="Setup wizard — notifications",
+        description=(
+            "Saves notification preferences and marks the company setup as "
+            "completed."
+        ),
+        responses={200: SetupNotificationSerializer},
+    ),
+)
 class CompanySetupViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
     permission_classes = (IsAuthenticated, CompanyApproved, IsAdmin)
+    serializer_class = SetupProfileSerializer
+
+    def get_serializer_class(self):
+        return {
+            "update_profile": SetupProfileSerializer,
+            "update_bank": SetupBankSerializer,
+            "update_invoice": SetupInvoiceSerializer,
+            "update_tax": SetupTaxSettingsSerializer,
+            "update_notifications": SetupNotificationSerializer,
+        }.get(self.action, SetupProfileSerializer)
 
     def _get_settings(self, company):
         settings, _ = CompanySettings.objects.get_or_create(company=company)
