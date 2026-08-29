@@ -16,7 +16,7 @@ http:
 runtime:
   variables:
     - name: BASE_URL
-      value: https://beta.xlapparals.in/api
+      value: http://localhost:8000/api
 
 settings:
   encodeUrl: true
