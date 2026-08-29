@@ -1,0 +1,163 @@
+info:
+  name: Impersonate company admin
+  type: http
+  seq: 6
+  tags:
+    - Companies
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/super-admin/companies/:id/impersonate"
+  params:
+    - name: id
+      value: ""
+      type: path
+  body:
+    type: json
+    data: |-
+      {
+        "name": "",
+        "slug": "",
+        "logo": "",
+        "gstin": "",
+        "gstin_verified": false,
+        "contact_email": "",
+        "contact_phone": "",
+        "city": "",
+        "state": "",
+        "status": "pending",
+        "tally_enabled": false,
+        "whatsapp_enabled": false,
+        "setup_completed": false
+      }
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    request:
+      url: "{{baseUrl}}/api/super-admin/companies/:id/impersonate"
+      method: POST
+      params:
+        - name: id
+          value: ""
+          type: path
+      body:
+        type: json
+        data: |-
+          {
+            "name": "",
+            "slug": "",
+            "logo": "",
+            "gstin": "",
+            "gstin_verified": false,
+            "contact_email": "",
+            "contact_phone": "",
+            "city": "",
+            "state": "",
+            "status": "pending",
+            "tally_enabled": false,
+            "whatsapp_enabled": false,
+            "setup_completed": false
+          }
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "access": "",
+            "expires_in": 0
+          }
+  - name: 400 Response
+    description: Bad request. Field/validation errors are flattened into a single `detail` string.
+    request:
+      url: "{{baseUrl}}/api/super-admin/companies/:id/impersonate"
+      method: POST
+      params:
+        - name: id
+          value: ""
+          type: path
+      body:
+        type: json
+        data: |-
+          {
+            "name": "",
+            "slug": "",
+            "logo": "",
+            "gstin": "",
+            "gstin_verified": false,
+            "contact_email": "",
+            "contact_phone": "",
+            "city": "",
+            "state": "",
+            "status": "pending",
+            "tally_enabled": false,
+            "whatsapp_enabled": false,
+            "setup_completed": false
+          }
+    response:
+      status: 400
+      statusText: Bad Request
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "detail": ""
+          }
+  - name: 404 Response
+    description: Not found. The requested resource does not exist in the current company.
+    request:
+      url: "{{baseUrl}}/api/super-admin/companies/:id/impersonate"
+      method: POST
+      params:
+        - name: id
+          value: ""
+          type: path
+      body:
+        type: json
+        data: |-
+          {
+            "name": "",
+            "slug": "",
+            "logo": "",
+            "gstin": "",
+            "gstin_verified": false,
+            "contact_email": "",
+            "contact_phone": "",
+            "city": "",
+            "state": "",
+            "status": "pending",
+            "tally_enabled": false,
+            "whatsapp_enabled": false,
+            "setup_completed": false
+          }
+    response:
+      status: 404
+      statusText: Not Found
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "detail": ""
+          }
+
+docs: Issues a 30-minute access token for the company's first admin, flagged with the `impersonating` claim. Used by support.

@@ -1,0 +1,195 @@
+info:
+  name: List orders
+  type: http
+  seq: 1
+  tags:
+    - Orders
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/orders/"
+  params:
+    - name: agent_id
+      value: ""
+      type: query
+      disabled: true
+    - name: customer_id
+      value: ""
+      type: query
+      disabled: true
+    - name: date_from
+      value: ""
+      type: query
+      disabled: true
+    - name: date_to
+      value: ""
+      type: query
+      disabled: true
+    - name: offline
+      value: ""
+      type: query
+      disabled: true
+    - name: pending_approval
+      value: ""
+      type: query
+      disabled: true
+    - name: search
+      value: ""
+      type: query
+      disabled: true
+    - name: status
+      value: cancelled
+      type: query
+      disabled: true
+    - name: status
+      value: confirmed
+      type: query
+      disabled: true
+    - name: status
+      value: delivered
+      type: query
+      disabled: true
+    - name: status
+      value: dispatched
+      type: query
+      disabled: true
+    - name: status
+      value: draft
+      type: query
+      disabled: true
+    - name: status
+      value: on_hold
+      type: query
+      disabled: true
+    - name: status
+      value: packed
+      type: query
+      disabled: true
+    - name: status
+      value: processing
+      type: query
+      disabled: true
+    - name: status
+      value: ready
+      type: query
+      disabled: true
+    - name: status
+      value: submitted
+      type: query
+      disabled: true
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    request:
+      url: "{{baseUrl}}/api/orders/"
+      method: GET
+      params:
+        - name: agent_id
+          value: ""
+          type: query
+          disabled: true
+        - name: customer_id
+          value: ""
+          type: query
+          disabled: true
+        - name: date_from
+          value: ""
+          type: query
+          disabled: true
+        - name: date_to
+          value: ""
+          type: query
+          disabled: true
+        - name: offline
+          value: ""
+          type: query
+          disabled: true
+        - name: pending_approval
+          value: ""
+          type: query
+          disabled: true
+        - name: search
+          value: ""
+          type: query
+          disabled: true
+        - name: status
+          value: cancelled
+          type: query
+          disabled: true
+        - name: status
+          value: confirmed
+          type: query
+          disabled: true
+        - name: status
+          value: delivered
+          type: query
+          disabled: true
+        - name: status
+          value: dispatched
+          type: query
+          disabled: true
+        - name: status
+          value: draft
+          type: query
+          disabled: true
+        - name: status
+          value: on_hold
+          type: query
+          disabled: true
+        - name: status
+          value: packed
+          type: query
+          disabled: true
+        - name: status
+          value: processing
+          type: query
+          disabled: true
+        - name: status
+          value: ready
+          type: query
+          disabled: true
+        - name: status
+          value: submitted
+          type: query
+          disabled: true
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          [
+            {
+              "id": "",
+              "order_number": "",
+              "po_number": "",
+              "customer": "",
+              "customer_name": "",
+              "agent": "",
+              "agent_name": "",
+              "status": "draft",
+              "packing_status": "",
+              "total_amount": "",
+              "item_count": 0,
+              "is_offline_order": false,
+              "sync_status": "",
+              "requires_approval": false,
+              "submitted_at": "",
+              "created_at": ""
+            }
+          ]
+
+docs: Company-scoped order list. Agents automatically see only their own orders. Each row includes the derived `packing_status`.

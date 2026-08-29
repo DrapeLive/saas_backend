@@ -1,0 +1,186 @@
+info:
+  name: List or upload documents
+  type: http
+  seq: 10
+  tags:
+    - Customers
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/admin/customers/:id/documents/"
+  params:
+    - name: id
+      value: ""
+      type: path
+      description: A UUID string identifying this customer profile.
+    - name: page
+      value: ""
+      type: query
+      description: A page number within the paginated result set.
+      disabled: true
+    - name: page_size
+      value: ""
+      type: query
+      description: Number of results to return per page.
+      disabled: true
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    request:
+      url: "{{baseUrl}}/api/admin/customers/:id/documents/"
+      method: GET
+      params:
+        - name: id
+          value: ""
+          type: path
+          description: A UUID string identifying this customer profile.
+        - name: page
+          value: ""
+          type: query
+          description: A page number within the paginated result set.
+          disabled: true
+        - name: page_size
+          value: ""
+          type: query
+          description: Number of results to return per page.
+          disabled: true
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "count": 123,
+            "next": "http://api.example.org/accounts/?page=4",
+            "previous": "http://api.example.org/accounts/?page=2",
+            "results": [
+              {
+                "id": "",
+                "customer": "",
+                "doc_type": "gst_cert",
+                "title": "",
+                "file": "",
+                "uploaded_by": "",
+                "notes": "",
+                "created_at": ""
+              }
+            ]
+          }
+  - name: 201 Response
+    request:
+      url: "{{baseUrl}}/api/admin/customers/:id/documents/"
+      method: GET
+      params:
+        - name: id
+          value: ""
+          type: path
+          description: A UUID string identifying this customer profile.
+        - name: page
+          value: ""
+          type: query
+          description: A page number within the paginated result set.
+          disabled: true
+        - name: page_size
+          value: ""
+          type: query
+          description: Number of results to return per page.
+          disabled: true
+    response:
+      status: 201
+      statusText: Created
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "id": "",
+            "customer": "",
+            "doc_type": "gst_cert",
+            "title": "",
+            "file": "",
+            "uploaded_by": "",
+            "notes": "",
+            "created_at": ""
+          }
+  - name: 400 Response
+    description: Bad request. Field/validation errors are flattened into a single `detail` string.
+    request:
+      url: "{{baseUrl}}/api/admin/customers/:id/documents/"
+      method: GET
+      params:
+        - name: id
+          value: ""
+          type: path
+          description: A UUID string identifying this customer profile.
+        - name: page
+          value: ""
+          type: query
+          description: A page number within the paginated result set.
+          disabled: true
+        - name: page_size
+          value: ""
+          type: query
+          description: Number of results to return per page.
+          disabled: true
+    response:
+      status: 400
+      statusText: Bad Request
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "detail": ""
+          }
+  - name: 404 Response
+    description: Not found. The requested resource does not exist in the current company.
+    request:
+      url: "{{baseUrl}}/api/admin/customers/:id/documents/"
+      method: GET
+      params:
+        - name: id
+          value: ""
+          type: path
+          description: A UUID string identifying this customer profile.
+        - name: page
+          value: ""
+          type: query
+          description: A page number within the paginated result set.
+          disabled: true
+        - name: page_size
+          value: ""
+          type: query
+          description: Number of results to return per page.
+          disabled: true
+    response:
+      status: 404
+      statusText: Not Found
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "detail": ""
+          }
+
+docs: GET lists the customer's documents; POST uploads a new one (multipart).

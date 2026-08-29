@@ -1,0 +1,61 @@
+info:
+  name: Setup wizard — notifications
+  type: http
+  seq: 8
+  tags:
+    - Admin
+
+http:
+  method: PATCH
+  url: "{{baseUrl}}/api/admin/setup/notifications"
+  body:
+    type: json
+    data: |-
+      {
+        "notify_order_whatsapp": false,
+        "notify_order_email": false,
+        "notify_low_stock": false,
+        "notify_payment_due_days": ""
+      }
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    request:
+      url: "{{baseUrl}}/api/admin/setup/notifications"
+      method: PATCH
+      body:
+        type: json
+        data: |-
+          {
+            "notify_order_whatsapp": false,
+            "notify_order_email": false,
+            "notify_low_stock": false,
+            "notify_payment_due_days": ""
+          }
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "notify_order_whatsapp": false,
+            "notify_order_email": false,
+            "notify_low_stock": false,
+            "notify_payment_due_days": ""
+          }
+
+docs: Saves notification preferences and marks the company setup as completed.

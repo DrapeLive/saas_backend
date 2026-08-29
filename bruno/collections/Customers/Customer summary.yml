@@ -1,0 +1,125 @@
+info:
+  name: Customer summary
+  type: http
+  seq: 15
+  tags:
+    - Customers
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/admin/customers/:id/summary/"
+  params:
+    - name: id
+      value: ""
+      type: path
+      description: A UUID string identifying this customer profile.
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    request:
+      url: "{{baseUrl}}/api/admin/customers/:id/summary/"
+      method: GET
+      params:
+        - name: id
+          value: ""
+          type: path
+          description: A UUID string identifying this customer profile.
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "id": "",
+            "name": "",
+            "owner_name": "",
+            "email": "",
+            "billing_address": {
+              "line1": "",
+              "line2": "",
+              "city": "",
+              "state": "",
+              "pincode": "",
+              "same_as_billing": false
+            },
+            "shipping_address": {
+              "line1": "",
+              "line2": "",
+              "city": "",
+              "state": "",
+              "pincode": "",
+              "same_as_billing": false
+            },
+            "phone": "",
+            "whatsapp_number": "",
+            "credit_utilization_pct": 0,
+            "credit_utilized": "",
+            "credit_limit": "",
+            "available_limit": "",
+            "outstanding": {
+              "buckets": [
+                {
+                  "bucket": "",
+                  "amount": "",
+                  "percentage": 0
+                }
+              ],
+              "total_outstanding": ""
+            },
+            "recent_activity": [
+              {
+                "type": "follow_up",
+                "channel": "",
+                "text": "",
+                "subject": "",
+                "date": ""
+              }
+            ],
+            "recent_payments": [
+              {
+                "id": "",
+                "date": "",
+                "amount": "",
+                "type": "",
+                "tally_sync_status": "synced"
+              }
+            ]
+          }
+  - name: 404 Response
+    description: Not found. The requested resource does not exist in the current company.
+    request:
+      url: "{{baseUrl}}/api/admin/customers/:id/summary/"
+      method: GET
+      params:
+        - name: id
+          value: ""
+          type: path
+          description: A UUID string identifying this customer profile.
+    response:
+      status: 404
+      statusText: Not Found
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "detail": ""
+          }
+
+docs: "Overview card: addresses, credit position, outstanding aging, recent activity."

@@ -1,0 +1,139 @@
+info:
+  name: Kanban board
+  type: http
+  seq: 9
+  tags:
+    - Orders
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/orders/kanban/"
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    request:
+      url: "{{baseUrl}}/api/orders/kanban/"
+      method: GET
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "submitted": [
+              {
+                "id": "",
+                "order_number": "",
+                "po_number": "",
+                "customer": "",
+                "customer_name": "",
+                "agent": "",
+                "agent_name": "",
+                "status": "draft",
+                "packing_status": "",
+                "total_amount": "",
+                "item_count": 0,
+                "is_offline_order": false,
+                "sync_status": "",
+                "requires_approval": false,
+                "submitted_at": "",
+                "created_at": ""
+              }
+            ],
+            "confirmed": [
+              {
+                "id": "",
+                "order_number": "",
+                "po_number": "",
+                "customer": "",
+                "customer_name": "",
+                "agent": "",
+                "agent_name": "",
+                "status": "draft",
+                "packing_status": "",
+                "total_amount": "",
+                "item_count": 0,
+                "is_offline_order": false,
+                "sync_status": "",
+                "requires_approval": false,
+                "submitted_at": "",
+                "created_at": ""
+              }
+            ],
+            "processing": [
+              {
+                "id": "",
+                "order_number": "",
+                "po_number": "",
+                "customer": "",
+                "customer_name": "",
+                "agent": "",
+                "agent_name": "",
+                "status": "draft",
+                "packing_status": "",
+                "total_amount": "",
+                "item_count": 0,
+                "is_offline_order": false,
+                "sync_status": "",
+                "requires_approval": false,
+                "submitted_at": "",
+                "created_at": ""
+              }
+            ],
+            "packed": [
+              {
+                "id": "",
+                "order_number": "",
+                "po_number": "",
+                "customer": "",
+                "customer_name": "",
+                "agent": "",
+                "agent_name": "",
+                "status": "draft",
+                "packing_status": "",
+                "total_amount": "",
+                "item_count": 0,
+                "is_offline_order": false,
+                "sync_status": "",
+                "requires_approval": false,
+                "submitted_at": "",
+                "created_at": ""
+              }
+            ],
+            "ready": [
+              {
+                "id": "",
+                "order_number": "",
+                "po_number": "",
+                "customer": "",
+                "customer_name": "",
+                "agent": "",
+                "agent_name": "",
+                "status": "draft",
+                "packing_status": "",
+                "total_amount": "",
+                "item_count": 0,
+                "is_offline_order": false,
+                "sync_status": "",
+                "requires_approval": false,
+                "submitted_at": "",
+                "created_at": ""
+              }
+            ]
+          }
+
+docs: Orders grouped by workflow status (submitted → ready).

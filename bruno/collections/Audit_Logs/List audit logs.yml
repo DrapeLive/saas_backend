@@ -1,0 +1,132 @@
+info:
+  name: List audit logs
+  type: http
+  seq: 1
+  tags:
+    - Audit_Logs
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/audit-logs/"
+  params:
+    - name: action
+      value: ""
+      type: query
+      description: Exact action string, e.g. `order.create`, `company.suspend`.
+      disabled: true
+    - name: date_from
+      value: ""
+      type: query
+      description: Filter from date.
+      disabled: true
+    - name: date_to
+      value: ""
+      type: query
+      description: Filter to date.
+      disabled: true
+    - name: entity_id
+      value: ""
+      type: query
+      description: Filter by entity id.
+      disabled: true
+    - name: entity_type
+      value: ""
+      type: query
+      description: Filter by entity type.
+      disabled: true
+    - name: ip_address
+      value: ""
+      type: query
+      description: Filter by IP address.
+      disabled: true
+    - name: user_id
+      value: ""
+      type: query
+      description: Filter by acting user.
+      disabled: true
+    - name: user_role
+      value: ""
+      type: query
+      description: Filter by acting user role.
+      disabled: true
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    request:
+      url: "{{baseUrl}}/api/audit-logs/"
+      method: GET
+      params:
+        - name: action
+          value: ""
+          type: query
+          description: Exact action string, e.g. `order.create`, `company.suspend`.
+          disabled: true
+        - name: date_from
+          value: ""
+          type: query
+          description: Filter from date.
+          disabled: true
+        - name: date_to
+          value: ""
+          type: query
+          description: Filter to date.
+          disabled: true
+        - name: entity_id
+          value: ""
+          type: query
+          description: Filter by entity id.
+          disabled: true
+        - name: entity_type
+          value: ""
+          type: query
+          description: Filter by entity type.
+          disabled: true
+        - name: ip_address
+          value: ""
+          type: query
+          description: Filter by IP address.
+          disabled: true
+        - name: user_id
+          value: ""
+          type: query
+          description: Filter by acting user.
+          disabled: true
+        - name: user_role
+          value: ""
+          type: query
+          description: Filter by acting user role.
+          disabled: true
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          [
+            {
+              "id": "",
+              "company_name": "",
+              "user_name": "",
+              "user_role": "",
+              "action": "",
+              "entity_type": "",
+              "entity_id": "",
+              "ip_address": "",
+              "created_at": ""
+            }
+          ]
+
+docs: Admin-only, company-scoped audit trail (latest 500 entries).

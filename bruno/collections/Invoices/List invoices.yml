@@ -1,0 +1,204 @@
+info:
+  name: List invoices
+  type: http
+  seq: 1
+  tags:
+    - Invoices
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/invoices/"
+  params:
+    - name: customer_id
+      value: ""
+      type: query
+      description: Filter by customer.
+      disabled: true
+    - name: date_from
+      value: ""
+      type: query
+      description: Invoice date from.
+      disabled: true
+    - name: date_to
+      value: ""
+      type: query
+      description: Invoice date to.
+      disabled: true
+    - name: overdue
+      value: ""
+      type: query
+      description: "`true` for issued/overdue invoices past their due date."
+      disabled: true
+    - name: search
+      value: ""
+      type: query
+      description: Search by invoice number or customer name.
+      disabled: true
+    - name: status
+      value: draft
+      type: query
+      description: Invoice status.
+      disabled: true
+    - name: status
+      value: issued
+      type: query
+      description: Invoice status.
+      disabled: true
+    - name: status
+      value: overdue
+      type: query
+      description: Invoice status.
+      disabled: true
+    - name: status
+      value: paid
+      type: query
+      description: Invoice status.
+      disabled: true
+    - name: status
+      value: partial
+      type: query
+      description: Invoice status.
+      disabled: true
+    - name: status
+      value: void
+      type: query
+      description: Invoice status.
+      disabled: true
+    - name: type
+      value: credit_note
+      type: query
+      description: Invoice type (sales_invoice, credit_note, debit_note, purchase_order).
+      disabled: true
+    - name: type
+      value: debit_note
+      type: query
+      description: Invoice type (sales_invoice, credit_note, debit_note, purchase_order).
+      disabled: true
+    - name: type
+      value: purchase_order
+      type: query
+      description: Invoice type (sales_invoice, credit_note, debit_note, purchase_order).
+      disabled: true
+    - name: type
+      value: sales_invoice
+      type: query
+      description: Invoice type (sales_invoice, credit_note, debit_note, purchase_order).
+      disabled: true
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    request:
+      url: "{{baseUrl}}/api/invoices/"
+      method: GET
+      params:
+        - name: customer_id
+          value: ""
+          type: query
+          description: Filter by customer.
+          disabled: true
+        - name: date_from
+          value: ""
+          type: query
+          description: Invoice date from.
+          disabled: true
+        - name: date_to
+          value: ""
+          type: query
+          description: Invoice date to.
+          disabled: true
+        - name: overdue
+          value: ""
+          type: query
+          description: "`true` for issued/overdue invoices past their due date."
+          disabled: true
+        - name: search
+          value: ""
+          type: query
+          description: Search by invoice number or customer name.
+          disabled: true
+        - name: status
+          value: draft
+          type: query
+          description: Invoice status.
+          disabled: true
+        - name: status
+          value: issued
+          type: query
+          description: Invoice status.
+          disabled: true
+        - name: status
+          value: overdue
+          type: query
+          description: Invoice status.
+          disabled: true
+        - name: status
+          value: paid
+          type: query
+          description: Invoice status.
+          disabled: true
+        - name: status
+          value: partial
+          type: query
+          description: Invoice status.
+          disabled: true
+        - name: status
+          value: void
+          type: query
+          description: Invoice status.
+          disabled: true
+        - name: type
+          value: credit_note
+          type: query
+          description: Invoice type (sales_invoice, credit_note, debit_note, purchase_order).
+          disabled: true
+        - name: type
+          value: debit_note
+          type: query
+          description: Invoice type (sales_invoice, credit_note, debit_note, purchase_order).
+          disabled: true
+        - name: type
+          value: purchase_order
+          type: query
+          description: Invoice type (sales_invoice, credit_note, debit_note, purchase_order).
+          disabled: true
+        - name: type
+          value: sales_invoice
+          type: query
+          description: Invoice type (sales_invoice, credit_note, debit_note, purchase_order).
+          disabled: true
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          [
+            {
+              "id": "",
+              "invoice_type": "sales_invoice",
+              "invoice_number": "",
+              "customer": "",
+              "customer_name": "",
+              "status": "draft",
+              "invoice_date": "",
+              "due_date": "",
+              "total_amount": "",
+              "amount_paid": "",
+              "amount_due": "",
+              "days_overdue": 0,
+              "tally_synced_at": ""
+            }
+          ]

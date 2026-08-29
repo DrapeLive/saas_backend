@@ -1,0 +1,62 @@
+info:
+  name: Setup wizard — bank details
+  type: http
+  seq: 6
+  tags:
+    - Admin
+
+http:
+  method: PATCH
+  url: "{{baseUrl}}/api/admin/setup/bank"
+  body:
+    type: json
+    data: |-
+      {
+        "bank_name": "",
+        "bank_account": "",
+        "bank_ifsc": "",
+        "bank_branch": "",
+        "upi_id": ""
+      }
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    request:
+      url: "{{baseUrl}}/api/admin/setup/bank"
+      method: PATCH
+      body:
+        type: json
+        data: |-
+          {
+            "bank_name": "",
+            "bank_account": "",
+            "bank_ifsc": "",
+            "bank_branch": "",
+            "upi_id": ""
+          }
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "bank_name": "",
+            "bank_account": "",
+            "bank_ifsc": "",
+            "bank_branch": "",
+            "upi_id": ""
+          }

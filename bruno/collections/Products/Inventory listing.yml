@@ -1,0 +1,265 @@
+info:
+  name: Inventory listing
+  type: http
+  seq: 1
+  tags:
+    - Products
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/products/"
+  params:
+    - name: category
+      value: ""
+      type: query
+      description: Filter by category id.
+      disabled: true
+    - name: low_stock
+      value: ""
+      type: query
+      description: "`true` to show items at or below reorder level."
+      disabled: true
+    - name: ordering
+      value: -created_at
+      type: query
+      description: Sort order (default `name`).
+      disabled: true
+    - name: ordering
+      value: -name
+      type: query
+      description: Sort order (default `name`).
+      disabled: true
+    - name: ordering
+      value: -price
+      type: query
+      description: Sort order (default `name`).
+      disabled: true
+    - name: ordering
+      value: -sku
+      type: query
+      description: Sort order (default `name`).
+      disabled: true
+    - name: ordering
+      value: -stock_quantity
+      type: query
+      description: Sort order (default `name`).
+      disabled: true
+    - name: ordering
+      value: created_at
+      type: query
+      description: Sort order (default `name`).
+      disabled: true
+    - name: ordering
+      value: name
+      type: query
+      description: Sort order (default `name`).
+      disabled: true
+    - name: ordering
+      value: price
+      type: query
+      description: Sort order (default `name`).
+      disabled: true
+    - name: ordering
+      value: sku
+      type: query
+      description: Sort order (default `name`).
+      disabled: true
+    - name: ordering
+      value: stock_quantity
+      type: query
+      description: Sort order (default `name`).
+      disabled: true
+    - name: out_of_stock
+      value: ""
+      type: query
+      description: "`true` to show items with zero available quantity."
+      disabled: true
+    - name: page
+      value: ""
+      type: query
+      description: Page number (default 1).
+      disabled: true
+    - name: page_size
+      value: ""
+      type: query
+      description: Page size (default 20, max 100).
+      disabled: true
+    - name: search
+      value: ""
+      type: query
+      description: Search product name, SKU, color name or category name.
+      disabled: true
+    - name: size
+      value: ""
+      type: query
+      description: Filter by size label.
+      disabled: true
+    - name: status
+      value: active
+      type: query
+      description: Filter by product status.
+      disabled: true
+    - name: status
+      value: discontinued
+      type: query
+      description: Filter by product status.
+      disabled: true
+    - name: status
+      value: inactive
+      type: query
+      description: Filter by product status.
+      disabled: true
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    request:
+      url: "{{baseUrl}}/api/products/"
+      method: GET
+      params:
+        - name: category
+          value: ""
+          type: query
+          description: Filter by category id.
+          disabled: true
+        - name: low_stock
+          value: ""
+          type: query
+          description: "`true` to show items at or below reorder level."
+          disabled: true
+        - name: ordering
+          value: -created_at
+          type: query
+          description: Sort order (default `name`).
+          disabled: true
+        - name: ordering
+          value: -name
+          type: query
+          description: Sort order (default `name`).
+          disabled: true
+        - name: ordering
+          value: -price
+          type: query
+          description: Sort order (default `name`).
+          disabled: true
+        - name: ordering
+          value: -sku
+          type: query
+          description: Sort order (default `name`).
+          disabled: true
+        - name: ordering
+          value: -stock_quantity
+          type: query
+          description: Sort order (default `name`).
+          disabled: true
+        - name: ordering
+          value: created_at
+          type: query
+          description: Sort order (default `name`).
+          disabled: true
+        - name: ordering
+          value: name
+          type: query
+          description: Sort order (default `name`).
+          disabled: true
+        - name: ordering
+          value: price
+          type: query
+          description: Sort order (default `name`).
+          disabled: true
+        - name: ordering
+          value: sku
+          type: query
+          description: Sort order (default `name`).
+          disabled: true
+        - name: ordering
+          value: stock_quantity
+          type: query
+          description: Sort order (default `name`).
+          disabled: true
+        - name: out_of_stock
+          value: ""
+          type: query
+          description: "`true` to show items with zero available quantity."
+          disabled: true
+        - name: page
+          value: ""
+          type: query
+          description: Page number (default 1).
+          disabled: true
+        - name: page_size
+          value: ""
+          type: query
+          description: Page size (default 20, max 100).
+          disabled: true
+        - name: search
+          value: ""
+          type: query
+          description: Search product name, SKU, color name or category name.
+          disabled: true
+        - name: size
+          value: ""
+          type: query
+          description: Filter by size label.
+          disabled: true
+        - name: status
+          value: active
+          type: query
+          description: Filter by product status.
+          disabled: true
+        - name: status
+          value: discontinued
+          type: query
+          description: Filter by product status.
+          disabled: true
+        - name: status
+          value: inactive
+          type: query
+          description: Filter by product status.
+          disabled: true
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          [
+            {
+              "count": 0,
+              "next": "",
+              "previous": "",
+              "summary": {
+                "stock_valuation": ""
+              },
+              "filters": {
+                "sizes": []
+              },
+              "results": [
+                {
+                  "id": "",
+                  "product": "",
+                  "image": "",
+                  "sku": "",
+                  "category": "",
+                  "color": "",
+                  "size": "",
+                  "price_per_unit": "",
+                  "stock": ""
+                }
+              ]
+            }
+          ]
+
+docs: Paginated SKU-level inventory with search, filters, ordering, live stock summary and facet values. Each row is a `VariantSize` (SKU).

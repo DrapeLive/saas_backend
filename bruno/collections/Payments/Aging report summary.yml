@@ -1,0 +1,63 @@
+info:
+  name: Aging report summary
+  type: http
+  seq: 3
+  tags:
+    - Payments
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/outstanding/summary/"
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    request:
+      url: "{{baseUrl}}/api/outstanding/summary/"
+      method: GET
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "total_outstanding": "",
+            "current": "",
+            "days_1_30": "",
+            "days_31_60": "",
+            "days_61_90": "",
+            "days_90_plus": "",
+            "customers_overdue": 0
+          }
+  - name: 404 Response
+    description: Not found. The requested resource does not exist in the current company.
+    request:
+      url: "{{baseUrl}}/api/outstanding/summary/"
+      method: GET
+    response:
+      status: 404
+      statusText: Not Found
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "detail": ""
+          }
+
+docs: Aggregated aging buckets across the whole company for the latest report date.

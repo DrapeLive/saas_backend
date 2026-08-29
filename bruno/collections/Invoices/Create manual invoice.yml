@@ -1,0 +1,172 @@
+info:
+  name: Create manual invoice
+  type: http
+  seq: 2
+  tags:
+    - Invoices
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/invoices/"
+  body:
+    type: json
+    data: |-
+      {
+        "invoice_type": "sales_invoice",
+        "order": "",
+        "customer": "",
+        "invoice_date": "",
+        "due_date": "",
+        "is_interstate": false,
+        "reverse_charge": false,
+        "place_of_supply": "",
+        "notes": "",
+        "items": [
+          {
+            "description": "",
+            "hsn_code": "",
+            "quantity": 0,
+            "unit_price": "",
+            "discount_pct": "",
+            "gst_rate": ""
+          }
+        ]
+      }
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 201 Response
+    request:
+      url: "{{baseUrl}}/api/invoices/"
+      method: POST
+      body:
+        type: json
+        data: |-
+          {
+            "invoice_type": "sales_invoice",
+            "order": "",
+            "customer": "",
+            "invoice_date": "",
+            "due_date": "",
+            "is_interstate": false,
+            "reverse_charge": false,
+            "place_of_supply": "",
+            "notes": "",
+            "items": [
+              {
+                "description": "",
+                "hsn_code": "",
+                "quantity": 0,
+                "unit_price": "",
+                "discount_pct": "",
+                "gst_rate": ""
+              }
+            ]
+          }
+    response:
+      status: 201
+      statusText: Created
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "id": "",
+            "invoice_type": "sales_invoice",
+            "invoice_number": "",
+            "order": "",
+            "customer": "",
+            "customer_name": "",
+            "customer_gstin": "",
+            "status": "draft",
+            "invoice_date": "",
+            "due_date": "",
+            "subtotal": "",
+            "discount_amount": "",
+            "taxable_amount": "",
+            "cgst_amount": "",
+            "sgst_amount": "",
+            "igst_amount": "",
+            "total_amount": "",
+            "amount_paid": "",
+            "amount_due": "",
+            "days_overdue": 0,
+            "is_interstate": false,
+            "reverse_charge": false,
+            "place_of_supply": "",
+            "pdf_file": "",
+            "pdf_generated_at": "",
+            "tally_voucher_id": "",
+            "tally_synced_at": "",
+            "notes": "",
+            "items": [
+              {
+                "id": "",
+                "description": "",
+                "hsn_code": "",
+                "quantity": 0,
+                "unit_price": "",
+                "discount_pct": "",
+                "gst_rate": "",
+                "taxable_amount": "",
+                "gst_amount": "",
+                "line_total": ""
+              }
+            ],
+            "created_at": "",
+            "updated_at": ""
+          }
+  - name: 400 Response
+    description: Bad request. Field/validation errors are flattened into a single `detail` string.
+    request:
+      url: "{{baseUrl}}/api/invoices/"
+      method: POST
+      body:
+        type: json
+        data: |-
+          {
+            "invoice_type": "sales_invoice",
+            "order": "",
+            "customer": "",
+            "invoice_date": "",
+            "due_date": "",
+            "is_interstate": false,
+            "reverse_charge": false,
+            "place_of_supply": "",
+            "notes": "",
+            "items": [
+              {
+                "description": "",
+                "hsn_code": "",
+                "quantity": 0,
+                "unit_price": "",
+                "discount_pct": "",
+                "gst_rate": ""
+              }
+            ]
+          }
+    response:
+      status: 400
+      statusText: Bad Request
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "detail": ""
+          }
+
+docs: Manual credit/debit notes only — sales invoices are auto-generated from orders.

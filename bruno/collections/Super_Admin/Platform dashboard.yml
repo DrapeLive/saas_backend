@@ -1,0 +1,49 @@
+info:
+  name: Platform dashboard
+  type: http
+  seq: 1
+  tags:
+    - Super_Admin
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/super-admin/dashboard"
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    request:
+      url: "{{baseUrl}}/api/super-admin/dashboard"
+      method: GET
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          [
+            {
+              "total_companies": 0,
+              "active_companies": 0,
+              "trial_companies": 0,
+              "expired_companies": 0,
+              "mrr": "",
+              "arr": "",
+              "churn_rate": 0,
+              "ltv": ""
+            }
+          ]
+
+docs: Super-admin only. Returns platform-wide company, MRR/ARR, churn and LTV metrics.

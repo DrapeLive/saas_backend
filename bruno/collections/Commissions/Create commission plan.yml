@@ -1,0 +1,141 @@
+info:
+  name: Create commission plan
+  type: http
+  seq: 7
+  tags:
+    - Commissions
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/commission-plans/"
+  body:
+    type: json
+    data: |-
+      {
+        "name": "",
+        "description": "",
+        "is_default": false,
+        "slabs": [
+          {
+            "min_amount": "",
+            "max_amount": "",
+            "commission_pct": ""
+          }
+        ],
+        "category_rates": [
+          {
+            "category": "",
+            "commission_pct": ""
+          }
+        ]
+      }
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 201 Response
+    request:
+      url: "{{baseUrl}}/api/commission-plans/"
+      method: POST
+      body:
+        type: json
+        data: |-
+          {
+            "name": "",
+            "description": "",
+            "is_default": false,
+            "slabs": [
+              {
+                "min_amount": "",
+                "max_amount": "",
+                "commission_pct": ""
+              }
+            ],
+            "category_rates": [
+              {
+                "category": "",
+                "commission_pct": ""
+              }
+            ]
+          }
+    response:
+      status: 201
+      statusText: Created
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "id": "",
+            "name": "",
+            "description": "",
+            "is_default": false,
+            "slabs": [
+              {
+                "id": "",
+                "min_amount": "",
+                "max_amount": "",
+                "commission_pct": ""
+              }
+            ],
+            "category_rates": [
+              {
+                "id": "",
+                "category": "",
+                "category_name": "",
+                "commission_pct": ""
+              }
+            ],
+            "created_at": "",
+            "updated_at": ""
+          }
+  - name: 400 Response
+    description: Bad request. Field/validation errors are flattened into a single `detail` string.
+    request:
+      url: "{{baseUrl}}/api/commission-plans/"
+      method: POST
+      body:
+        type: json
+        data: |-
+          {
+            "name": "",
+            "description": "",
+            "is_default": false,
+            "slabs": [
+              {
+                "min_amount": "",
+                "max_amount": "",
+                "commission_pct": ""
+              }
+            ],
+            "category_rates": [
+              {
+                "category": "",
+                "commission_pct": ""
+              }
+            ]
+          }
+    response:
+      status: 400
+      statusText: Bad Request
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "detail": ""
+          }
+
+docs: Creates a plan with optional nested slabs and per-category rates.

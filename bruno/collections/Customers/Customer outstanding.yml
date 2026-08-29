@@ -1,0 +1,93 @@
+info:
+  name: Customer outstanding
+  type: http
+  seq: 13
+  tags:
+    - Customers
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/admin/customers/:id/outstanding/"
+  params:
+    - name: id
+      value: ""
+      type: path
+      description: A UUID string identifying this customer profile.
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    request:
+      url: "{{baseUrl}}/api/admin/customers/:id/outstanding/"
+      method: GET
+      params:
+        - name: id
+          value: ""
+          type: path
+          description: A UUID string identifying this customer profile.
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "total_paid_ytd": "",
+            "total_outstanding": "",
+            "last_payment_date": "",
+            "credit_utilization_pct": 0,
+            "available_limit": "",
+            "avg_pay_days": 0,
+            "aging_analysis": [
+              {
+                "bucket": "",
+                "amount": "",
+                "percentage": 0
+              }
+            ],
+            "critical_invoices": [
+              {
+                "id": "",
+                "invoice_number": "",
+                "amount": "",
+                "due_date": "",
+                "days_past_due": 0
+              }
+            ]
+          }
+  - name: 404 Response
+    description: Not found. The requested resource does not exist in the current company.
+    request:
+      url: "{{baseUrl}}/api/admin/customers/:id/outstanding/"
+      method: GET
+      params:
+        - name: id
+          value: ""
+          type: path
+          description: A UUID string identifying this customer profile.
+    response:
+      status: 404
+      statusText: Not Found
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "detail": ""
+          }
+
+docs: YTD paid, aging analysis and critical invoices.

@@ -1,0 +1,116 @@
+info:
+  name: Create or update ledger mapping
+  type: http
+  seq: 2
+  tags:
+    - Tally_Integration
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/tally/ledger-mappings/"
+  body:
+    type: json
+    data: |-
+      {
+        "entity_type": "",
+        "entity_id": "",
+        "tally_ledger_name": "",
+        "tally_group": ""
+      }
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 201 Response
+    request:
+      url: "{{baseUrl}}/api/tally/ledger-mappings/"
+      method: POST
+      body:
+        type: json
+        data: |-
+          {
+            "entity_type": "",
+            "entity_id": "",
+            "tally_ledger_name": "",
+            "tally_group": ""
+          }
+    response:
+      status: 201
+      statusText: Created
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "id": "",
+            "entity_type": "",
+            "entity_id": "",
+            "tally_ledger_name": "",
+            "tally_group": "",
+            "created_at": "",
+            "updated_at": ""
+          }
+  - name: 400 Response
+    description: Bad request. Field/validation errors are flattened into a single `detail` string.
+    request:
+      url: "{{baseUrl}}/api/tally/ledger-mappings/"
+      method: POST
+      body:
+        type: json
+        data: |-
+          {
+            "entity_type": "",
+            "entity_id": "",
+            "tally_ledger_name": "",
+            "tally_group": ""
+          }
+    response:
+      status: 400
+      statusText: Bad Request
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "detail": ""
+          }
+  - name: 403 Response
+    description: Forbidden. The authenticated user is not allowed to perform this action.
+    request:
+      url: "{{baseUrl}}/api/tally/ledger-mappings/"
+      method: POST
+      body:
+        type: json
+        data: |-
+          {
+            "entity_type": "",
+            "entity_id": "",
+            "tally_ledger_name": "",
+            "tally_group": ""
+          }
+    response:
+      status: 403
+      statusText: Forbidden
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "detail": ""
+          }
+
+docs: Idempotent mapping keyed on `(company, entity_type, entity_id)`. Admin only.

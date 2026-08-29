@@ -28,5 +28,7 @@ extensions:
     openapi:
       - sourceUrl: ../../schema.yml
         groupBy: tags
+        lastSyncDate: 2026-08-29T13:41:32.942Z
+        specHash: fa6fd7772baa62cb618f99372f37dc5f
         autoCheck: true
         autoCheckInterval: 5

@@ -1,0 +1,133 @@
+info:
+  name: Approve or reject a pending order
+  type: http
+  seq: 4
+  tags:
+    - Orders
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/orders/:id/approve/"
+  params:
+    - name: id
+      value: ""
+      type: path
+  body:
+    type: json
+    data: |-
+      {
+        "action": "approve",
+        "rejection_reason": ""
+      }
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    request:
+      url: "{{baseUrl}}/api/orders/:id/approve/"
+      method: POST
+      params:
+        - name: id
+          value: ""
+          type: path
+      body:
+        type: json
+        data: |-
+          {
+            "action": "approve",
+            "rejection_reason": ""
+          }
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "id": "",
+            "order_number": "",
+            "po_number": "",
+            "customer": "",
+            "customer_details": "",
+            "agent": "",
+            "agent_details": "",
+            "status": "draft",
+            "packing_status": "",
+            "subtotal": "",
+            "discount_pct": "",
+            "discount_amount": "",
+            "taxable_amount": "",
+            "cgst_amount": "",
+            "sgst_amount": "",
+            "igst_amount": "",
+            "total_amount": "",
+            "is_interstate": false,
+            "delivery_address_line1": "",
+            "delivery_address_line2": "",
+            "delivery_city": "",
+            "delivery_state": "",
+            "delivery_pincode": "",
+            "expected_delivery_date": "",
+            "order_notes": "",
+            "internal_notes": "",
+            "requires_approval": false,
+            "approved_by_name": "",
+            "approved_at": "",
+            "rejection_reason": "",
+            "is_offline_order": false,
+            "offline_created_at": "",
+            "sync_status": "",
+            "tally_invoice_id": "",
+            "tally_synced_at": "",
+            "submitted_at": "",
+            "confirmed_at": "",
+            "dispatched_at": "",
+            "delivered_at": "",
+            "cancelled_at": "",
+            "created_at": "",
+            "updated_at": "",
+            "items": [
+              {
+                "id": "",
+                "variant_size": "",
+                "variant_details": "",
+                "product_name": "",
+                "color_name": "",
+                "size": "",
+                "sku": "",
+                "hsn_code": "",
+                "unit_price": "",
+                "quantity": 0,
+                "packed_quantity": 0,
+                "pending_qty": 0,
+                "packing_status": "",
+                "discount_pct": "",
+                "line_total": "",
+                "gst_rate": "",
+                "gst_amount": ""
+              }
+            ],
+            "status_history": [
+              {
+                "id": "",
+                "from_status": "",
+                "to_status": "draft",
+                "changed_by_name": "",
+                "notes": "",
+                "created_at": ""
+              }
+            ],
+            "signature": ""
+          }

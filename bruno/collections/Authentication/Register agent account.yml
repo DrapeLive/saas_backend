@@ -1,0 +1,94 @@
+info:
+  name: Register agent account
+  type: http
+  seq: 2
+  tags:
+    - Authentication
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/auth/agents/register"
+  body:
+    type: json
+    data: |-
+      {
+        "email": "",
+        "password": "",
+        "full_name": "",
+        "phone": ""
+      }
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 201 Response
+    request:
+      url: "{{baseUrl}}/api/auth/agents/register"
+      method: POST
+      body:
+        type: json
+        data: |-
+          {
+            "email": "",
+            "password": "",
+            "full_name": "",
+            "phone": ""
+          }
+    response:
+      status: 201
+      statusText: Created
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "id": "",
+            "email": "",
+            "full_name": "",
+            "phone": "",
+            "role": "",
+            "company": "",
+            "company_name": "",
+            "company_status": "",
+            "is_active": false,
+            "created_at": "",
+            "updated_at": ""
+          }
+  - name: 400 Response
+    description: Bad request. Field/validation errors are flattened into a single `detail` string.
+    request:
+      url: "{{baseUrl}}/api/auth/agents/register"
+      method: POST
+      body:
+        type: json
+        data: |-
+          {
+            "email": "",
+            "password": "",
+            "full_name": "",
+            "phone": ""
+          }
+    response:
+      status: 400
+      statusText: Bad Request
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "detail": ""
+          }
+
+docs: Creates a standalone agent account (no company). The agent can then join companies via an invitation code (`POST /api/auth/agents/join`). Returns the created `UserProfile`.

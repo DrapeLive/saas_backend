@@ -1,0 +1,57 @@
+info:
+  name: Agents dashboard overview
+  type: http
+  seq: 12
+  tags:
+    - Agents
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/admin/agents/overview"
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    request:
+      url: "{{baseUrl}}/api/admin/agents/overview"
+      method: GET
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "summary": {
+              "active_agents": 0,
+              "pending_payout_amount": "",
+              "paid_payout_amount": ""
+            },
+            "recent_payouts": [
+              {
+                "id": "",
+                "agent_id": "",
+                "agent_name": "",
+                "amount": "",
+                "entries_count": 0,
+                "settlement_month": "",
+                "paid_at": "",
+                "paid_by_name": "",
+                "notes": ""
+              }
+            ]
+          }
+
+docs: Headline agent metrics and the 10 most recent payouts.

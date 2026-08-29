@@ -1,0 +1,99 @@
+info:
+  name: Retry failed syncs
+  type: http
+  seq: 6
+  tags:
+    - Tally_Integration
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/tally/retry/"
+  body:
+    type: json
+    data: |-
+      {
+        "log_ids": []
+      }
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    description: Success.
+    request:
+      url: "{{baseUrl}}/api/tally/retry/"
+      method: POST
+      body:
+        type: json
+        data: |-
+          {
+            "log_ids": []
+          }
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "detail": ""
+          }
+  - name: 400 Response
+    description: Bad request. Field/validation errors are flattened into a single `detail` string.
+    request:
+      url: "{{baseUrl}}/api/tally/retry/"
+      method: POST
+      body:
+        type: json
+        data: |-
+          {
+            "log_ids": []
+          }
+    response:
+      status: 400
+      statusText: Bad Request
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "detail": ""
+          }
+  - name: 403 Response
+    description: Forbidden. The authenticated user is not allowed to perform this action.
+    request:
+      url: "{{baseUrl}}/api/tally/retry/"
+      method: POST
+      body:
+        type: json
+        data: |-
+          {
+            "log_ids": []
+          }
+    response:
+      status: 403
+      statusText: Forbidden
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "detail": ""
+          }
+
+docs: Re-queues one or more failed sync logs. Admin only.

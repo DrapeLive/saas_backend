@@ -1,0 +1,128 @@
+info:
+  name: Reactivate subscription
+  type: http
+  seq: 10
+  tags:
+    - Subscriptions
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/subscriptions/:id/reactivate/"
+  params:
+    - name: id
+      value: ""
+      type: path
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    request:
+      url: "{{baseUrl}}/api/subscriptions/:id/reactivate/"
+      method: POST
+      params:
+        - name: id
+          value: ""
+          type: path
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "id": "",
+            "plan": "",
+            "billing_cycle": "monthly",
+            "status": "trial",
+            "trial_start": "",
+            "trial_end": "",
+            "current_period_start": "",
+            "current_period_end": "",
+            "grace_period_end": "",
+            "cancelled_at": "",
+            "price_paid": "",
+            "discount_pct": "",
+            "engagement_score": 0,
+            "notes": "",
+            "days_remaining": 0,
+            "is_usable": false,
+            "events": [
+              {
+                "id": "",
+                "event_type": "created",
+                "from_plan_name": "",
+                "to_plan_name": "",
+                "performed_by_name": "",
+                "notes": "",
+                "metadata": "",
+                "created_at": ""
+              }
+            ],
+            "usage": [
+              {
+                "id": "",
+                "snapshot_month": "",
+                "agent_count": 0,
+                "customer_count": 0,
+                "product_count": 0,
+                "order_count": 0,
+                "storage_used_mb": 0
+              }
+            ]
+          }
+  - name: 400 Response
+    description: Bad request. Field/validation errors are flattened into a single `detail` string.
+    request:
+      url: "{{baseUrl}}/api/subscriptions/:id/reactivate/"
+      method: POST
+      params:
+        - name: id
+          value: ""
+          type: path
+    response:
+      status: 400
+      statusText: Bad Request
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "detail": ""
+          }
+  - name: 404 Response
+    description: Not found. The requested resource does not exist in the current company.
+    request:
+      url: "{{baseUrl}}/api/subscriptions/:id/reactivate/"
+      method: POST
+      params:
+        - name: id
+          value: ""
+          type: path
+    response:
+      status: 404
+      statusText: Not Found
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "detail": ""
+          }
+
+docs: Restores a cancelled, expired, grace or suspended subscription with a fresh billing period respecting the existing billing cycle.

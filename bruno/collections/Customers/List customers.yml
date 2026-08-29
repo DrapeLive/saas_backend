@@ -1,0 +1,254 @@
+info:
+  name: List customers
+  type: http
+  seq: 1
+  tags:
+    - Customers
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/admin/customers/"
+  params:
+    - name: assigned_agent
+      value: ""
+      type: query
+      description: Filter by assigned agent id.
+      disabled: true
+    - name: ordering
+      value: created_at
+      type: query
+      description: Sort field. Prefix with `-` for descending (default `-created_at`).
+      disabled: true
+    - name: ordering
+      value: overdue_outstanding
+      type: query
+      description: Sort field. Prefix with `-` for descending (default `-created_at`).
+      disabled: true
+    - name: ordering
+      value: total_outstanding
+      type: query
+      description: Sort field. Prefix with `-` for descending (default `-created_at`).
+      disabled: true
+    - name: ordering
+      value: trade_name
+      type: query
+      description: Sort field. Prefix with `-` for descending (default `-created_at`).
+      disabled: true
+    - name: page
+      value: ""
+      type: query
+      description: Page number (default 1).
+      disabled: true
+    - name: page_size
+      value: ""
+      type: query
+      description: Page size (default 10).
+      disabled: true
+    - name: search
+      value: ""
+      type: query
+      description: Search trade name, legal name, phone, GSTIN or email.
+      disabled: true
+    - name: segment
+      value: bronze
+      type: query
+      description: Filter by computed segment.
+      disabled: true
+    - name: segment
+      value: gold
+      type: query
+      description: Filter by computed segment.
+      disabled: true
+    - name: segment
+      value: platinum
+      type: query
+      description: Filter by computed segment.
+      disabled: true
+    - name: segment
+      value: silver
+      type: query
+      description: Filter by computed segment.
+      disabled: true
+    - name: status
+      value: active
+      type: query
+      description: Filter by customer status.
+      disabled: true
+    - name: status
+      value: blocked
+      type: query
+      description: Filter by customer status.
+      disabled: true
+    - name: status
+      value: inactive
+      type: query
+      description: Filter by customer status.
+      disabled: true
+    - name: tag
+      value: ""
+      type: query
+      description: Filter by a single tag string.
+      disabled: true
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    request:
+      url: "{{baseUrl}}/api/admin/customers/"
+      method: GET
+      params:
+        - name: assigned_agent
+          value: ""
+          type: query
+          description: Filter by assigned agent id.
+          disabled: true
+        - name: ordering
+          value: created_at
+          type: query
+          description: Sort field. Prefix with `-` for descending (default `-created_at`).
+          disabled: true
+        - name: ordering
+          value: overdue_outstanding
+          type: query
+          description: Sort field. Prefix with `-` for descending (default `-created_at`).
+          disabled: true
+        - name: ordering
+          value: total_outstanding
+          type: query
+          description: Sort field. Prefix with `-` for descending (default `-created_at`).
+          disabled: true
+        - name: ordering
+          value: trade_name
+          type: query
+          description: Sort field. Prefix with `-` for descending (default `-created_at`).
+          disabled: true
+        - name: page
+          value: ""
+          type: query
+          description: Page number (default 1).
+          disabled: true
+        - name: page_size
+          value: ""
+          type: query
+          description: Page size (default 10).
+          disabled: true
+        - name: search
+          value: ""
+          type: query
+          description: Search trade name, legal name, phone, GSTIN or email.
+          disabled: true
+        - name: segment
+          value: bronze
+          type: query
+          description: Filter by computed segment.
+          disabled: true
+        - name: segment
+          value: gold
+          type: query
+          description: Filter by computed segment.
+          disabled: true
+        - name: segment
+          value: platinum
+          type: query
+          description: Filter by computed segment.
+          disabled: true
+        - name: segment
+          value: silver
+          type: query
+          description: Filter by computed segment.
+          disabled: true
+        - name: status
+          value: active
+          type: query
+          description: Filter by customer status.
+          disabled: true
+        - name: status
+          value: blocked
+          type: query
+          description: Filter by customer status.
+          disabled: true
+        - name: status
+          value: inactive
+          type: query
+          description: Filter by customer status.
+          disabled: true
+        - name: tag
+          value: ""
+          type: query
+          description: Filter by a single tag string.
+          disabled: true
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "count": 123,
+            "next": "http://api.example.org/accounts/?page=4",
+            "previous": "http://api.example.org/accounts/?page=2",
+            "results": [
+              {
+                "count": 0,
+                "next": "",
+                "previous": "",
+                "results": [
+                  {
+                    "id": "",
+                    "legal_name": "",
+                    "trade_name": "",
+                    "owner_name": "",
+                    "email": "",
+                    "phone": "",
+                    "whatsapp_number": "",
+                    "gstin": "",
+                    "gstin_verified": false,
+                    "gstin_legal_name": "",
+                    "gstin_status": "",
+                    "gstin_type": "",
+                    "gstin_verified_at": "",
+                    "pan": "",
+                    "tags": "",
+                    "billing_address_line1": "",
+                    "billing_address_line2": "",
+                    "billing_city": "",
+                    "billing_state": "",
+                    "billing_pincode": "",
+                    "shipping_address_line1": "",
+                    "shipping_address_line2": "",
+                    "shipping_city": "",
+                    "shipping_state": "",
+                    "shipping_pincode": "",
+                    "same_as_billing": false,
+                    "assigned_agent": "",
+                    "assigned_agent_name": "",
+                    "credit_limit": "",
+                    "credit_utilized": "",
+                    "credit_utilization_pct": 0,
+                    "is_credit_blocked": false,
+                    "payment_terms_days": 0,
+                    "auto_block_on_exceed": false,
+                    "total_outstanding": "",
+                    "overdue_outstanding": "",
+                    "segment": "",
+                    "status": "active",
+                    "internal_notes": "",
+                    "created_at": "",
+                    "updated_at": ""
+                  }
+                ]
+              }
+            ]
+          }

@@ -1,0 +1,104 @@
+info:
+  name: List payments
+  type: http
+  seq: 4
+  tags:
+    - Payments
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/payments/"
+  params:
+    - name: agent_id
+      value: ""
+      type: query
+      description: Filter by collecting agent.
+      disabled: true
+    - name: customer_id
+      value: ""
+      type: query
+      description: Filter by customer.
+      disabled: true
+    - name: date_from
+      value: ""
+      type: query
+      description: Payment date from.
+      disabled: true
+    - name: date_to
+      value: ""
+      type: query
+      description: Payment date to.
+      disabled: true
+    - name: mode
+      value: ""
+      type: query
+      description: Payment mode.
+      disabled: true
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    request:
+      url: "{{baseUrl}}/api/payments/"
+      method: GET
+      params:
+        - name: agent_id
+          value: ""
+          type: query
+          description: Filter by collecting agent.
+          disabled: true
+        - name: customer_id
+          value: ""
+          type: query
+          description: Filter by customer.
+          disabled: true
+        - name: date_from
+          value: ""
+          type: query
+          description: Payment date from.
+          disabled: true
+        - name: date_to
+          value: ""
+          type: query
+          description: Payment date to.
+          disabled: true
+        - name: mode
+          value: ""
+          type: query
+          description: Payment mode.
+          disabled: true
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          [
+            {
+              "id": "",
+              "invoice": "",
+              "invoice_number": "",
+              "customer": "",
+              "customer_name": "",
+              "agent_name": "",
+              "amount": "",
+              "payment_date": "",
+              "mode": "cash",
+              "reference_no": "",
+              "is_from_tally": false,
+              "recorded_by_name": "",
+              "created_at": ""
+            }
+          ]

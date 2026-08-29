@@ -1,0 +1,54 @@
+info:
+  name: Admin dashboard
+  type: http
+  seq: 2
+  tags:
+    - Admin
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/admin/dashboard"
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    request:
+      url: "{{baseUrl}}/api/admin/dashboard"
+      method: GET
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          [
+            {
+              "sales_total": "",
+              "orders_pending": 0,
+              "outstanding_total": "",
+              "overdue_total": "",
+              "receivables_ageing": {
+                "_0_30": "",
+                "_31_60": "",
+                "_60_plus": ""
+              },
+              "tally_sync": {
+                "status": "",
+                "last_synced_at": ""
+              }
+            }
+          ]
+
+docs: "Company admin home-screen metrics: sales total, pending orders, outstanding/overdue totals, receivables aging buckets and the most recent Tally sync state."

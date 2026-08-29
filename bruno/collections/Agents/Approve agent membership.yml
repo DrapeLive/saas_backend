@@ -1,0 +1,168 @@
+info:
+  name: Approve agent membership
+  type: http
+  seq: 5
+  tags:
+    - Agents
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/admin/agents/:id/approve"
+  params:
+    - name: id
+      value: ""
+      type: path
+  body:
+    type: json
+    data: |-
+      {
+        "territory": "",
+        "monthly_target": "",
+        "custom_commission_plan": ""
+      }
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    request:
+      url: "{{baseUrl}}/api/admin/agents/:id/approve"
+      method: POST
+      params:
+        - name: id
+          value: ""
+          type: path
+      body:
+        type: json
+        data: |-
+          {
+            "territory": "",
+            "monthly_target": "",
+            "custom_commission_plan": ""
+          }
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "id": "",
+            "agent_id": "",
+            "user": "",
+            "company_name": "",
+            "status": "",
+            "territory": "",
+            "clients_count": 0,
+            "commission_total": "",
+            "commission_pending": "",
+            "monthly_target": "",
+            "custom_commission_plan": "",
+            "commission_plan_name": "",
+            "invitation_method": "",
+            "joined_at": "",
+            "removed_at": "",
+            "approved_by": "",
+            "reviewed_by": "",
+            "reviewed_at": "",
+            "created_at": "",
+            "updated_at": ""
+          }
+  - name: 400 Response
+    description: Bad request. Field/validation errors are flattened into a single `detail` string.
+    request:
+      url: "{{baseUrl}}/api/admin/agents/:id/approve"
+      method: POST
+      params:
+        - name: id
+          value: ""
+          type: path
+      body:
+        type: json
+        data: |-
+          {
+            "territory": "",
+            "monthly_target": "",
+            "custom_commission_plan": ""
+          }
+    response:
+      status: 400
+      statusText: Bad Request
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "detail": ""
+          }
+  - name: 403 Response
+    description: Forbidden. The authenticated user is not allowed to perform this action.
+    request:
+      url: "{{baseUrl}}/api/admin/agents/:id/approve"
+      method: POST
+      params:
+        - name: id
+          value: ""
+          type: path
+      body:
+        type: json
+        data: |-
+          {
+            "territory": "",
+            "monthly_target": "",
+            "custom_commission_plan": ""
+          }
+    response:
+      status: 403
+      statusText: Forbidden
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "detail": ""
+          }
+  - name: 404 Response
+    description: Not found. The requested resource does not exist in the current company.
+    request:
+      url: "{{baseUrl}}/api/admin/agents/:id/approve"
+      method: POST
+      params:
+        - name: id
+          value: ""
+          type: path
+      body:
+        type: json
+        data: |-
+          {
+            "territory": "",
+            "monthly_target": "",
+            "custom_commission_plan": ""
+          }
+    response:
+      status: 404
+      statusText: Not Found
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "detail": ""
+          }

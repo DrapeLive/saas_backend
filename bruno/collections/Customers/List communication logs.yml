@@ -1,0 +1,113 @@
+info:
+  name: List communication logs
+  type: http
+  seq: 6
+  tags:
+    - Customers
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/admin/customers/:id/communication-logs/"
+  params:
+    - name: id
+      value: ""
+      type: path
+      description: A UUID string identifying this customer profile.
+    - name: page
+      value: ""
+      type: query
+      description: A page number within the paginated result set.
+      disabled: true
+    - name: page_size
+      value: ""
+      type: query
+      description: Number of results to return per page.
+      disabled: true
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    request:
+      url: "{{baseUrl}}/api/admin/customers/:id/communication-logs/"
+      method: GET
+      params:
+        - name: id
+          value: ""
+          type: path
+          description: A UUID string identifying this customer profile.
+        - name: page
+          value: ""
+          type: query
+          description: A page number within the paginated result set.
+          disabled: true
+        - name: page_size
+          value: ""
+          type: query
+          description: Number of results to return per page.
+          disabled: true
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "count": 123,
+            "next": "http://api.example.org/accounts/?page=4",
+            "previous": "http://api.example.org/accounts/?page=2",
+            "results": [
+              {
+                "id": "",
+                "customer": "",
+                "channel": "whatsapp",
+                "subject": "",
+                "message": "",
+                "performed_by": "",
+                "created_at": ""
+              }
+            ]
+          }
+  - name: 404 Response
+    description: Not found. The requested resource does not exist in the current company.
+    request:
+      url: "{{baseUrl}}/api/admin/customers/:id/communication-logs/"
+      method: GET
+      params:
+        - name: id
+          value: ""
+          type: path
+          description: A UUID string identifying this customer profile.
+        - name: page
+          value: ""
+          type: query
+          description: A page number within the paginated result set.
+          disabled: true
+        - name: page_size
+          value: ""
+          type: query
+          description: Number of results to return per page.
+          disabled: true
+    response:
+      status: 404
+      statusText: Not Found
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "detail": ""
+          }

@@ -1,0 +1,52 @@
+info:
+  name: Admin analytics
+  type: http
+  seq: 1
+  tags:
+    - Admin
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/admin/analytics"
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    request:
+      url: "{{baseUrl}}/api/admin/analytics"
+      method: GET
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          [
+            {
+              "sales_trend": [
+                {}
+              ],
+              "top_products": [
+                {}
+              ],
+              "agent_comparison": [
+                {}
+              ],
+              "outstanding_aging": {},
+              "customer_acquisition": {}
+            }
+          ]
+
+docs: "Company analytics: 12-month sales trend, top 10 products, current month agent comparison, outstanding aging buckets and customer acquisition counters."

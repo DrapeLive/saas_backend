@@ -1,0 +1,103 @@
+info:
+  name: List outstanding aging
+  type: http
+  seq: 1
+  tags:
+    - Payments
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/outstanding/"
+  params:
+    - name: agent_id
+      value: ""
+      type: query
+      description: Only customers assigned to this agent.
+      disabled: true
+    - name: overdue_only
+      value: ""
+      type: query
+      description: "`true` for customers with 90+ days overdue."
+      disabled: true
+    - name: segment
+      value: corporate_institutional
+      type: query
+      description: Filter by customer segment.
+      disabled: true
+    - name: segment
+      value: walk_in
+      type: query
+      description: Filter by customer segment.
+      disabled: true
+    - name: segment
+      value: wholesale_retail
+      type: query
+      description: Filter by customer segment.
+      disabled: true
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    request:
+      url: "{{baseUrl}}/api/outstanding/"
+      method: GET
+      params:
+        - name: agent_id
+          value: ""
+          type: query
+          description: Only customers assigned to this agent.
+          disabled: true
+        - name: overdue_only
+          value: ""
+          type: query
+          description: "`true` for customers with 90+ days overdue."
+          disabled: true
+        - name: segment
+          value: corporate_institutional
+          type: query
+          description: Filter by customer segment.
+          disabled: true
+        - name: segment
+          value: walk_in
+          type: query
+          description: Filter by customer segment.
+          disabled: true
+        - name: segment
+          value: wholesale_retail
+          type: query
+          description: Filter by customer segment.
+          disabled: true
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          [
+            {
+              "id": "",
+              "customer": "",
+              "customer_name": "",
+              "customer_phone": "",
+              "assigned_agent": "",
+              "report_date": "",
+              "current": "",
+              "days_1_30": "",
+              "days_31_60": "",
+              "days_61_90": "",
+              "days_90_plus": "",
+              "total": ""
+            }
+          ]

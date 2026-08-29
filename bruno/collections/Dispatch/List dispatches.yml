@@ -1,0 +1,103 @@
+info:
+  name: List dispatches
+  type: http
+  seq: 1
+  tags:
+    - Dispatch
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/dispatches/"
+  params:
+    - name: date_from
+      value: ""
+      type: query
+      description: Only dispatches from this date onwards.
+      disabled: true
+    - name: date_to
+      value: ""
+      type: query
+      description: Only dispatches up to this date.
+      disabled: true
+    - name: search
+      value: ""
+      type: query
+      description: Search by LR number or order number.
+      disabled: true
+    - name: status
+      value: delivered
+      type: query
+      description: Filter by delivery state.
+      disabled: true
+    - name: status
+      value: pending
+      type: query
+      description: Filter by delivery state.
+      disabled: true
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    request:
+      url: "{{baseUrl}}/api/dispatches/"
+      method: GET
+      params:
+        - name: date_from
+          value: ""
+          type: query
+          description: Only dispatches from this date onwards.
+          disabled: true
+        - name: date_to
+          value: ""
+          type: query
+          description: Only dispatches up to this date.
+          disabled: true
+        - name: search
+          value: ""
+          type: query
+          description: Search by LR number or order number.
+          disabled: true
+        - name: status
+          value: delivered
+          type: query
+          description: Filter by delivery state.
+          disabled: true
+        - name: status
+          value: pending
+          type: query
+          description: Filter by delivery state.
+          disabled: true
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          [
+            {
+              "id": "",
+              "order": "",
+              "order_number": "",
+              "customer_name": "",
+              "lr_number": "",
+              "transport_name": "",
+              "dispatch_date": "",
+              "expected_delivery": "",
+              "actual_delivery": "",
+              "eway_bill_no": "",
+              "boxes_count": 0,
+              "dispatched_by_name": ""
+            }
+          ]

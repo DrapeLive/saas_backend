@@ -1,0 +1,73 @@
+info:
+  name: Remove slab
+  type: http
+  seq: 13
+  tags:
+    - Commissions
+
+http:
+  method: DELETE
+  url: "{{baseUrl}}/api/commission-plans/:id/slabs/:slab_pk/"
+  params:
+    - name: id
+      value: ""
+      type: path
+    - name: slab_pk
+      value: ""
+      type: path
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 204 Response
+    description: No response body
+    request:
+      url: "{{baseUrl}}/api/commission-plans/:id/slabs/:slab_pk/"
+      method: DELETE
+      params:
+        - name: id
+          value: ""
+          type: path
+        - name: slab_pk
+          value: ""
+          type: path
+    response:
+      status: 204
+      statusText: No Content
+      body:
+        type: text
+        data: ""
+  - name: 404 Response
+    description: Not found. The requested resource does not exist in the current company.
+    request:
+      url: "{{baseUrl}}/api/commission-plans/:id/slabs/:slab_pk/"
+      method: DELETE
+      params:
+        - name: id
+          value: ""
+          type: path
+        - name: slab_pk
+          value: ""
+          type: path
+    response:
+      status: 404
+      statusText: Not Found
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "detail": ""
+          }
+
+docs: Returns 204.

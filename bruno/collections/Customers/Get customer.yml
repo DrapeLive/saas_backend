@@ -1,0 +1,110 @@
+info:
+  name: Get customer
+  type: http
+  seq: 3
+  tags:
+    - Customers
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/admin/customers/:id/"
+  params:
+    - name: id
+      value: ""
+      type: path
+      description: A UUID string identifying this customer profile.
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    request:
+      url: "{{baseUrl}}/api/admin/customers/:id/"
+      method: GET
+      params:
+        - name: id
+          value: ""
+          type: path
+          description: A UUID string identifying this customer profile.
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "id": "",
+            "legal_name": "",
+            "trade_name": "",
+            "owner_name": "",
+            "email": "",
+            "phone": "",
+            "whatsapp_number": "",
+            "gstin": "",
+            "gstin_verified": false,
+            "gstin_legal_name": "",
+            "gstin_status": "",
+            "gstin_type": "",
+            "gstin_verified_at": "",
+            "pan": "",
+            "tags": "",
+            "billing_address_line1": "",
+            "billing_address_line2": "",
+            "billing_city": "",
+            "billing_state": "",
+            "billing_pincode": "",
+            "shipping_address_line1": "",
+            "shipping_address_line2": "",
+            "shipping_city": "",
+            "shipping_state": "",
+            "shipping_pincode": "",
+            "same_as_billing": false,
+            "assigned_agent": "",
+            "assigned_agent_name": "",
+            "credit_limit": "",
+            "credit_utilized": "",
+            "credit_utilization_pct": 0,
+            "is_credit_blocked": false,
+            "payment_terms_days": 0,
+            "auto_block_on_exceed": false,
+            "total_outstanding": "",
+            "overdue_outstanding": "",
+            "segment": "",
+            "status": "active",
+            "internal_notes": "",
+            "created_at": "",
+            "updated_at": ""
+          }
+  - name: 404 Response
+    description: Not found. The requested resource does not exist in the current company.
+    request:
+      url: "{{baseUrl}}/api/admin/customers/:id/"
+      method: GET
+      params:
+        - name: id
+          value: ""
+          type: path
+          description: A UUID string identifying this customer profile.
+    response:
+      status: 404
+      statusText: Not Found
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "detail": ""
+          }

@@ -1,0 +1,232 @@
+info:
+  name: Record packed quantities per item
+  type: http
+  seq: 6
+  tags:
+    - Orders
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/orders/:id/pack-items/"
+  params:
+    - name: id
+      value: ""
+      type: path
+  body:
+    type: json
+    data: |-
+      {
+        "items": [
+          {
+            "item_id": "6a3f8b2c-1d4e-4f5a-9b0c-7d8e6f5a4b3c",
+            "packed_quantity": 80
+          }
+        ],
+        "notes": "20 units short-packed"
+      }
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response (Partial packing (ordered 100, packed 80))
+    request:
+      url: "{{baseUrl}}/api/orders/:id/pack-items/"
+      method: POST
+      params:
+        - name: id
+          value: ""
+          type: path
+      body:
+        type: json
+        data: |-
+          {
+            "items": [
+              {
+                "item_id": "6a3f8b2c-1d4e-4f5a-9b0c-7d8e6f5a4b3c",
+                "packed_quantity": 80
+              }
+            ],
+            "notes": "20 units short-packed"
+          }
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "id": "",
+            "order_number": "",
+            "po_number": "",
+            "customer": "",
+            "customer_details": "",
+            "agent": "",
+            "agent_details": "",
+            "status": "draft",
+            "packing_status": "",
+            "subtotal": "",
+            "discount_pct": "",
+            "discount_amount": "",
+            "taxable_amount": "",
+            "cgst_amount": "",
+            "sgst_amount": "",
+            "igst_amount": "",
+            "total_amount": "",
+            "is_interstate": false,
+            "delivery_address_line1": "",
+            "delivery_address_line2": "",
+            "delivery_city": "",
+            "delivery_state": "",
+            "delivery_pincode": "",
+            "expected_delivery_date": "",
+            "order_notes": "",
+            "internal_notes": "",
+            "requires_approval": false,
+            "approved_by_name": "",
+            "approved_at": "",
+            "rejection_reason": "",
+            "is_offline_order": false,
+            "offline_created_at": "",
+            "sync_status": "",
+            "tally_invoice_id": "",
+            "tally_synced_at": "",
+            "submitted_at": "",
+            "confirmed_at": "",
+            "dispatched_at": "",
+            "delivered_at": "",
+            "cancelled_at": "",
+            "created_at": "",
+            "updated_at": "",
+            "items": [
+              {
+                "id": "",
+                "variant_size": "",
+                "variant_details": "",
+                "product_name": "",
+                "color_name": "",
+                "size": "",
+                "sku": "",
+                "hsn_code": "",
+                "unit_price": "",
+                "quantity": 0,
+                "packed_quantity": 0,
+                "pending_qty": 0,
+                "packing_status": "",
+                "discount_pct": "",
+                "line_total": "",
+                "gst_rate": "",
+                "gst_amount": ""
+              }
+            ],
+            "status_history": [
+              {
+                "id": "",
+                "from_status": "",
+                "to_status": "draft",
+                "changed_by_name": "",
+                "notes": "",
+                "created_at": ""
+              }
+            ],
+            "signature": ""
+          }
+  - name: 400 Response (Partial packing (ordered 100, packed 80))
+    description: Validation failed — over-packing, foreign/unknown item, duplicates, or a terminal order status.
+    request:
+      url: "{{baseUrl}}/api/orders/:id/pack-items/"
+      method: POST
+      params:
+        - name: id
+          value: ""
+          type: path
+      body:
+        type: json
+        data: |-
+          {
+            "items": [
+              {
+                "item_id": "6a3f8b2c-1d4e-4f5a-9b0c-7d8e6f5a4b3c",
+                "packed_quantity": 80
+              }
+            ],
+            "notes": "20 units short-packed"
+          }
+    response:
+      status: 400
+      statusText: Bad Request
+      body:
+        type: text
+        data: ""
+  - name: 403 Response (Partial packing (ordered 100, packed 80))
+    description: Only Admin / SubAdmin may record packed quantities.
+    request:
+      url: "{{baseUrl}}/api/orders/:id/pack-items/"
+      method: POST
+      params:
+        - name: id
+          value: ""
+          type: path
+      body:
+        type: json
+        data: |-
+          {
+            "items": [
+              {
+                "item_id": "6a3f8b2c-1d4e-4f5a-9b0c-7d8e6f5a4b3c",
+                "packed_quantity": 80
+              }
+            ],
+            "notes": "20 units short-packed"
+          }
+    response:
+      status: 403
+      statusText: Forbidden
+      body:
+        type: text
+        data: ""
+  - name: 404 Response (Partial packing (ordered 100, packed 80))
+    description: Order not found in your company.
+    request:
+      url: "{{baseUrl}}/api/orders/:id/pack-items/"
+      method: POST
+      params:
+        - name: id
+          value: ""
+          type: path
+      body:
+        type: json
+        data: |-
+          {
+            "items": [
+              {
+                "item_id": "6a3f8b2c-1d4e-4f5a-9b0c-7d8e6f5a4b3c",
+                "packed_quantity": 80
+              }
+            ],
+            "notes": "20 units short-packed"
+          }
+    response:
+      status: 404
+      statusText: Not Found
+      body:
+        type: text
+        data: ""
+
+docs: |-
+  Bulk-records how many units of each line item were physically packed. Packed quantity may be **equal to or less than** the ordered quantity — partial packing / shortfalls are expected and over-packing is rejected.
+
+  - Every `item_id` must belong to this order.
+  - Allowed until the order is dispatched, delivered or cancelled.
+  - The order-level `packing_status` (unpacked / partially_packed / packed) is **auto-derived** from its items; there is no separate 'mark as packed' call.
+  - Each change is appended to the order's status history for audit.

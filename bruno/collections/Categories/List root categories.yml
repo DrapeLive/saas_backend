@@ -1,0 +1,51 @@
+info:
+  name: List root categories
+  type: http
+  seq: 1
+  tags:
+    - Categories
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/categories/"
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    request:
+      url: "{{baseUrl}}/api/categories/"
+      method: GET
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          [
+            {
+              "id": "",
+              "name": "",
+              "slug": "",
+              "parent": "",
+              "parent_name": "",
+              "image": "",
+              "display_order": 0,
+              "is_active": false,
+              "default_commission_pct": "",
+              "product_count": 0
+            }
+          ]
+
+docs: Lists top-level categories with their active children nested inline.

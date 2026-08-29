@@ -1,0 +1,77 @@
+info:
+  name: Subscription usage snapshots
+  type: http
+  seq: 12
+  tags:
+    - Subscriptions
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/subscriptions/:id/usage/"
+  params:
+    - name: id
+      value: ""
+      type: path
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    request:
+      url: "{{baseUrl}}/api/subscriptions/:id/usage/"
+      method: GET
+      params:
+        - name: id
+          value: ""
+          type: path
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          [
+            {
+              "id": "",
+              "snapshot_month": "",
+              "agent_count": 0,
+              "customer_count": 0,
+              "product_count": 0,
+              "order_count": 0,
+              "storage_used_mb": 0
+            }
+          ]
+  - name: 404 Response
+    description: Not found. The requested resource does not exist in the current company.
+    request:
+      url: "{{baseUrl}}/api/subscriptions/:id/usage/"
+      method: GET
+      params:
+        - name: id
+          value: ""
+          type: path
+    response:
+      status: 404
+      statusText: Not Found
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "detail": ""
+          }
+
+docs: Monthly usage snapshots for a subscription (newest first).
