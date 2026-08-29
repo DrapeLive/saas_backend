@@ -1,7 +1,11 @@
 # apps/products/views.py
 
-from django.db import transaction
-from django.db.models import F
+from collections import OrderedDict
+from decimal import Decimal
+
+from django.db import models, transaction
+from django.db.models import Q
+from django.db.models import F, Case, Sum, When
 from django.utils.timezone import now
 from rest_framework import status
 from rest_framework.decorators import action
@@ -10,6 +14,7 @@ from rest_framework.viewsets import GenericViewSet
 
 from apps.accounts.authentication import CustomJWTAuthentication
 from apps.accounts.permissions import IsAdminOrSubAdmin
+from apps.core.pagination import DefaultPageNumberPagination
 from apps.products.models import (
     Category,
     ColorVariant,
@@ -27,6 +32,7 @@ from apps.products.serializers import (
     ColorVariantListSerializer,
     ProductCreateSerializer,
     ProductDetailSerializer,
+    ProductInventoryListSerializer,
     ProductListSerializer,
     ProductUpdateSerializer,
     SizeChartSerializer,
@@ -189,39 +195,143 @@ class ProductViewSet(GenericViewSet):
         except Product.DoesNotExist:
             return None
 
+    def get_paginated_response(self, data):
+        assert self.paginator is not None
+        return Response(
+            OrderedDict(
+                [
+                    ("count", self.paginator.page.paginator.count),
+                    ("next", self.paginator.get_next_link()),
+                    ("previous", self.paginator.get_previous_link()),
+                    ("summary", data.get("summary")),
+                    ("filters", data.get("filters")),
+                    ("results", data.get("results")),
+                ]
+            )
+        )
+
     # GET /api/products/
     def list(self, request):
         company = self._get_company(request)
+
         qs = (
-            Product.objects.filter(company=company, is_deleted=False)
-            .select_related("category")
-            .prefetch_related("color_variants")
-            .order_by("name")
+            VariantSize.objects.filter(
+                color_variant__product__company=company,
+                color_variant__product__is_deleted=False,
+                color_variant__is_active=True,
+                is_active=True,
+            )
+            .select_related(
+                "color_variant",
+                "color_variant__product",
+                "color_variant__product__category",
+            )
+            .order_by(
+                "color_variant__product__name",
+                "color_variant__color_name",
+                "size",
+            )
         )
 
-        category_f = request.query_params.get("category")
-        status_f = request.query_params.get("status")
+        # Search: product name, SKU, color name, category name
         search = request.query_params.get("search")
-        featured = request.query_params.get("featured")
-        low_stock = request.query_params.get("low_stock")
-
-        if category_f:
-            qs = qs.filter(category_id=category_f)
-        if status_f:
-            qs = qs.filter(status=status_f)
-        if featured:
-            qs = qs.filter(is_featured=True)
-        if low_stock:
-            qs = qs.filter(
-                total_stock__lte=F("color_variants__sizes__reorder_level")
-            ).distinct()
         if search:
-            qs = qs.filter(name__icontains=search) | qs.filter(
-                sku_prefix__icontains=search
+            qs = qs.filter(
+                Q(color_variant__product__name__icontains=search)
+                | Q(sku__icontains=search)
+                | Q(color_variant__color_name__icontains=search)
+                | Q(color_variant__product__category__name__icontains=search)
             )
 
+        # Category filter (UUID)
+        category = request.query_params.get("category")
+        if category:
+            qs = qs.filter(color_variant__product__category_id=category)
+
+        # Status filter (active/inactive/discontinued)
+        status_f = request.query_params.get("status")
+        if status_f:
+            qs = qs.filter(color_variant__product__status=status_f)
+
+        # Size filter
+        size = request.query_params.get("size")
+        if size:
+            qs = qs.filter(size=size)
+
+        # Low stock: available_qty <= reorder_level
+        low_stock = request.query_params.get("low_stock")
+        if low_stock and low_stock.lower() == "true":
+            qs = qs.filter(stock_quantity__lte=F("reorder_level") + F("reserved_qty"))
+
+        # Out of stock: available_qty <= 0
+        out_of_stock = request.query_params.get("out_of_stock")
+        if out_of_stock and out_of_stock.lower() == "true":
+            qs = qs.filter(stock_quantity__lte=F("reserved_qty"))
+
+        # Ordering (whitelist)
+        ALLOWED_ORDERING = {
+            "name": "color_variant__product__name",
+            "-name": "-color_variant__product__name",
+            "sku": "sku",
+            "-sku": "-sku",
+            "price": "price_override",
+            "-price": "-price_override",
+            "stock_quantity": "stock_quantity",
+            "-stock_quantity": "-stock_quantity",
+            "created_at": "created_at",
+            "-created_at": "-created_at",
+        }
+        ordering = request.query_params.get("ordering", "name")
+        if ordering in ALLOWED_ORDERING:
+            qs = qs.order_by(ALLOWED_ORDERING[ordering])
+
+        # Summary: stock valuation over full filtered queryset (before pagination)
+        valuation = qs.aggregate(
+            total=Sum(
+                Case(
+                    When(
+                        price_override__isnull=False,
+                        then=F("price_override") * F("stock_quantity"),
+                    ),
+                    default=F("color_variant__product__wholesale_price")
+                    * F("stock_quantity"),
+                    output_field=models.DecimalField(max_digits=14, decimal_places=2),
+                )
+            )
+        )
+        stock_valuation = valuation["total"] or Decimal("0.00")
+        stock_valuation = stock_valuation.quantize(Decimal("0.01"))
+
+        # Filter facets: available sizes in current result set
+        available_sizes = list(
+            qs.values_list("size", flat=True).distinct().order_by("size")
+        )
+
+        # Paginate and serialize
+        self.pagination_class = DefaultPageNumberPagination
+        page = self.paginate_queryset(qs)
+        if page is not None:
+            serializer = ProductInventoryListSerializer(
+                page, many=True, context={"request": request}
+            )
+            return self.get_paginated_response(
+                {
+                    "summary": {"stock_valuation": str(stock_valuation)},
+                    "filters": {"sizes": available_sizes},
+                    "results": serializer.data,
+                }
+            )
+
+        serializer = ProductInventoryListSerializer(
+            qs, many=True, context={"request": request}
+        )
         return Response(
-            ProductListSerializer(qs, many=True, context={"request": request}).data
+            {
+                "count": qs.count(),
+                "summary": {"stock_valuation": str(stock_valuation)},
+                "filters": {"sizes": available_sizes},
+                "results": serializer.data,
+            }
         )
 
     # GET /api/products/<pk>/

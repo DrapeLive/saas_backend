@@ -80,7 +80,9 @@ class Product(CompanyScopeModel, SoftDeleteModel):
         SizeChart, null=True, blank=True, on_delete=models.SET_NULL
     )
 
-    mrp = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    mrp = models.DecimalField(
+        max_digits=10, decimal_places=2, null=True, blank=True
+    )
     wholesale_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
 
     minimum_order_qty = models.PositiveIntegerField(default=1)
