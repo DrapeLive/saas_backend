@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 from django.utils.timezone import now
+from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -14,12 +15,102 @@ from apps.companies.models import Company
 from apps.companies.serializers import (
     CompanyListSerializer,
     CompanySerializer,
+    CompanyStatusChangeResponseSerializer,
     CompanyStatusUpdateSerializer,
     ExtendTrialSerializer,
+    ImpersonateResponseSerializer,
+    TrialExtensionResponseSerializer,
 )
 from apps.subscriptions.models import SubscriptionEvent
+from apps.core.openapi import (
+    RESPONSE_400,
+    RESPONSE_403,
+    RESPONSE_404,
+    RESPONSE_409,
+)
 
 
+@extend_schema_view(
+    list=extend_schema(
+        tags=["Companies"],
+        summary="List all companies",
+        description=(
+            "Super-admin only. Lists every tenant company on the platform with "
+            "subscription plan/tier/trial details, newest first."
+        ),
+        responses={200: CompanyListSerializer(many=True)},
+    ),
+    retrieve=extend_schema(
+        tags=["Companies"],
+        summary="Get company details",
+        responses={200: CompanySerializer, 404: RESPONSE_404},
+    ),
+    update_status=extend_schema(
+        tags=["Companies"],
+        summary="Change company status",
+        description=(
+            "Super-admin only. Transitions a company between pending, trial, "
+            "active, suspended, expired and grace."
+        ),
+        request=CompanyStatusUpdateSerializer,
+        responses={
+            200: CompanyStatusChangeResponseSerializer,
+            400: RESPONSE_400,
+            404: RESPONSE_404,
+        },
+    ),
+    suspend=extend_schema(
+        tags=["Companies"],
+        summary="Suspend company",
+        responses={
+            200: CompanyStatusChangeResponseSerializer,
+            400: RESPONSE_400,
+            404: RESPONSE_404,
+        },
+    ),
+    activate=extend_schema(
+        tags=["Companies"],
+        summary="Activate suspended company",
+        responses={
+            200: CompanyStatusChangeResponseSerializer,
+            400: RESPONSE_400,
+            404: RESPONSE_404,
+        },
+    ),
+    extend_trial=extend_schema(
+        tags=["Companies"],
+        summary="Extend trial period",
+        description="Extends the trial end date of a company currently in `trial` status.",
+        request=ExtendTrialSerializer,
+        responses={
+            200: TrialExtensionResponseSerializer,
+            400: RESPONSE_400,
+            404: RESPONSE_404,
+        },
+    ),
+    impersonate=extend_schema(
+        tags=["Companies"],
+        summary="Impersonate company admin",
+        description=(
+            "Issues a 30-minute access token for the company's first admin, "
+            "flagged with the `impersonating` claim. Used by support."
+        ),
+        responses={
+            200: ImpersonateResponseSerializer,
+            400: RESPONSE_400,
+            404: RESPONSE_404,
+        },
+    ),
+    destroy=extend_schema(
+        tags=["Companies"],
+        summary="Soft-delete company",
+        description=(
+            "Marks a company as deleted (only allowed when not on an active "
+            "subscription). Returns 204 on success."
+        ),
+        responses={204: None, 404: RESPONSE_404, 409: RESPONSE_409},
+    ),
+)
 class SuperAdminCompanyViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
     permission_classes = (IsSuperAdmin,)
@@ -45,6 +136,7 @@ class SuperAdminCompanyViewSet(GenericViewSet):
         serializer = CompanySerializer(company)
         return Response(serializer.data)
 
+    @action(detail=True, methods=["post"], url_path="status")
     def update_status(self, request, pk=None, *args, **kwargs):
         try:
             company = Company.objects.get(pk=pk)

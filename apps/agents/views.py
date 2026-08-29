@@ -10,6 +10,12 @@ from django.db.models import (
 )
 from django.db.models.functions import Coalesce
 from django.utils.timezone import now
+from drf_spectacular.utils import (
+    OpenApiParameter,
+    OpenApiTypes,
+    extend_schema,
+    extend_schema_view,
+)
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -32,16 +38,160 @@ from apps.agents.serializers import (
     AgentMembershipUpdateSerializer,
     AgentOverviewSerializer,
     AgentPerformanceSerializer,
+    SwitchCompanyRequestSerializer,
+    SwitchCompanyResponseSerializer,
 )
 from apps.commissions.models import CommissionEntry, CommissionPayout
+from apps.core.openapi import (
+    DetailResponseSerializer,
+    COMPANY_HEADER_PARAM,
+    RESPONSE_400,
+    RESPONSE_403,
+    RESPONSE_404,
+)
 from apps.core.pagination import DefaultPageNumberPagination
 from apps.orders.models import Order
 
 
+@extend_schema_view(
+    list=extend_schema(
+        tags=["Agents"],
+        summary="List agent memberships",
+        description=(
+            "Company admin/sub-admin: lists agent memberships for the caller's "
+            "company, newest first. Paginated; supports `status`, `search`, "
+            "`page` and `page_size`."
+        ),
+        parameters=[
+            OpenApiParameter(
+                "status",
+                OpenApiTypes.STR,
+                OpenApiParameter.QUERY,
+                description=(
+                    "Filter by membership status: pending | reviewed | active | "
+                    "suspended | removed."
+                ),
+                required=False,
+            ),
+            OpenApiParameter(
+                "search",
+                OpenApiTypes.STR,
+                OpenApiParameter.QUERY,
+                description="Search by agent full name, email or employee code.",
+                required=False,
+            ),
+        ],
+        responses={200: AgentMembershipSerializer(many=True), 401: RESPONSE_400},
+    ),
+    overview=extend_schema(
+        tags=["Agents"],
+        summary="Agents dashboard overview",
+        description="Headline agent metrics and the 10 most recent payouts.",
+        responses={200: AgentOverviewSerializer},
+    ),
+    leaderboard=extend_schema(
+        tags=["Agents"],
+        summary="Agent leaderboard",
+        description="Agents ranked by month-to-date sales for the caller's company.",
+        responses={200: AgentLeaderboardSerializer(many=True)},
+    ),
+    retrieve=extend_schema(
+        tags=["Agents"],
+        summary="Get agent membership",
+        responses={200: AgentMembershipSerializer, 403: RESPONSE_403, 404: RESPONSE_404},
+    ),
+    partial_update=extend_schema(
+        tags=["Agents"],
+        summary="Update agent membership",
+        description="Updates `territory`, `monthly_target` or `custom_commission_plan`.",
+        responses={200: AgentMembershipSerializer, 400: RESPONSE_400, 403: RESPONSE_403, 404: RESPONSE_404},
+    ),
+    destroy=extend_schema(
+        tags=["Agents"],
+        summary="Remove agent from company",
+        description=(
+            "Marks the membership `removed` and deactivates the agent's login. "
+            "Returns 204 on success."
+        ),
+        responses={204: None, 403: RESPONSE_403, 404: RESPONSE_404},
+    ),
+    approve=extend_schema(
+        tags=["Agents"],
+        summary="Approve agent membership",
+        responses={200: AgentMembershipSerializer, 400: RESPONSE_400, 403: RESPONSE_403, 404: RESPONSE_404},
+    ),
+    reject=extend_schema(
+        tags=["Agents"],
+        summary="Reject agent membership",
+        responses={200: DetailResponseSerializer, 400: RESPONSE_400, 403: RESPONSE_403, 404: RESPONSE_404},
+    ),
+    suspend=extend_schema(
+        tags=["Agents"],
+        summary="Suspend agent",
+        responses={200: AgentMembershipSerializer, 400: RESPONSE_400, 403: RESPONSE_403, 404: RESPONSE_404},
+    ),
+    reactivate=extend_schema(
+        tags=["Agents"],
+        summary="Reactivate agent",
+        responses={200: AgentMembershipSerializer, 400: RESPONSE_400, 403: RESPONSE_403, 404: RESPONSE_404},
+    ),
+    review=extend_schema(
+        tags=["Agents"],
+        summary="Mark agent for review",
+        responses={200: AgentMembershipSerializer, 400: RESPONSE_400, 403: RESPONSE_403, 404: RESPONSE_404},
+    ),
+    my_companies=extend_schema(
+        tags=["Agents"],
+        summary="My companies (agent)",
+        description="Agent-facing. Lists the companies the agent belongs to with this month's order counts.",
+        parameters=[COMPANY_HEADER_PARAM],
+        responses={200: AgentCompanySerializer(many=True)},
+    ),
+    switch_company=extend_schema(
+        tags=["Agents"],
+        summary="Switch active company (agent)",
+        description=(
+            "Agent-facing. Issues a fresh JWT scoped to a different company the "
+            "agent has an active membership in."
+        ),
+        parameters=[COMPANY_HEADER_PARAM],
+        request=SwitchCompanyRequestSerializer,
+        responses={
+            200: SwitchCompanyResponseSerializer,
+            400: RESPONSE_400,
+            403: RESPONSE_403,
+            404: RESPONSE_404,
+        },
+    ),
+    my_performance=extend_schema(
+        tags=["Agents"],
+        summary="My performance (agent)",
+        description=(
+            "Agent-facing. Performance for the current company selected via JWT "
+            "`company_id` claim or `X-Company-Id` header."
+        ),
+        parameters=[COMPANY_HEADER_PARAM],
+        responses={200: AgentPerformanceSerializer, 400: RESPONSE_400},
+    ),
+    agent_performance=extend_schema(
+        tags=["Agents"],
+        summary="Agent performance",
+        responses={200: AgentPerformanceSerializer, 403: RESPONSE_403, 404: RESPONSE_404},
+    ),
+)
 class AgentMembershipViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
     permission_classes = (IsAuthenticated,)
     pagination_class = DefaultPageNumberPagination
+
+    def get_serializer_class(self):
+        if self.action == "partial_update":
+            return AgentMembershipUpdateSerializer
+        if self.action == "overview":
+            return AgentOverviewSerializer
+        if self.action == "my_performance":
+            return AgentPerformanceSerializer
+        return AgentMembershipSerializer
 
     def get_queryset(self):
         return AgentCompanyMembership.objects.select_related(

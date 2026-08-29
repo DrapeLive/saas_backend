@@ -1,5 +1,6 @@
 from typing import ClassVar
 
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.agents.serializers import AgentUserSerializer
@@ -145,7 +146,7 @@ class OrderListSerializer(PackingStatusMixin, serializers.ModelSerializer):
     agent_name = serializers.CharField(
         source="agent.user.full_name", read_only=True, default=None
     )
-    item_count = serializers.IntegerField(source="items.count", read_only=True)
+    item_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
@@ -167,6 +168,10 @@ class OrderListSerializer(PackingStatusMixin, serializers.ModelSerializer):
             "submitted_at",
             "created_at",
         ]
+
+    @extend_schema_field(serializers.IntegerField())
+    def get_item_count(self, obj):
+        return obj.items.count()
 
 
 class OrderDetailSerializer(PackingStatusMixin, serializers.ModelSerializer):
@@ -366,3 +371,28 @@ class PackItemsSerializer(serializers.Serializer):
             for item_id, packed_qty in requested.items()
         ]
         return attrs
+
+
+class KanbanStatusColumnSerializer(serializers.Serializer):
+    submitted = OrderListSerializer(many=True)
+    confirmed = OrderListSerializer(many=True)
+    processing = OrderListSerializer(many=True)
+    packed = OrderListSerializer(many=True)
+    ready = OrderListSerializer(many=True)
+
+
+class OfflineSyncRequestSerializer(serializers.Serializer):
+    orders = serializers.ListField(
+        child=serializers.DictField(),
+        help_text="Order create payloads (as in POST /api/orders/) produced offline by the agent app.",
+    )
+
+
+class OfflineSyncFailedEntrySerializer(serializers.Serializer):
+    offline_ref = serializers.CharField(default="")
+    error = serializers.CharField(default="")
+
+
+class OfflineSyncResponseSerializer(serializers.Serializer):
+    synced = serializers.ListField(child=serializers.CharField())
+    failed = OfflineSyncFailedEntrySerializer(many=True)

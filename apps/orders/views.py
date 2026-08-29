@@ -26,6 +26,9 @@ from apps.orders.models import (
     OrderStatusHistory,
 )
 from apps.orders.serializers import (
+    KanbanStatusColumnSerializer,
+    OfflineSyncRequestSerializer,
+    OfflineSyncResponseSerializer,
     OrderApprovalSerializer,
     OrderCancelSerializer,
     OrderCreateSerializer,
@@ -139,7 +142,7 @@ class OrderViewSet(GenericViewSet):
     # ─────────────────────────────────────────────────────────────
 
     @extend_schema(
-        operation_id="list_orders",
+        operation_id="listOrders",
         summary="List orders",
         description=(
             "Company-scoped order list. Agents automatically see only their "
@@ -216,7 +219,7 @@ class OrderViewSet(GenericViewSet):
     # ─────────────────────────────────────────────────────────────
 
     @extend_schema(
-        operation_id="retrieve_order",
+        operation_id="getOrder",
         summary="Retrieve an order",
         description=(
             "Full order detail including items (with `packed_quantity`, "
@@ -255,7 +258,7 @@ class OrderViewSet(GenericViewSet):
     # ─────────────────────────────────────────────────────────────
 
     @extend_schema(
-        operation_id="create_order",
+        operation_id="createOrder",
         summary="Create an order",
         description=(
             "Calculates GST, checks the customer's credit limit, reserves "
@@ -268,7 +271,7 @@ class OrderViewSet(GenericViewSet):
     @transaction.atomic
     def create(self, request):
         company = self._get_company(request)
-        print(f"Company {company}")
+
         serializer = OrderCreateSerializer(
             data=request.data,
             context={
@@ -392,7 +395,7 @@ class OrderViewSet(GenericViewSet):
     # ─────────────────────────────────────────────────────────────
 
     @extend_schema(
-        operation_id="update_order_status",
+        operation_id="updateOrderStatus",
         summary="Move order to another workflow status",
         description=(
             "Sets the workflow status (draft → submitted → confirmed → "
@@ -462,7 +465,7 @@ class OrderViewSet(GenericViewSet):
     # ─────────────────────────────────────────────────────────────
 
     @extend_schema(
-        operation_id="approve_order",
+        operation_id="approveOrder",
         summary="Approve or reject a pending order",
         request=OrderApprovalSerializer,
         responses={200: OrderDetailSerializer},
@@ -535,7 +538,7 @@ class OrderViewSet(GenericViewSet):
     # ─────────────────────────────────────────────────────────────
 
     @extend_schema(
-        operation_id="cancel_order",
+        operation_id="cancelOrder",
         summary="Cancel an order",
         description="Cancels the order and releases all reserved stock.",
         request=OrderCancelSerializer,
@@ -613,7 +616,7 @@ class OrderViewSet(GenericViewSet):
     # ─────────────────────────────────────────────────────────────
 
     @extend_schema(
-        operation_id="pack_order_items",
+        operation_id="packOrderItems",
         summary="Record packed quantities per item",
         description=(
             "Bulk-records how many units of each line item were physically "
@@ -717,10 +720,10 @@ class OrderViewSet(GenericViewSet):
     # ─────────────────────────────────────────────────────────────
 
     @extend_schema(
-        operation_id="kanban_orders",
+        operation_id="getOrderKanban",
         summary="Kanban board",
         description="Orders grouped by workflow status (submitted → ready).",
-        responses={200: OpenApiResponse(description="Map of status → order list")},
+        responses={200: KanbanStatusColumnSerializer},
         tags=["Orders"],
     )
     @action(
@@ -756,10 +759,10 @@ class OrderViewSet(GenericViewSet):
     # ─────────────────────────────────────────────────────────────
 
     @extend_schema(
-        operation_id="sync_offline_orders",
+        operation_id="syncOfflineOrders",
         summary="Bulk offline order sync (Agent mobile app)",
-        request=None,
-        responses={200: OpenApiResponse(description="Synced/failed offline refs")},
+        request=OfflineSyncRequestSerializer,
+        responses={200: OfflineSyncResponseSerializer, 400: OpenApiResponse(description="'orders' must be a list.")},
         tags=["Orders"],
     )
     @action(
@@ -801,7 +804,7 @@ class OrderViewSet(GenericViewSet):
     # ─────────────────────────────────────────────────────────────
 
     @extend_schema(
-        operation_id="capture_order_signature",
+        operation_id="captureOrderSignature",
         summary="Capture customer signature",
         request=OrderSignatureSerializer,
         responses={201: OrderSignatureSerializer},

@@ -1,0 +1,34 @@
+name: OpenAPI Schema
+
+on:
+    push:
+        branches: [main]
+    pull_request:
+
+concurrency:
+    group: openapi-${{ github.ref }}
+    cancel-in-progress: true
+
+jobs:
+    generate-and-validate:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Set up uv
+              uses: astral-sh/setup-uv@v6
+              with:
+                  python-version: "3.12"
+
+            - name: Install dependencies
+              run: uv sync --frozen
+
+            - name: Generate & validate OpenAPI schema
+              run: uv run python manage.py spectacular --file schema.yml --validate
+              env:
+                  SECRET_KEY: ci-only-not-secret
+                  DEBUG: "False"
+                  ALLOWED_HOSTS: ""
+
+            - name: Fail if committed schema drifted
+              run: git diff --exit-code -- schema.yml

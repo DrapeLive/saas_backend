@@ -137,3 +137,18 @@ class AgentOverviewSummarySerializer(serializers.Serializer):
 class AgentOverviewSerializer(serializers.Serializer):
     summary = AgentOverviewSummarySerializer()
     recent_payouts = RecentPayoutSerializer(many=True)
+
+
+class SwitchCompanyRequestSerializer(serializers.Serializer):
+    company_id = serializers.UUIDField()
+
+
+class SwitchCompanyResponseSerializer(serializers.Serializer):
+    access = serializers.CharField()
+    refresh = serializers.CharField()
+    company_id = serializers.UUIDField()
+    company_name = serializers.CharField()
+
+
+class MembershipActionResponseSerializer(serializers.Serializer):
+    detail = serializers.CharField()

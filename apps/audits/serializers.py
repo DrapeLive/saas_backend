@@ -64,6 +64,12 @@ class AuditLogDetailSerializer(serializers.ModelSerializer):
         ]
 
 
+class DistinctActionsSerializer(serializers.ListSerializer):
+    """Bare list of distinct action strings — used by the filter dropdown."""
+
+    child = serializers.CharField()
+
+
 class AuditLogFilterSerializer(serializers.Serializer):
     """
     Query parameter validation for the audit log filter panel.

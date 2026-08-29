@@ -2,6 +2,12 @@ from decimal import Decimal
 
 from django.db.models import DecimalField, Q, Sum, TextField, Value
 from django.db.models.functions import Cast, Coalesce
+from drf_spectacular.utils import (
+    OpenApiParameter,
+    OpenApiTypes,
+    extend_schema,
+    extend_schema_view,
+)
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -11,15 +17,34 @@ from rest_framework.viewsets import GenericViewSet
 from apps.accounts.authentication import CustomJWTAuthentication
 from apps.accounts.models import RoleType
 from apps.accounts.permissions import CompanyApproved, IsCompanyStaff
+from apps.core.openapi import RESPONSE_400, RESPONSE_404
 from apps.core.pagination import DefaultPageNumberPagination
+from apps.customers.customer_detail import (
+    customer_orders,
+    customer_outstanding,
+    customer_payments,
+    customer_summary,
+)
 from apps.customers.models import CustomerProfile
 from apps.customers.serializers import (
+    CreditActivityResponseSerializer,
     CustomerCommunicationLogSerializer,
     CustomerCreateSerializer,
     CustomerDocumentSerializer,
+    CustomerImportConfirmResponseSerializer,
+    CustomerImportPreviewResponseSerializer,
     CustomerOverviewSerializer,
+    CustomerPageSerializer,
+    CustomerSegmentResponseSerializer,
     CustomerSerializer,
     CustomerUpdateSerializer,
+    GstinVerifyResponseSerializer,
+)
+from apps.customers.detail_serializers import (
+    CustomerOrdersSerializer,
+    CustomerOutstandingSerializer,
+    CustomerPaymentsSerializer,
+    CustomerSummarySerializer,
 )
 from apps.customers.services import compute_segment, verify_gstin
 from apps.invoices.models import Invoice, InvoiceStatus
@@ -32,6 +57,150 @@ class IsAdminOrSubAdmin(IsCompanyStaff):
         return request.user.role in (RoleType.ADMIN, RoleType.SUB_ADMIN)
 
 
+@extend_schema_view(
+    list=extend_schema(
+        tags=["Customers"],
+        summary="List customers",
+        parameters=[
+            OpenApiParameter(
+                "page", OpenApiTypes.INT, OpenApiParameter.QUERY, description="Page number (default 1)."
+            ),
+            OpenApiParameter(
+                "page_size", OpenApiTypes.INT, OpenApiParameter.QUERY, description="Page size (default 10)."
+            ),
+            OpenApiParameter(
+                "search", OpenApiTypes.STR, OpenApiParameter.QUERY,
+                description="Search trade name, legal name, phone, GSTIN or email.",
+            ),
+            OpenApiParameter(
+                "status", OpenApiTypes.STR, OpenApiParameter.QUERY,
+                enum=["active", "inactive", "blocked"],
+                description="Filter by customer status.",
+            ),
+            OpenApiParameter(
+                "segment", OpenApiTypes.STR, OpenApiParameter.QUERY,
+                enum=["bronze", "silver", "gold", "platinum"],
+                description="Filter by computed segment.",
+            ),
+            OpenApiParameter(
+                "assigned_agent", OpenApiTypes.UUID, OpenApiParameter.QUERY,
+                description="Filter by assigned agent id.",
+            ),
+            OpenApiParameter(
+                "tag", OpenApiTypes.STR, OpenApiParameter.QUERY,
+                description="Filter by a single tag string.",
+            ),
+            OpenApiParameter(
+                "ordering", OpenApiTypes.STR, OpenApiParameter.QUERY,
+                enum=["trade_name", "created_at", "total_outstanding", "overdue_outstanding"],
+                description="Sort field. Prefix with `-` for descending (default `-created_at`).",
+            ),
+        ],
+        responses={200: CustomerPageSerializer},
+    ),
+    overview=extend_schema(
+        tags=["Customers"],
+        summary="Customer overview",
+        description="Company-level active customer count and total outstanding receivable.",
+        responses={200: CustomerOverviewSerializer},
+    ),
+    retrieve=extend_schema(
+        tags=["Customers"],
+        summary="Get customer",
+        responses={200: CustomerSerializer, 404: RESPONSE_404},
+    ),
+    create=extend_schema(
+        tags=["Customers"],
+        summary="Create customer",
+        description="Creates a customer and kicks off GSTIN verification when a GSTIN is provided.",
+        responses={201: CustomerSerializer, 400: RESPONSE_400},
+    ),
+    partial_update=extend_schema(
+        tags=["Customers"],
+        summary="Update customer",
+        responses={200: CustomerSerializer, 400: RESPONSE_400, 404: RESPONSE_404},
+    ),
+    destroy=extend_schema(
+        tags=["Customers"],
+        summary="Delete customer",
+        description="Returns 204.",
+        responses={204: None, 404: RESPONSE_404},
+    ),
+    import_preview=extend_schema(
+        tags=["Customers"],
+        summary="Preview customer import",
+        description="Validates each row of a customer bulk-import payload without persisting.",
+        responses={200: CustomerImportPreviewResponseSerializer, 400: RESPONSE_400},
+    ),
+    import_confirm=extend_schema(
+        tags=["Customers"],
+        summary="Confirm customer import",
+        description="Persists validated import rows and returns created customers plus per-row errors.",
+        responses={201: CustomerImportConfirmResponseSerializer, 400: RESPONSE_400},
+    ),
+    verify_gstin=extend_schema(
+        tags=["Customers"],
+        summary="Verify GSTIN",
+        description="Re-runs GSTIN verification for a customer and persists verified fields on success.",
+        responses={200: GstinVerifyResponseSerializer, 400: RESPONSE_400, 404: RESPONSE_404},
+    ),
+    compute_segment=extend_schema(
+        tags=["Customers"],
+        summary="Recompute segment",
+        description="Recomputes the customer's tier from order history.",
+        responses={200: CustomerSegmentResponseSerializer, 404: RESPONSE_404},
+    ),
+    credit_block=extend_schema(
+        tags=["Customers"],
+        summary="Block customer credit",
+        responses={200: CreditActivityResponseSerializer, 404: RESPONSE_404},
+    ),
+    credit_unblock=extend_schema(
+        tags=["Customers"],
+        summary="Unblock customer credit",
+        responses={200: CreditActivityResponseSerializer, 404: RESPONSE_404},
+    ),
+    documents=extend_schema(
+        tags=["Customers"],
+        summary="List or upload documents",
+        description="GET lists the customer's documents; POST uploads a new one (multipart).",
+        responses={
+            200: CustomerDocumentSerializer(many=True),
+            201: CustomerDocumentSerializer,
+            400: RESPONSE_400,
+            404: RESPONSE_404,
+        },
+    ),
+    communication_logs=extend_schema(
+        tags=["Customers"],
+        summary="List communication logs",
+        responses={200: CustomerCommunicationLogSerializer(many=True), 404: RESPONSE_404},
+    ),
+    summary=extend_schema(
+        tags=["Customers"],
+        summary="Customer summary",
+        description="Overview card: addresses, credit position, outstanding aging, recent activity.",
+        responses={200: CustomerSummarySerializer, 404: RESPONSE_404},
+    ),
+    orders=extend_schema(
+        tags=["Customers"],
+        summary="Customer orders",
+        description="Lifetime value, pending orders and recent order history.",
+        responses={200: CustomerOrdersSerializer, 404: RESPONSE_404},
+    ),
+    payments=extend_schema(
+        tags=["Customers"],
+        summary="Customer payments",
+        description="Total paid, outstanding, recent transactions and next due payment.",
+        responses={200: CustomerPaymentsSerializer, 404: RESPONSE_404},
+    ),
+    outstanding=extend_schema(
+        tags=["Customers"],
+        summary="Customer outstanding",
+        description="YTD paid, aging analysis and critical invoices.",
+        responses={200: CustomerOutstandingSerializer, 404: RESPONSE_404},
+    ),
+)
 class CustomerViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
     permission_classes = (IsAuthenticated,)
@@ -329,3 +498,49 @@ class CustomerViewSet(GenericViewSet):
         logs = customer.communication_logs.all()
         serializer = CustomerCommunicationLogSerializer(logs, many=True)
         return Response(serializer.data)
+
+    @action(detail=True, methods=["get"], url_path="summary")
+    def summary(self, request, *args, **kwargs):
+        customer = self._get_detail_customer(request)
+        if not customer:
+            return self._not_found()
+        serializer = CustomerSummarySerializer(customer_summary(customer))
+        return Response(serializer.data)
+
+    @action(detail=True, methods=["get"], url_path="orders")
+    def orders(self, request, *args, **kwargs):
+        customer = self._get_detail_customer(request)
+        if not customer:
+            return self._not_found()
+        serializer = CustomerOrdersSerializer(customer_orders(customer))
+        return Response(serializer.data)
+
+    @action(detail=True, methods=["get"], url_path="payments")
+    def payments(self, request, *args, **kwargs):
+        customer = self._get_detail_customer(request)
+        if not customer:
+            return self._not_found()
+        serializer = CustomerPaymentsSerializer(customer_payments(customer))
+        return Response(serializer.data)
+
+    @action(detail=True, methods=["get"], url_path="outstanding")
+    def outstanding(self, request, *args, **kwargs):
+        customer = self._get_detail_customer(request)
+        if not customer:
+            return self._not_found()
+        serializer = CustomerOutstandingSerializer(customer_outstanding(customer))
+        return Response(serializer.data)
+
+    def _get_detail_customer(self, request):
+        kwargs = self.kwargs
+        pk = kwargs.get(self.lookup_field)
+        qs = self.get_queryset()
+        if request.user.company_id:
+            qs = qs.filter(company=request.user.company)
+        try:
+            return qs.get(pk=pk)
+        except (CustomerProfile.DoesNotExist, CustomerProfile.MultipleObjectsReturned):
+            return None
+
+    def _not_found(self):
+        return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)

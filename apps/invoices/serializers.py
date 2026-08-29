@@ -1,5 +1,6 @@
 from typing import ClassVar
 
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.invoices.models import Invoice, InvoiceItem, InvoiceStatus, InvoiceType
@@ -71,6 +72,7 @@ class InvoiceListSerializer(serializers.ModelSerializer):
             "tally_synced_at",
         ]
 
+    @extend_schema_field(serializers.IntegerField())
     def get_days_overdue(self, obj):
         from django.utils import timezone
 
@@ -131,6 +133,7 @@ class InvoiceDetailSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
 
+    @extend_schema_field(serializers.IntegerField())
     def get_days_overdue(self, obj):
         from django.utils import timezone
 
@@ -202,3 +205,16 @@ class InvoicePDFRegenerateSerializer(serializers.Serializer):
     """Triggers a background task to regenerate the invoice PDF."""
 
     force = serializers.BooleanField(default=False)
+
+
+class InvoiceDownloadResponseSerializer(serializers.Serializer):
+    """Absolute URL of the generated invoice PDF."""
+
+    pdf_url = serializers.URLField()
+
+
+class InvoicePDFQueuedSerializer(serializers.Serializer):
+    """Confirmation that PDF regeneration was queued."""
+
+    detail = serializers.CharField()
+    invoice_id = serializers.UUIDField()

@@ -177,3 +177,11 @@ class SendPaymentReminderSerializer(serializers.Serializer):
         allow_blank=True,
         help_text="Custom message; leave blank to use the default template.",
     )
+
+
+class PaymentReminderQueuedSerializer(serializers.Serializer):
+    """Confirmation that payment reminders were queued."""
+
+    detail = serializers.CharField()
+    channel = serializers.CharField()
+    customer_count = serializers.IntegerField()

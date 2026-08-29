@@ -1,11 +1,13 @@
 from typing import ClassVar
 
 from django.utils import timezone
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.subscriptions.models import (
     BillingCycle,
     Plan,
+    PlanTier,
     Subscription,
     SubscriptionEvent,
     SubscriptionStatus,
@@ -44,6 +46,7 @@ class PlanListSerializer(serializers.ModelSerializer):
             "active_subscription_count",
         ]
 
+    @extend_schema_field(serializers.IntegerField())
     def get_active_subscription_count(self, obj):
         return obj.subscriptions.filter(
             status__in=[SubscriptionStatus.ACTIVE, SubscriptionStatus.TRIAL]
@@ -193,6 +196,7 @@ class SubscriptionDetailSerializer(serializers.ModelSerializer):
             "usage",
         ]
 
+    @extend_schema_field(serializers.IntegerField(allow_null=True))
     def get_days_remaining(self, obj):
         if obj.current_period_end:
             delta = obj.current_period_end - timezone.now().date()
@@ -254,3 +258,16 @@ class SubscriptionCreateSerializer(serializers.Serializer):
 
         self.context["plan"] = plan
         return value
+
+
+class PlanToggleResponseSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    tier = serializers.ChoiceField(choices=PlanTier.choices)  # type: ignore
+    name = serializers.CharField()
+    is_active = serializers.BooleanField()
+    detail = serializers.CharField()
+
+
+class SeedPlansResponseSerializer(serializers.Serializer):
+    created = serializers.ListField(child=serializers.CharField())
+    detail = serializers.CharField()
