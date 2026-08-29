@@ -1,18 +1,14 @@
 info:
-  name: login
+  name: logout
   type: http
-  seq: 2
+  seq: 12
 
 http:
   method: POST
-  url: "{{BASE_URL}}/auth/login"
+  url: "{{BASE_URL}}/auth/logout"
   body:
     type: json
-    data: |-
-      {
-        "email": "agent@gmail.com",
-        "password": "password!12"
-      }
+    data: ""
   auth: inherit
 
 runtime:

@@ -6,10 +6,13 @@ info:
 http:
   method: GET
   url: "{{BASE_URL}}/auth/agents/companies"
-  auth: inherit
+  auth:
+    type: bearer
+    token: "{{AGENT_ACCESS}}"
 
 settings:
   encodeUrl: true
   timeout: 0
   followRedirects: true
   maxRedirects: 5
+  forwardAuthorizationHeader: true
