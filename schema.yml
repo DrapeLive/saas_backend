@@ -1,9 +1,9 @@
 openapi: 3.0.3
 info:
-  title: Drape SaaS API
+  title: Lable API
   version: 1.0.0
   description: |-
-    REST API for the Drape SaaS platform — a multi-tenant textile wholesale management suite covering customers, products, inventory, orders, dispatch, invoicing, payments, commissions and Tally sync.
+    REST API for the Lable platform — a multi-tenant textile wholesale management suite covering customers, products, inventory, orders, dispatch, invoicing, payments, commissions and Tally sync.
 
     ### Authentication
     All endpoints except **Authentication** (login / signup / refresh / password reset) require a bearer token:
