@@ -1,0 +1,125 @@
+info:
+  name: Agent detail (All tab)
+  type: http
+  seq: 18
+  tags:
+    - Agents
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/admin/agents/:id/overview"
+  params:
+    - name: id
+      value: ""
+      type: path
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    request:
+      url: "{{baseUrl}}/api/admin/agents/:id/overview"
+      method: GET
+      params:
+        - name: id
+          value: ""
+          type: path
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "agent_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+            "agent_name": "Ravi Kumar",
+            "credit": {
+              "credit_limit": "500000.00",
+              "credit_utilized": "125000.00",
+              "available_limit": "375000.00",
+              "credit_utilization_pct": 25.0,
+              "is_credit_blocked": false
+            },
+            "total_paid_ytd": "320000.00",
+            "pending_sync": {
+              "orders": 2,
+              "invoices": 1,
+              "payments": 0
+            },
+            "recent_transactions": [
+              {
+                "type": "order_commission",
+                "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+                "date": "2026-08-20",
+                "amount": "750.00",
+                "status": "pending",
+                "reference": "ORD-0042",
+                "settlement_month": "2026-08-01"
+              },
+              {
+                "type": "payout",
+                "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+                "date": "2026-07-31",
+                "amount": "12000.00",
+                "status": "paid",
+                "reference": null,
+                "settlement_month": "2026-07-01"
+              }
+            ],
+            "invoice_tally": null
+          }
+  - name: 403 Response
+    description: Forbidden. The authenticated user is not allowed to perform this action.
+    request:
+      url: "{{baseUrl}}/api/admin/agents/:id/overview"
+      method: GET
+      params:
+        - name: id
+          value: ""
+          type: path
+    response:
+      status: 403
+      statusText: Forbidden
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "detail": ""
+          }
+  - name: 404 Response
+    description: Not found. The requested resource does not exist in the current company.
+    request:
+      url: "{{baseUrl}}/api/admin/agents/:id/overview"
+      method: GET
+      params:
+        - name: id
+          value: ""
+          type: path
+    response:
+      status: 404
+      statusText: Not Found
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "detail": ""
+          }
+
+docs: Admin/sub-admin. Cards (credit balance, total paid YTD, pending sync), recent transactions and the invoice tally placeholder for one agent.

@@ -1,0 +1,80 @@
+info:
+  name: Agent payouts
+  type: http
+  seq: 19
+  tags:
+    - Agents
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/admin/agents/:id/payouts"
+  params:
+    - name: id
+      value: ""
+      type: path
+    - name: page
+      value: ""
+      type: query
+      description: A page number within the paginated result set.
+      disabled: true
+    - name: page_size
+      value: ""
+      type: query
+      description: Number of results to return per page.
+      disabled: true
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    request:
+      url: "{{baseUrl}}/api/admin/agents/:id/payouts"
+      method: GET
+      params:
+        - name: id
+          value: ""
+          type: path
+        - name: page
+          value: ""
+          type: query
+          description: A page number within the paginated result set.
+          disabled: true
+        - name: page_size
+          value: ""
+          type: query
+          description: Number of results to return per page.
+          disabled: true
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "count": 1,
+            "next": null,
+            "previous": null,
+            "results": [
+              {
+                "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+                "settlement_month": "2026-07-01",
+                "amount": "12000.00",
+                "entries_count": 8,
+                "paid_at": "2026-07-31T16:00:00Z",
+                "notes": "July settlement"
+              }
+            ]
+          }
+
+docs: Payout history for one agent.

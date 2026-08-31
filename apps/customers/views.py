@@ -241,8 +241,17 @@ class CustomerViewSet(GenericViewSet):
             "credit_unblock",
         ):
             return [IsAuthenticated(), CompanyApproved(), IsAdminOrSubAdmin()]
-        if self.action in ("documents", "communication_logs"):
+        if self.action in (
+            "list",
+            "retrieve",
+            "create",
+            "documents",
+            "communication_logs",
+        ):
+            # Agents can browse and create customers (quick action) but not
+            # manage credit / deletions / imports.
             return [IsAuthenticated(), CompanyApproved(), IsCompanyStaff()]
+        # update / destroy remain admin/sub-admin.
         return [IsAuthenticated(), CompanyApproved(), IsAdminOrSubAdmin()]
 
     def get_queryset(self):
@@ -250,8 +259,12 @@ class CustomerViewSet(GenericViewSet):
             "company", "assigned_agent__user", "user"
         )
 
+    def _get_company(self, request):
+        """Resolve the active company (JWT claim or X-Company-Id for agents)."""
+        return request.company or request.user.company
+
     def list(self, request, *args, **kwargs):
-        customers = self.get_queryset().filter(company=request.user.company)
+        customers = self.get_queryset().filter(company=self._get_company(request))
 
         search = request.query_params.get("search")
         if search:
@@ -314,7 +327,7 @@ class CustomerViewSet(GenericViewSet):
 
     @action(detail=False, methods=["get"], url_path="overview")
     def overview(self, request):
-        company = request.user.company
+        company = self._get_company(request)
         active_count = CustomerProfile.objects.filter(
             company=company,
             status=CustomerProfile.CustomerStatus.ACTIVE,
@@ -338,16 +351,23 @@ class CustomerViewSet(GenericViewSet):
         return Response(data)
 
     def retrieve(self, request, *args, **kwargs):
-        customer = self.get_object()
+        try:
+            customer = self.get_queryset().get(
+                pk=kwargs.get(self.lookup_field),
+                company=self._get_company(request),
+            )
+        except CustomerProfile.DoesNotExist:
+            return self._not_found()
         serializer = CustomerSerializer(customer)
         return Response(serializer.data)
 
     def create(self, request, *args, **kwargs):
+        company = self._get_company(request)
         gstin = request.data.get("gstin", "")
         if (
             gstin
             and CustomerProfile.objects.filter(
-                company=request.user.company, gstin=gstin
+                company=company, gstin=gstin
             ).exists()
         ):
             return Response(
@@ -356,7 +376,7 @@ class CustomerViewSet(GenericViewSet):
             )
         serializer = CustomerCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        customer = serializer.save(company=request.user.company)
+        customer = serializer.save(company=company)
         if customer.gstin:
             result = verify_gstin(customer.gstin)
             if result["valid"]:
@@ -418,13 +438,14 @@ class CustomerViewSet(GenericViewSet):
 
     @action(detail=False, methods=["post"], url_path="import-confirm")
     def import_confirm(self, request, *args, **kwargs):
+        company = self._get_company(request)
         rows = request.data.get("rows", []) if isinstance(request.data, dict) else []
         created = []
         errors = []
         for i, row in enumerate(rows, start=1):
             row_serializer = CustomerCreateSerializer(data=row)
             if row_serializer.is_valid():
-                customer = row_serializer.save(company=request.user.company)
+                customer = row_serializer.save(company=company)
                 created.append(CustomerSerializer(customer).data)
             else:
                 errors.append({"row_number": i, "errors": row_serializer.errors})
@@ -535,8 +556,9 @@ class CustomerViewSet(GenericViewSet):
         kwargs = self.kwargs
         pk = kwargs.get(self.lookup_field)
         qs = self.get_queryset()
-        if request.user.company_id:
-            qs = qs.filter(company=request.user.company)
+        company = self._get_company(request)
+        if company:
+            qs = qs.filter(company=company)
         try:
             return qs.get(pk=pk)
         except (CustomerProfile.DoesNotExist, CustomerProfile.MultipleObjectsReturned):

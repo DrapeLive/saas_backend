@@ -11,6 +11,19 @@ from apps.accounts.tests.factories import (
     create_user,
     get_jwt_headers,
 )
+from apps.agents.models import AgentCompanyMembership, AgentProfile
+
+
+def create_member_agent(company, email, full_name="Agent User"):
+    """Create an agent user + profile + active membership in `company`."""
+    user = create_user(
+        role=RoleType.AGENT, company=None, email=email, full_name=full_name
+    )
+    profile = AgentProfile.objects.create(user=user, employee_code=f"AG-{email}")
+    AgentCompanyMembership.objects.create(
+        agent=profile, company=company, status=AgentCompanyMembership.MembershipStatus.ACTIVE
+    )
+    return user, profile
 
 
 def json_headers(token_headers):
@@ -159,16 +172,17 @@ class CustomerListCreateTests(TestCase):
         )
         self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
 
-    def test_create_customer_agent_not_allowed(self):
-        agent_user = create_user(role=RoleType.AGENT)
+    def test_create_customer_agent_allowed(self):
+        agent_user, _ = create_member_agent(self.company, "agent@new.com")
         payload = {"trade_name": "Agent Test", "phone": "6666666666"}
         resp = self.client.post(
             "/api/admin/customers/",
             data=json.dumps(payload),
             content_type="application/json",
             **get_jwt_headers(agent_user),
+            HTTP_X_COMPANY_ID=str(self.company.id),
         )
-        self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
 
     def test_create_customer_pending_company_blocked(self):
         pending_company = create_company(
@@ -428,7 +442,7 @@ class CustomerPermissionsTests(TestCase):
         self.subadmin = create_user(
             role=RoleType.SUB_ADMIN, company=self.company, email="subadmin@test.com"
         )
-        self.agent_user = create_user(role=RoleType.AGENT, email="agent@perms.com")
+        self.agent_user, _ = create_member_agent(self.company, "agent@perms.com")
         self.customer = create_customer(self.company)
 
     def test_admin_can_create(self):
@@ -449,21 +463,31 @@ class CustomerPermissionsTests(TestCase):
         )
         self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
 
-    def test_agent_cannot_create(self):
+    def test_agent_can_create(self):
         resp = self.client.post(
             "/api/admin/customers/",
             data=json.dumps({"trade_name": "Agent Test", "phone": "3333333333"}),
             content_type="application/json",
             **get_jwt_headers(self.agent_user),
+            HTTP_X_COMPANY_ID=str(self.company.id),
         )
-        self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
 
-    def test_agent_cannot_list(self):
+    def test_agent_can_list(self):
+        resp = self.client.get(
+            "/api/admin/customers/",
+            **get_jwt_headers(self.agent_user),
+            HTTP_X_COMPANY_ID=str(self.company.id),
+        )
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+
+    def test_agent_cannot_list_without_company_context(self):
+        # An agent with no active company context cannot browse company data.
         resp = self.client.get(
             "/api/admin/customers/",
             **get_jwt_headers(self.agent_user),
         )
-        self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_superadmin_can_list(self):
         super_admin = create_user(

@@ -1,0 +1,120 @@
+info:
+  name: Agent transactions
+  type: http
+  seq: 20
+  tags:
+    - Agents
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/admin/agents/:id/transactions"
+  params:
+    - name: id
+      value: ""
+      type: path
+    - name: month
+      value: ""
+      type: query
+      description: "Settlement month (YYYY-MM-01)."
+      disabled: true
+    - name: page
+      value: ""
+      type: query
+      description: A page number within the paginated result set.
+      disabled: true
+    - name: page_size
+      value: ""
+      type: query
+      description: Number of results to return per page.
+      disabled: true
+    - name: status
+      value: ""
+      type: query
+      description: Filter by entry status (commission/payout).
+      disabled: true
+    - name: type
+      value: ""
+      type: query
+      description: "Filter by transaction type."
+      disabled: true
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    request:
+      url: "{{baseUrl}}/api/admin/agents/:id/transactions"
+      method: GET
+      params:
+        - name: id
+          value: ""
+          type: path
+        - name: month
+          value: ""
+          type: query
+          description: "Settlement month (YYYY-MM-01)."
+          disabled: true
+        - name: page
+          value: ""
+          type: query
+          description: A page number within the paginated result set.
+          disabled: true
+        - name: page_size
+          value: ""
+          type: query
+          description: Number of results to return per page.
+          disabled: true
+        - name: status
+          value: ""
+          type: query
+          description: Filter by entry status (commission/payout).
+          disabled: true
+        - name: type
+          value: ""
+          type: query
+          description: "Filter by transaction type."
+          disabled: true
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "count": 2,
+            "next": null,
+            "previous": null,
+            "results": [
+              {
+                "type": "order_commission",
+                "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+                "date": "2026-08-20",
+                "amount": "750.00",
+                "status": "pending",
+                "reference": "ORD-0042",
+                "settlement_month": "2026-08-01"
+              },
+              {
+                "type": "payout",
+                "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+                "date": "2026-07-31",
+                "amount": "12000.00",
+                "status": "paid",
+                "reference": null,
+                "settlement_month": "2026-07-01"
+              }
+            ]
+          }
+
+docs: Merged payout + commission feed for one agent. Filter by `type` (adjustment, order_commission, payout) or by settlement month.

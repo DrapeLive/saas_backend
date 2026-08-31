@@ -1,6 +1,50 @@
 from django.db import models
+from django.utils.timezone import now
 
 from apps.core.models import CompanyScopeModel, TimeStampedModel, UUIDModel
+
+
+class BroadcastMessage(CompanyScopeModel):
+    """
+    A company-scoped announcement shown to agents on their home screen.
+
+    Only active broadcasts whose window (`starts_at`/`expires_at`) includes the
+    current time are exposed to agents. Admins manage these via the
+    `/api/admin/broadcast/` endpoints.
+    """
+
+    message = models.TextField()
+    is_active = models.BooleanField(default=True)
+    created_by = models.ForeignKey(
+        "accounts.User",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    starts_at = models.DateTimeField(null=True, blank=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "agents_broadcast_message"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["company", "is_active", "created_at"]),
+        ]
+
+    def __str__(self):
+        return f"[{self.company.name}] {self.message[:50]}"
+
+    def is_visible(self, at=None):
+        """True when active and the optional schedule window covers `at`."""
+        at = at or now()
+        if not self.is_active:
+            return False
+        if self.starts_at is not None and at < self.starts_at:
+            return False
+        if self.expires_at is not None and at > self.expires_at:
+            return False
+        return True
 
 
 class AgentProfile(UUIDModel, TimeStampedModel):
@@ -95,6 +139,46 @@ class AgentCompanyMembership(UUIDModel, TimeStampedModel):
 
     def __str__(self):
         return f"{self.agent.user.full_name} @ {self.company.name} [{self.status}]"
+
+
+class AgentCreditLimit(CompanyScopeModel):
+    """
+    Per-company credit ceiling for an agent.
+
+    `credit_utilized` is the aggregate amount the agent's customers still owe
+    (sum of unpaid invoice `amount_due` across orders the agent booked). It
+    caps how much credit the agent can keep extending before payment, so an
+    agent cannot place orders indefinitely without the company being paid.
+    """
+
+    agent = models.ForeignKey(
+        AgentProfile, on_delete=models.CASCADE, related_name="credit_limits"
+    )
+    credit_limit = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    credit_utilized = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    is_credit_blocked = models.BooleanField(default=False)
+    auto_block_on_exceed = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = "agents_credit_limit"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["company", "agent"],
+                name="unique_agent_credit_per_company",
+            )
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.agent.user.full_name} @ {self.company.name} "
+            f"[{self.credit_utilized}/{self.credit_limit}]"
+        )
+
+    @property
+    def credit_utilization_pct(self):
+        if self.credit_limit > 0:
+            return round((self.credit_utilized / self.credit_limit) * 100, 1)
+        return 0.0
 
 
 class AgentInvitation(UUIDModel, TimeStampedModel):
