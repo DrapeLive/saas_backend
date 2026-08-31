@@ -10,12 +10,12 @@ http:
   url: "{{baseUrl}}/api/admin/customers/:id/summary/"
   params:
     - name: id
-      value: ""
+      value: b41c24bd-fb5d-4351-b71f-cef183bda290
       type: path
       description: A UUID string identifying this customer profile.
   auth:
     type: bearer
-    token: "{{token}}"
+    token: "{{ACCESS}}"
 
 settings:
   encodeUrl: true
