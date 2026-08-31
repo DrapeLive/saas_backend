@@ -1,0 +1,108 @@
+info:
+  name: Agent commissions
+  type: http
+  seq: 17
+  tags:
+    - Agents
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/admin/agents/:id/commission"
+  params:
+    - name: id
+      value: ""
+      type: path
+    - name: month
+      value: ""
+      type: query
+      description: "Settlement month (YYYY-MM-01)."
+      disabled: true
+    - name: page
+      value: ""
+      type: query
+      description: A page number within the paginated result set.
+      disabled: true
+    - name: page_size
+      value: ""
+      type: query
+      description: Number of results to return per page.
+      disabled: true
+    - name: status
+      value: ""
+      type: query
+      description: "Filter by entry status: pending|approved|paid|disputed|adjusted."
+      disabled: true
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    request:
+      url: "{{baseUrl}}/api/admin/agents/:id/commission"
+      method: GET
+      params:
+        - name: id
+          value: ""
+          type: path
+        - name: month
+          value: ""
+          type: query
+          description: "Settlement month (YYYY-MM-01)."
+          disabled: true
+        - name: page
+          value: ""
+          type: query
+          description: A page number within the paginated result set.
+          disabled: true
+        - name: page_size
+          value: ""
+          type: query
+          description: Number of results to return per page.
+          disabled: true
+        - name: status
+          value: ""
+          type: query
+          description: "Filter by entry status: pending|approved|paid|disputed|adjusted."
+          disabled: true
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "count": 1,
+            "next": null,
+            "previous": null,
+            "results": [
+              {
+                "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+                "agent": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+                "agent_name": "Ravi Kumar",
+                "order": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+                "order_number": "ORD-0001",
+                "plan_name": "Standard 5%",
+                "order_value": "15000.00",
+                "commission_pct": "5.00",
+                "commission_amount": "750.00",
+                "status": "pending",
+                "settlement_month": "2026-08-01",
+                "paid_at": null,
+                "adjustment_notes": "",
+                "created_at": "2026-08-10T14:20:00Z"
+              }
+            ]
+          }
+
+docs: Commission entries for one agent, optionally filtered by settlement month and status.

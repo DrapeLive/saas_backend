@@ -313,6 +313,30 @@ class OrderViewSet(GenericViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
+        agent_profile = None
+        if request.user.role == "agent":
+            agent_profile = request.user.agent_profile
+
+        # Check agent credit limit when an agent is booking the order.
+        if agent_profile and settings and settings.credit_block_on_exceed:
+            from apps.agents.services import recompute_agent_credit
+
+            agent_credit = recompute_agent_credit(agent_profile.id, company.id)
+            if (
+                agent_credit.auto_block_on_exceed
+                and not agent_credit.is_credit_blocked
+                and agent_credit.credit_utilized + total > agent_credit.credit_limit > 0
+            ):
+                return Response(
+                    {
+                        "detail": (
+                            f"Order total ₹{total} would exceed agent {request.user.full_name}'s "
+                            f"credit limit of ₹{agent_credit.credit_limit}."
+                        )
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
         # Approval required?
         requires_approval = False
         if settings and settings.order_approval_required:
@@ -326,10 +350,6 @@ class OrderViewSet(GenericViewSet):
         order_status = OrderStatus.SUBMITTED
         if settings and settings.order_auto_confirm and not requires_approval:
             order_status = OrderStatus.CONFIRMED
-
-        agent_profile = None
-        if request.user.role == "agent":
-            agent_profile = request.user.agent_profile
 
         # Create Order
         order = Order.objects.create(

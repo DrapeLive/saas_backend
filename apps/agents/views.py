@@ -41,6 +41,14 @@ from apps.agents.serializers import (
     SwitchCompanyRequestSerializer,
     SwitchCompanyResponseSerializer,
 )
+from apps.agents.detail_serializers import (
+    AgentAdjustmentSerializer,
+    AgentCommissionSerializer,
+    AgentOverviewDetailSerializer,
+    AgentPayoutSerializer,
+    AgentTransactionSerializer,
+)
+from apps.agents import agent_detail as agent_detail_service
 from apps.commissions.models import CommissionEntry, CommissionPayout
 from apps.core.openapi import (
     DetailResponseSerializer,
@@ -178,6 +186,62 @@ from apps.orders.models import Order
         summary="Agent performance",
         responses={200: AgentPerformanceSerializer, 403: RESPONSE_403, 404: RESPONSE_404},
     ),
+    agent_detail=extend_schema(
+        tags=["Agents"],
+        summary="Agent detail (All tab)",
+        description=(
+            "Admin/sub-admin. Cards (credit balance, total paid YTD, pending sync), "
+            "recent transactions and the invoice tally placeholder for one agent."
+        ),
+        responses={200: AgentOverviewDetailSerializer, 403: RESPONSE_403, 404: RESPONSE_404},
+    ),
+    agent_transactions=extend_schema(
+        tags=["Agents"],
+        summary="Agent recent transactions",
+        description="Merged payout + commission feed for one agent.",
+        parameters=[
+            OpenApiParameter(
+                "type", OpenApiTypes.STR, OpenApiParameter.QUERY,
+                enum=["payout", "order_commission", "adjustment"],
+                description="Filter by transaction type.",
+            ),
+            OpenApiParameter(
+                "month", OpenApiTypes.DATE, OpenApiParameter.QUERY,
+                description="Settlement month (YYYY-MM-01).",
+            ),
+            OpenApiParameter(
+                "status", OpenApiTypes.STR, OpenApiParameter.QUERY,
+                description="Filter by entry status (commission/payout).",
+            ),
+        ],
+        responses={200: AgentTransactionSerializer(many=True)},
+    ),
+    agent_commission=extend_schema(
+        tags=["Agents"],
+        summary="Agent commissions",
+        parameters=[
+            OpenApiParameter(
+                "month", OpenApiTypes.DATE, OpenApiParameter.QUERY,
+                description="Settlement month (YYYY-MM-01).",
+            ),
+            OpenApiParameter(
+                "status", OpenApiTypes.STR, OpenApiParameter.QUERY,
+                description="Filter by entry status: pending|approved|paid|disputed|adjusted.",
+            ),
+        ],
+        responses={200: AgentCommissionSerializer(many=True)},
+    ),
+    agent_payouts=extend_schema(
+        tags=["Agents"],
+        summary="Agent payouts",
+        responses={200: AgentPayoutSerializer(many=True)},
+    ),
+    agent_adjustments=extend_schema(
+        tags=["Agents"],
+        summary="Agent adjustments",
+        description="Commission entries marked as `adjusted` for one agent.",
+        responses={200: AgentAdjustmentSerializer(many=True)},
+    ),
 )
 class AgentMembershipViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
@@ -243,7 +307,15 @@ class AgentMembershipViewSet(GenericViewSet):
         }
 
     def get_permissions(self):
-        if self.action in ("list", "overview"):
+        if self.action in (
+            "list",
+            "overview",
+            "agent_detail",
+            "agent_transactions",
+            "agent_commission",
+            "agent_payouts",
+            "agent_adjustments",
+        ):
             return [IsAuthenticated(), CompanyApproved(), IsAdminOrSubAdmin()]
         if self.action in (
             "retrieve",
@@ -789,3 +861,87 @@ class AgentMembershipViewSet(GenericViewSet):
             )
 
         return Response(AgentLeaderboardSerializer(result, many=True).data)
+
+    # ─────────────────────────────────────────────────────────────
+    # Individual agent detail page (admin / sub-admin)
+    # ─────────────────────────────────────────────────────────────
+
+    def _get_admin_membership(self, request, pk):
+        """Resolve a membership within the caller's company, or None."""
+        try:
+            membership = self.get_queryset().get(pk=pk)
+        except AgentCompanyMembership.DoesNotExist:
+            return None
+        if membership.company_id != request.user.company_id:
+            return None
+        return membership
+
+    def _txn_params(self, request):
+        return {
+            "type": request.query_params.get("type"),
+            "month": request.query_params.get("month"),
+            "status": request.query_params.get("status"),
+        }
+
+    # GET /api/admin/agents/<pk>/overview/
+    @action(detail=True, methods=["get"], url_path="overview")
+    def agent_detail(self, request, pk=None, *args, **kwargs):
+        membership = self._get_admin_membership(request, pk)
+        if not membership:
+            return Response(
+                {"detail": "Agent not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+        data = agent_detail_service.agent_overview(
+            membership.agent, membership.company
+        )
+        return Response(AgentOverviewDetailSerializer(data).data)
+
+    # GET /api/admin/agents/<pk>/transactions/
+    @action(detail=True, methods=["get"], url_path="transactions")
+    def agent_transactions(self, request, pk=None, *args, **kwargs):
+        membership = self._get_admin_membership(request, pk)
+        if not membership:
+            return Response(
+                {"detail": "Agent not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+        params = self._txn_params(request)
+        data = agent_detail_service.agent_transactions(membership.agent, membership.company, **params)
+        return Response(AgentTransactionSerializer(data, many=True).data)
+
+    # GET /api/admin/agents/<pk>/commission/
+    @action(detail=True, methods=["get"], url_path="commission")
+    def agent_commission(self, request, pk=None, *args, **kwargs):
+        membership = self._get_admin_membership(request, pk)
+        if not membership:
+            return Response(
+                {"detail": "Agent not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+        qs = agent_detail_service.agent_commission(
+            membership.agent,
+            membership.company,
+            month=request.query_params.get("month"),
+            status=request.query_params.get("status"),
+        )
+        return Response(AgentCommissionSerializer(qs, many=True).data)
+
+    # GET /api/admin/agents/<pk>/payouts/
+    @action(detail=True, methods=["get"], url_path="payouts")
+    def agent_payouts(self, request, pk=None, *args, **kwargs):
+        membership = self._get_admin_membership(request, pk)
+        if not membership:
+            return Response(
+                {"detail": "Agent not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+        qs = agent_detail_service.agent_payouts(membership.agent, membership.company)
+        return Response(AgentPayoutSerializer(qs, many=True).data)
+
+    # GET /api/admin/agents/<pk>/adjustments/
+    @action(detail=True, methods=["get"], url_path="adjustments")
+    def agent_adjustments(self, request, pk=None, *args, **kwargs):
+        membership = self._get_admin_membership(request, pk)
+        if not membership:
+            return Response(
+                {"detail": "Agent not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+        qs = agent_detail_service.agent_adjustments(membership.agent, membership.company)
+        return Response(AgentAdjustmentSerializer(qs, many=True).data)

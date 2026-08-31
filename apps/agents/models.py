@@ -97,6 +97,46 @@ class AgentCompanyMembership(UUIDModel, TimeStampedModel):
         return f"{self.agent.user.full_name} @ {self.company.name} [{self.status}]"
 
 
+class AgentCreditLimit(CompanyScopeModel):
+    """
+    Per-company credit ceiling for an agent.
+
+    `credit_utilized` is the aggregate amount the agent's customers still owe
+    (sum of unpaid invoice `amount_due` across orders the agent booked). It
+    caps how much credit the agent can keep extending before payment, so an
+    agent cannot place orders indefinitely without the company being paid.
+    """
+
+    agent = models.ForeignKey(
+        AgentProfile, on_delete=models.CASCADE, related_name="credit_limits"
+    )
+    credit_limit = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    credit_utilized = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    is_credit_blocked = models.BooleanField(default=False)
+    auto_block_on_exceed = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = "agents_credit_limit"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["company", "agent"],
+                name="unique_agent_credit_per_company",
+            )
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.agent.user.full_name} @ {self.company.name} "
+            f"[{self.credit_utilized}/{self.credit_limit}]"
+        )
+
+    @property
+    def credit_utilization_pct(self):
+        if self.credit_limit > 0:
+            return round((self.credit_utilized / self.credit_limit) * 100, 1)
+        return 0.0
+
+
 class AgentInvitation(UUIDModel, TimeStampedModel):
     class InviteStatus(models.TextChoices):
         PENDING = "pending", "Pending"

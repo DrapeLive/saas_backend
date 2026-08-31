@@ -1,0 +1,83 @@
+info:
+  name: Agent adjustments
+  type: http
+  seq: 16
+  tags:
+    - Agents
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/admin/agents/:id/adjustments"
+  params:
+    - name: id
+      value: ""
+      type: path
+    - name: page
+      value: ""
+      type: query
+      description: A page number within the paginated result set.
+      disabled: true
+    - name: page_size
+      value: ""
+      type: query
+      description: Number of results to return per page.
+      disabled: true
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    request:
+      url: "{{baseUrl}}/api/admin/agents/:id/adjustments"
+      method: GET
+      params:
+        - name: id
+          value: ""
+          type: path
+        - name: page
+          value: ""
+          type: query
+          description: A page number within the paginated result set.
+          disabled: true
+        - name: page_size
+          value: ""
+          type: query
+          description: Number of results to return per page.
+          disabled: true
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "count": 1,
+            "next": null,
+            "previous": null,
+            "results": [
+              {
+                "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+                "order": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+                "order_number": "ORD-0001",
+                "order_value": "15000.00",
+                "commission_amount": "750.00",
+                "status": "adjusted",
+                "adjustment_notes": "Corrected commission for bulk order discount",
+                "settlement_month": "2026-08-01",
+                "created_at": "2026-08-15T10:30:00Z"
+              }
+            ]
+          }
+
+docs: Commission entries marked as `adjusted` for one agent.

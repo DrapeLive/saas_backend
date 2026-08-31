@@ -197,6 +197,41 @@ paths:
                 $ref: '#/components/schemas/DetailResponse'
           description: Not found. The requested resource does not exist in the current
             company.
+  /api/admin/agents/{id}/adjustments:
+    get:
+      operationId: admin_agents_adjustments_list
+      description: Commission entries marked as `adjusted` for one agent.
+      summary: Agent adjustments
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - Agents
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAgentAdjustmentList'
+          description: ''
   /api/admin/agents/{id}/approve:
     post:
       operationId: admin_agents_approve_create
@@ -251,6 +286,123 @@ paths:
                 $ref: '#/components/schemas/DetailResponse'
           description: Not found. The requested resource does not exist in the current
             company.
+  /api/admin/agents/{id}/commission:
+    get:
+      operationId: admin_agents_commission_list
+      summary: Agent commissions
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: query
+        name: month
+        schema:
+          type: string
+          format: date
+        description: Settlement month (YYYY-MM-01).
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - in: query
+        name: status
+        schema:
+          type: string
+        description: 'Filter by entry status: pending|approved|paid|disputed|adjusted.'
+      tags:
+      - Agents
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAgentCommissionList'
+          description: ''
+  /api/admin/agents/{id}/overview:
+    get:
+      operationId: admin_agents_overview_retrieve_2
+      description: Admin/sub-admin. Cards (credit balance, total paid YTD, pending
+        sync), recent transactions and the invoice tally placeholder for one agent.
+      summary: Agent detail (All tab)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Agents
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentOverviewDetail'
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetailResponse'
+          description: Forbidden. The authenticated user is not allowed to perform
+            this action.
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetailResponse'
+          description: Not found. The requested resource does not exist in the current
+            company.
+  /api/admin/agents/{id}/payouts:
+    get:
+      operationId: admin_agents_payouts_list
+      summary: Agent payouts
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - Agents
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAgentPayoutList'
+          description: ''
   /api/admin/agents/{id}/performance:
     get:
       operationId: admin_agents_performance_retrieve
@@ -503,6 +655,61 @@ paths:
                 $ref: '#/components/schemas/DetailResponse'
           description: Not found. The requested resource does not exist in the current
             company.
+  /api/admin/agents/{id}/transactions:
+    get:
+      operationId: admin_agents_transactions_list
+      description: Merged payout + commission feed for one agent.
+      summary: Agent recent transactions
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: query
+        name: month
+        schema:
+          type: string
+          format: date
+        description: Settlement month (YYYY-MM-01).
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - in: query
+        name: status
+        schema:
+          type: string
+        description: Filter by entry status (commission/payout).
+      - in: query
+        name: type
+        schema:
+          type: string
+          enum:
+          - adjustment
+          - order_commission
+          - payout
+        description: Filter by transaction type.
+      tags:
+      - Agents
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAgentTransactionList'
+          description: ''
   /api/admin/agents/leaderboard:
     get:
       operationId: admin_agents_leaderboard_list
@@ -6292,7 +6499,7 @@ components:
       type: object
       properties:
         type:
-          $ref: '#/components/schemas/TypeEnum'
+          $ref: '#/components/schemas/ActivityEntryTypeEnum'
         channel:
           type: string
         text:
@@ -6308,6 +6515,14 @@ components:
       - channel
       - date
       - type
+    ActivityEntryTypeEnum:
+      enum:
+      - follow_up
+      - agent_note
+      type: string
+      description: |-
+        * `follow_up` - follow_up
+        * `agent_note` - agent_note
     Address:
       type: object
       properties:
@@ -6387,6 +6602,107 @@ components:
       - receivables_ageing
       - sales_total
       - tally_sync
+    AgentAdjustment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        order:
+          type: string
+          format: uuid
+        order_number:
+          type: string
+          readOnly: true
+        order_value:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        commission_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        status:
+          $ref: '#/components/schemas/CommissionEntryStatusEnum'
+        adjustment_notes:
+          type: string
+        settlement_month:
+          type: string
+          format: date
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - commission_amount
+      - created_at
+      - id
+      - order
+      - order_number
+      - order_value
+    AgentCommission:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        agent:
+          type: string
+          format: uuid
+        agent_name:
+          type: string
+          readOnly: true
+        order:
+          type: string
+          format: uuid
+        order_number:
+          type: string
+          readOnly: true
+        plan_name:
+          type: string
+          readOnly: true
+        order_value:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        commission_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        commission_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        status:
+          $ref: '#/components/schemas/CommissionEntryStatusEnum'
+        settlement_month:
+          type: string
+          format: date
+          nullable: true
+        paid_at:
+          type: string
+          format: date-time
+          nullable: true
+        adjustment_notes:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - agent
+      - agent_name
+      - commission_amount
+      - commission_pct
+      - created_at
+      - id
+      - order
+      - order_number
+      - order_value
+      - plan_name
     AgentCommissionSummary:
       type: object
       description: Read-only summary per agent for the commission dashboard.
@@ -6450,6 +6766,32 @@ components:
       - membership_status
       - name
       - territory
+    AgentCredit:
+      type: object
+      properties:
+        credit_limit:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        credit_utilized:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        available_limit:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        credit_utilization_pct:
+          type: number
+          format: double
+        is_credit_blocked:
+          type: boolean
+      required:
+      - available_limit
+      - credit_limit
+      - credit_utilization_pct
+      - credit_utilized
+      - is_credit_blocked
     AgentInvitation:
       type: object
       properties:
@@ -6692,6 +7034,34 @@ components:
       required:
       - recent_payouts
       - summary
+    AgentOverviewDetail:
+      type: object
+      properties:
+        agent_id:
+          type: string
+        agent_name:
+          type: string
+        credit:
+          $ref: '#/components/schemas/AgentCredit'
+        total_paid_ytd:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,14}(?:\.\d{0,2})?$
+        pending_sync:
+          $ref: '#/components/schemas/PendingSync'
+        recent_transactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/AgentTransaction'
+        invoice_tally:
+          nullable: true
+      required:
+      - agent_id
+      - agent_name
+      - credit
+      - pending_sync
+      - recent_transactions
+      - total_paid_ytd
     AgentOverviewSummary:
       type: object
       properties:
@@ -6709,6 +7079,31 @@ components:
       - active_agents
       - paid_payout_amount
       - pending_payout_amount
+    AgentPayout:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        settlement_month:
+          type: string
+          format: date
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        entries_count:
+          type: integer
+        paid_at:
+          type: string
+          format: date-time
+          nullable: true
+        notes:
+          type: string
+      required:
+      - id
+      - settlement_month
     AgentPerformance:
       type: object
       properties:
@@ -6768,6 +7163,47 @@ components:
       - email
       - full_name
       - password
+    AgentTransaction:
+      type: object
+      properties:
+        type:
+          $ref: '#/components/schemas/AgentTransactionTypeEnum'
+        id:
+          type: string
+        date:
+          type: string
+          format: date
+          nullable: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        status:
+          type: string
+          nullable: true
+        reference:
+          type: string
+          nullable: true
+        settlement_month:
+          type: string
+          format: date
+          nullable: true
+      required:
+      - amount
+      - date
+      - id
+      - status
+      - type
+    AgentTransactionTypeEnum:
+      enum:
+      - payout
+      - order_commission
+      - adjustment
+      type: string
+      description: |-
+        * `payout` - payout
+        * `order_commission` - order_commission
+        * `adjustment` - adjustment
     AgentUser:
       type: object
       properties:
@@ -10417,6 +10853,52 @@ components:
         * `unpacked` - Unpacked
         * `partially_packed` - Partially Packed
         * `packed` - Packed
+    PaginatedAgentAdjustmentList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/AgentAdjustment'
+    PaginatedAgentCommissionList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/AgentCommission'
     PaginatedAgentCompanyList:
       type: object
       required:
@@ -10486,6 +10968,52 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/AgentMembership'
+    PaginatedAgentPayoutList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/AgentPayout'
+    PaginatedAgentTransactionList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/AgentTransaction'
     PaginatedCustomerCommunicationLogList:
       type: object
       required:
@@ -11246,6 +11774,19 @@ components:
       - channel
       - customer_count
       - detail
+    PendingSync:
+      type: object
+      properties:
+        orders:
+          type: integer
+        invoices:
+          type: integer
+        payments:
+          type: integer
+      required:
+      - invoices
+      - orders
+      - payments
     PlanCreateUpdateRequest:
       type: object
       properties:
@@ -12665,14 +13206,6 @@ components:
       required:
       - detail
       - trial_end
-    TypeEnum:
-      enum:
-      - follow_up
-      - agent_note
-      type: string
-      description: |-
-        * `follow_up` - follow_up
-        * `agent_note` - agent_note
     UpcomingPayment:
       type: object
       properties:

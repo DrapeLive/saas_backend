@@ -76,4 +76,30 @@ urlpatterns = [
         AgentMembershipViewSet.as_view({"get": "agent_performance"}),
         name="admin-agents-performance",
     ),  # ✅
+    # Individual agent detail page (admin / sub-admin)
+    path(
+        "admin/agents/<uuid:pk>/overview",
+        AgentMembershipViewSet.as_view({"get": "agent_detail"}),
+        name="admin-agents-detail-overview",
+    ),
+    path(
+        "admin/agents/<uuid:pk>/transactions",
+        AgentMembershipViewSet.as_view({"get": "agent_transactions"}),
+        name="admin-agents-detail-transactions",
+    ),
+    path(
+        "admin/agents/<uuid:pk>/commission",
+        AgentMembershipViewSet.as_view({"get": "agent_commission"}),
+        name="admin-agents-detail-commission",
+    ),
+    path(
+        "admin/agents/<uuid:pk>/payouts",
+        AgentMembershipViewSet.as_view({"get": "agent_payouts"}),
+        name="admin-agents-detail-payouts",
+    ),
+    path(
+        "admin/agents/<uuid:pk>/adjustments",
+        AgentMembershipViewSet.as_view({"get": "agent_adjustments"}),
+        name="admin-agents-detail-adjustments",
+    ),
 ]

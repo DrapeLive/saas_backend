@@ -110,7 +110,7 @@ class AgentOverviewTests(TestCase):
             settlement_month=older_month,
             amount=100,
             entries_count=1,
-            paid_at=now().replace(month=6),
+            paid_at=now().replace(day=1, month=6),
         )
         CommissionPayout.objects.create(
             company=self.company,
