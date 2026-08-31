@@ -3,10 +3,43 @@
 from django.urls import path
 
 from apps.agents.views import AgentMembershipViewSet
+from apps.agents.dashboard import AgentHomeViewSet, BroadcastViewSet
 
 app_name = "agents"
 
 urlpatterns = [
+    # Agent home dashboard (agent UI)
+    path(
+        "agent/home",
+        AgentHomeViewSet.as_view({"get": "home"}),
+        name="agent-home",
+    ),
+    path(
+        "agent/home/summary",
+        AgentHomeViewSet.as_view({"get": "summary"}),
+        name="agent-home-summary",
+    ),
+    path(
+        "agent/home/recent-orders",
+        AgentHomeViewSet.as_view({"get": "recent_orders"}),
+        name="agent-home-recent-orders",
+    ),
+    path(
+        "agent/home/broadcast",
+        AgentHomeViewSet.as_view({"get": "broadcast"}),
+        name="agent-home-broadcast",
+    ),
+    # Admin broadcast management
+    path(
+        "admin/broadcast/",
+        BroadcastViewSet.as_view({"get": "list", "post": "create"}),
+        name="admin-broadcast-list-create",
+    ),
+    path(
+        "admin/broadcast/<uuid:pk>/",
+        BroadcastViewSet.as_view({"patch": "partial_update", "delete": "destroy"}),
+        name="admin-broadcast-detail",
+    ),
     # Agent-facing (auth/*)
     path(
         "auth/agents/companies",

@@ -1,6 +1,50 @@
 from django.db import models
+from django.utils.timezone import now
 
 from apps.core.models import CompanyScopeModel, TimeStampedModel, UUIDModel
+
+
+class BroadcastMessage(CompanyScopeModel):
+    """
+    A company-scoped announcement shown to agents on their home screen.
+
+    Only active broadcasts whose window (`starts_at`/`expires_at`) includes the
+    current time are exposed to agents. Admins manage these via the
+    `/api/admin/broadcast/` endpoints.
+    """
+
+    message = models.TextField()
+    is_active = models.BooleanField(default=True)
+    created_by = models.ForeignKey(
+        "accounts.User",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    starts_at = models.DateTimeField(null=True, blank=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "agents_broadcast_message"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["company", "is_active", "created_at"]),
+        ]
+
+    def __str__(self):
+        return f"[{self.company.name}] {self.message[:50]}"
+
+    def is_visible(self, at=None):
+        """True when active and the optional schedule window covers `at`."""
+        at = at or now()
+        if not self.is_active:
+            return False
+        if self.starts_at is not None and at < self.starts_at:
+            return False
+        if self.expires_at is not None and at > self.expires_at:
+            return False
+        return True
 
 
 class AgentProfile(UUIDModel, TimeStampedModel):

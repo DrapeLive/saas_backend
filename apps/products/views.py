@@ -15,11 +15,12 @@ from drf_spectacular.utils import (
 )
 from rest_framework import status
 from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 
 from apps.accounts.authentication import CustomJWTAuthentication
-from apps.accounts.permissions import IsAdminOrSubAdmin
+from apps.accounts.permissions import CompanyApproved, IsAdminOrSubAdmin, IsCompanyStaff
 from apps.core.openapi import RESPONSE_400, RESPONSE_404
 from apps.core.pagination import DefaultPageNumberPagination
 from apps.products.models import (
@@ -336,7 +337,6 @@ class SizeChartViewSet(GenericViewSet):
 )
 class ProductViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
-    permission_classes = (IsAdminOrSubAdmin,)
 
     def get_serializer_class(self):
         if self.action == "list":
@@ -347,8 +347,15 @@ class ProductViewSet(GenericViewSet):
             return ProductUpdateSerializer
         return ProductDetailSerializer
 
+    def get_permissions(self):
+        # Agents (quick action: browse catalog, scan QR) may read; only
+        # admin/sub-admin may mutate catalog data.
+        if self.action in ("create", "partial_update", "destroy"):
+            return [IsAuthenticated(), CompanyApproved(), IsAdminOrSubAdmin()]
+        return [IsAuthenticated(), CompanyApproved(), IsCompanyStaff()]
+
     def _get_company(self, request):
-        return request.user.company
+        return request.company or request.user.company
 
     def _get_product(self, pk, company):
         try:

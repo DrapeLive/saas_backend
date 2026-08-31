@@ -1,7 +1,11 @@
 from rest_framework import serializers
 
 from apps.accounts.models import User
-from apps.agents.models import AgentCompanyMembership, AgentProfile
+from apps.agents.models import (
+    AgentCompanyMembership,
+    AgentProfile,
+    BroadcastMessage,
+)
 from apps.commissions.models import CommissionPayout
 
 
@@ -152,3 +156,91 @@ class SwitchCompanyResponseSerializer(serializers.Serializer):
 
 class MembershipActionResponseSerializer(serializers.Serializer):
     detail = serializers.CharField()
+
+
+# ─────────────────────────────────────────────────────────────────
+# Agent home dashboard (agent UI)
+# ─────────────────────────────────────────────────────────────────
+
+
+class AgentHomeSummarySerializer(serializers.Serializer):
+    orders_today = serializers.IntegerField()
+    sales_today = serializers.DecimalField(max_digits=14, decimal_places=2)
+
+
+class QuickActionSerializer(serializers.Serializer):
+    """A quick-action button. `endpoint` is the intended target; the actual
+    screen may be built later — this exposes the contract for the UI."""
+
+    key = serializers.CharField()
+    label = serializers.CharField()
+    endpoint = serializers.CharField()
+    method = serializers.CharField(default="get")
+    enabled = serializers.BooleanField(default=True)
+
+
+class BroadcastSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BroadcastMessage
+        fields = [
+            "id",
+            "message",
+            "is_active",
+            "starts_at",
+            "expires_at",
+            "created_by",
+            "created_at",
+        ]
+        read_only_fields = ["id", "created_by", "created_at"]
+
+
+class AgentHomeRecentOrderSerializer(serializers.Serializer):
+    order_id = serializers.UUIDField()
+    order_number = serializers.CharField()
+    customer_id = serializers.UUIDField()
+    customer_name = serializers.CharField()
+    amount = serializers.DecimalField(max_digits=14, decimal_places=2)
+    status = serializers.CharField()
+    created_at = serializers.DateTimeField()
+    time_ago = serializers.CharField()
+
+
+class AgentHomeSerializer(serializers.Serializer):
+    agent_name = serializers.CharField()
+    company_name = serializers.CharField()
+    summary = AgentHomeSummarySerializer()
+    quick_actions = QuickActionSerializer(many=True)
+    recent_orders = AgentHomeRecentOrderSerializer(many=True)
+    broadcast = BroadcastSerializer(many=True)
+
+
+class BroadcastCreateUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BroadcastMessage
+        fields = [
+            "message",
+            "is_active",
+            "starts_at",
+            "expires_at",
+        ]
+
+
+class BroadcastListSerializer(serializers.ModelSerializer):
+    created_by_name = serializers.CharField(
+        source="created_by.full_name", read_only=True, default=None
+    )
+
+    class Meta:
+        model = BroadcastMessage
+        fields = [
+            "id",
+            "message",
+            "is_active",
+            "starts_at",
+            "expires_at",
+            "created_by",
+            "created_by_name",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_by", "created_at", "updated_at"]
