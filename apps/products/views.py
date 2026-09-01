@@ -4,8 +4,7 @@ from collections import OrderedDict
 from decimal import Decimal
 
 from django.db import models, transaction
-from django.db.models import Q
-from django.db.models import F, Case, Sum, When
+from django.db.models import Case, F, Q, Sum, When
 from django.utils.timezone import now
 from drf_spectacular.utils import (
     OpenApiParameter,
@@ -87,7 +86,18 @@ from apps.products.serializers import (
 )
 class CategoryViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
-    permission_classes = (IsAdminOrSubAdmin,)
+
+    def get_permissions(self):
+        if self.action == "list":
+            permission_classes = [IsCompanyStaff]
+        elif self.action == "retrieve":
+            permission_classes = [IsCompanyStaff]
+        elif self.action in ["create", "update", "partial_update", "destroy"]:
+            permission_classes = [IsAdminOrSubAdmin]
+        else:
+            permission_classes = [IsAdminOrSubAdmin]
+
+        return [permission() for permission in permission_classes]
 
     def get_serializer_class(self):
         if self.action == "list":
@@ -97,7 +107,7 @@ class CategoryViewSet(GenericViewSet):
         return CategorySerializer
 
     def _get_company(self, request):
-        return request.user.company
+        return request.company or request.user.company
 
     def _get_obj(self, pk, company):
         try:
@@ -197,11 +207,22 @@ class CategoryViewSet(GenericViewSet):
 )
 class SizeChartViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
-    permission_classes = (IsAdminOrSubAdmin,)
     serializer_class = SizeChartSerializer
 
+    def get_permissions(self):
+        if self.action == "list":
+            permission_classes = [IsCompanyStaff]
+        elif self.action == "retrieve":
+            permission_classes = [IsCompanyStaff]
+        elif self.action in ["create", "update", "partial_update", "destroy"]:
+            permission_classes = [IsAdminOrSubAdmin]
+        else:
+            permission_classes = [IsAdminOrSubAdmin]
+
+        return [permission() for permission in permission_classes]
+
     def _get_company(self, request):
-        return request.user.company
+        return request.company or request.user.company
 
     # GET /api/size-charts/
     def list(self, request):
@@ -262,38 +283,70 @@ class SizeChartViewSet(GenericViewSet):
         ),
         parameters=[
             OpenApiParameter(
-                "page", OpenApiTypes.INT, OpenApiParameter.QUERY, description="Page number (default 1)."
+                "page",
+                OpenApiTypes.INT,
+                OpenApiParameter.QUERY,
+                description="Page number (default 1).",
             ),
             OpenApiParameter(
-                "page_size", OpenApiTypes.INT, OpenApiParameter.QUERY, description="Page size (default 20, max 100)."
+                "page_size",
+                OpenApiTypes.INT,
+                OpenApiParameter.QUERY,
+                description="Page size (default 20, max 100).",
             ),
             OpenApiParameter(
-                "search", OpenApiTypes.STR, OpenApiParameter.QUERY,
+                "search",
+                OpenApiTypes.STR,
+                OpenApiParameter.QUERY,
                 description="Search product name, SKU, color name or category name.",
             ),
             OpenApiParameter(
-                "category", OpenApiTypes.UUID, OpenApiParameter.QUERY,
+                "category",
+                OpenApiTypes.UUID,
+                OpenApiParameter.QUERY,
                 description="Filter by category id.",
             ),
             OpenApiParameter(
-                "status", OpenApiTypes.STR, OpenApiParameter.QUERY,
+                "status",
+                OpenApiTypes.STR,
+                OpenApiParameter.QUERY,
                 enum=["active", "inactive", "discontinued"],
                 description="Filter by product status.",
             ),
             OpenApiParameter(
-                "size", OpenApiTypes.STR, OpenApiParameter.QUERY, description="Filter by size label."
+                "size",
+                OpenApiTypes.STR,
+                OpenApiParameter.QUERY,
+                description="Filter by size label.",
             ),
             OpenApiParameter(
-                "low_stock", OpenApiTypes.BOOL, OpenApiParameter.QUERY,
+                "low_stock",
+                OpenApiTypes.BOOL,
+                OpenApiParameter.QUERY,
                 description="`true` to show items at or below reorder level.",
             ),
             OpenApiParameter(
-                "out_of_stock", OpenApiTypes.BOOL, OpenApiParameter.QUERY,
+                "out_of_stock",
+                OpenApiTypes.BOOL,
+                OpenApiParameter.QUERY,
                 description="`true` to show items with zero available quantity.",
             ),
             OpenApiParameter(
-                "ordering", OpenApiTypes.STR, OpenApiParameter.QUERY,
-                enum=["name", "-name", "sku", "-sku", "price", "-price", "stock_quantity", "-stock_quantity", "created_at", "-created_at"],
+                "ordering",
+                OpenApiTypes.STR,
+                OpenApiParameter.QUERY,
+                enum=[
+                    "name",
+                    "-name",
+                    "sku",
+                    "-sku",
+                    "price",
+                    "-price",
+                    "stock_quantity",
+                    "-stock_quantity",
+                    "created_at",
+                    "-created_at",
+                ],
                 description="Sort order (default `name`).",
             ),
         ],
@@ -330,7 +383,12 @@ class SizeChartViewSet(GenericViewSet):
             "scanned `scanned_variant_id`."
         ),
         parameters=[
-            OpenApiParameter("qr_code", OpenApiTypes.UUID, OpenApiParameter.PATH, description="Variant QR code.")
+            OpenApiParameter(
+                "qr_code",
+                OpenApiTypes.UUID,
+                OpenApiParameter.PATH,
+                description="Variant QR code.",
+            )
         ],
         responses={200: ScanQRResponseSerializer, 404: RESPONSE_404},
     ),
@@ -596,7 +654,11 @@ class ProductViewSet(GenericViewSet):
         tags=["Products"],
         summary="Add color variant",
         description="Adds a color variant to a product, with optional nested `sizes`.",
-        responses={201: ColorVariantDetailSerializer, 400: RESPONSE_400, 404: RESPONSE_404},
+        responses={
+            201: ColorVariantDetailSerializer,
+            400: RESPONSE_400,
+            404: RESPONSE_404,
+        },
     ),
     destroy=extend_schema(
         tags=["Products"],
@@ -607,7 +669,18 @@ class ProductViewSet(GenericViewSet):
 )
 class ColorVariantViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
-    permission_classes = (IsAdminOrSubAdmin,)
+
+    def get_permissions(self):
+        if self.action == "list":
+            permission_classes = [IsCompanyStaff]
+        elif self.action == "retrieve":
+            permission_classes = [IsCompanyStaff]
+        elif self.action in ["create", "update", "partial_update", "destroy"]:
+            permission_classes = [IsAdminOrSubAdmin]
+        else:
+            permission_classes = [IsAdminOrSubAdmin]
+
+        return [permission() for permission in permission_classes]
 
     def get_serializer_class(self):
         if self.action == "create":
@@ -615,6 +688,9 @@ class ColorVariantViewSet(GenericViewSet):
         if self.action == "retrieve":
             return ColorVariantDetailSerializer
         return ColorVariantListSerializer
+
+    def _get_company(self, request):
+        return request.company or request.user.company
 
     def _get_product(self, product_pk, company):
         try:
@@ -624,7 +700,7 @@ class ColorVariantViewSet(GenericViewSet):
 
     # GET /api/products/<product_pk>/variants/
     def list(self, request, product_pk=None):
-        company = request.user.company
+        company = self._get_company(request)
         product = self._get_product(product_pk, company)
         if not product:
             return Response(
@@ -635,7 +711,7 @@ class ColorVariantViewSet(GenericViewSet):
 
     # GET /api/products/<product_pk>/variants/<pk>/
     def retrieve(self, request, product_pk=None, pk=None):
-        company = request.user.company
+        company = self._get_company(request)
         product = self._get_product(product_pk, company)
         if not product:
             return Response(
@@ -652,7 +728,7 @@ class ColorVariantViewSet(GenericViewSet):
     # POST /api/products/<product_pk>/variants/
     @transaction.atomic
     def create(self, request, product_pk=None):
-        company = request.user.company
+        company = self._get_company(request)
         product = self._get_product(product_pk, company)
         if not product:
             return Response(
@@ -667,7 +743,7 @@ class ColorVariantViewSet(GenericViewSet):
 
     # DELETE /api/products/<product_pk>/variants/<pk>/
     def destroy(self, request, product_pk=None, pk=None):
-        company = request.user.company
+        company = self._get_company(request)
         product = self._get_product(product_pk, company)
         if not product:
             return Response(
@@ -710,16 +786,30 @@ class ColorVariantViewSet(GenericViewSet):
 )
 class StockViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
-    permission_classes = (IsAdminOrSubAdmin,)
+
+    def get_permissions(self):
+        if self.action == "list":
+            permission_classes = [IsCompanyStaff]
+        elif self.action == "retrieve":
+            permission_classes = [IsCompanyStaff]
+        elif self.action in ["create", "update", "partial_update", "destroy"]:
+            permission_classes = [IsAdminOrSubAdmin]
+        else:
+            permission_classes = [IsAdminOrSubAdmin]
+
+        return [permission() for permission in permission_classes]
 
     def get_serializer_class(self):
         if self.action == "adjust":
             return StockAdjustmentSerializer
         return StockMovementSerializer
 
+    def _get_company(self, request):
+        return request.company or request.user.company
+
     # GET /api/stock/movements/
     def list(self, request):
-        company = request.user.company
+        company = self._get_company(request)
         qs = (
             StockMovement.objects.filter(
                 variant_size__color_variant__product__company=company
