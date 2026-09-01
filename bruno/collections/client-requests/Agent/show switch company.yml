@@ -5,7 +5,7 @@ info:
 
 http:
   method: POST
-  url: "{{BASE_URL}}/auth/agents/switch-company"
+  url: "{{baseUrl}}/api/auth/agents/switch-company"
   body:
     type: json
     data: |-
@@ -19,3 +19,4 @@ settings:
   timeout: 0
   followRedirects: true
   maxRedirects: 5
+  forwardAuthorizationHeader: true

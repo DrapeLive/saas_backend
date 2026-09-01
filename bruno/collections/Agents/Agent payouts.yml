@@ -10,7 +10,7 @@ http:
   url: "{{baseUrl}}/api/admin/agents/:id/payouts"
   params:
     - name: id
-      value: ""
+      value: 223a5547-a246-4034-84a6-8270d9274a53
       type: path
     - name: page
       value: ""
@@ -24,7 +24,7 @@ http:
       disabled: true
   auth:
     type: bearer
-    token: "{{token}}"
+    token: "{{ACCESS}}"
 
 settings:
   encodeUrl: true

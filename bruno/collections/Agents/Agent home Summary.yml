@@ -1,17 +1,17 @@
 info:
-  name: Agent commissions
+  name: Agent home Summary
   type: http
-  seq: 17
+  seq: 21
   tags:
     - Agents
 
 http:
   method: GET
-  url: "{{baseUrl}}/api/admin/agents/:id/commission"
+  url: "{{baseUrl}}/api/agent/home/summary"
+  headers:
+    - name: X-Company-Id
+      value: 34548a8b-3322-44f3-ad9b-48ba4e40278c
   params:
-    - name: id
-      value: 223a5547-a246-4034-84a6-8270d9274a53
-      type: path
     - name: month
       value: ""
       type: query
@@ -30,11 +30,16 @@ http:
     - name: status
       value: ""
       type: query
-      description: "Filter by entry status: pending|approved|paid|disputed|adjusted."
+      description: Filter by entry status (commission/payout).
+      disabled: true
+    - name: type
+      value: ""
+      type: query
+      description: Filter by transaction type.
       disabled: true
   auth:
     type: bearer
-    token: "{{ACCESS}}"
+    token: "{{AGENT_ACCESS}}"
 
 settings:
   encodeUrl: true
@@ -46,7 +51,7 @@ settings:
 examples:
   - name: 200 Response
     request:
-      url: "{{baseUrl}}/api/admin/agents/:id/commission"
+      url: "{{baseUrl}}/api/admin/agents/:id/transactions"
       method: GET
       params:
         - name: id
@@ -70,7 +75,12 @@ examples:
         - name: status
           value: ""
           type: query
-          description: "Filter by entry status: pending|approved|paid|disputed|adjusted."
+          description: Filter by entry status (commission/payout).
+          disabled: true
+        - name: type
+          value: ""
+          type: query
+          description: Filter by transaction type.
           disabled: true
     response:
       status: 200
@@ -82,27 +92,29 @@ examples:
         type: json
         data: |-
           {
-            "count": 1,
+            "count": 2,
             "next": null,
             "previous": null,
             "results": [
               {
+                "type": "order_commission",
                 "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-                "agent": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-                "agent_name": "Ravi Kumar",
-                "order": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-                "order_number": "ORD-0001",
-                "plan_name": "Standard 5%",
-                "order_value": "15000.00",
-                "commission_pct": "5.00",
-                "commission_amount": "750.00",
+                "date": "2026-08-20",
+                "amount": "750.00",
                 "status": "pending",
-                "settlement_month": "2026-08-01",
-                "paid_at": null,
-                "adjustment_notes": "",
-                "created_at": "2026-08-10T14:20:00Z"
+                "reference": "ORD-0042",
+                "settlement_month": "2026-08-01"
+              },
+              {
+                "type": "payout",
+                "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+                "date": "2026-07-31",
+                "amount": "12000.00",
+                "status": "paid",
+                "reference": null,
+                "settlement_month": "2026-07-01"
               }
             ]
           }
 
-docs: Commission entries for one agent, optionally filtered by settlement month and status.
+docs: Merged payout + commission feed for one agent. Filter by `type` (adjustment, order_commission, payout) or by settlement month.

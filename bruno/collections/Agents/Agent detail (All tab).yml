@@ -7,14 +7,10 @@ info:
 
 http:
   method: GET
-  url: "{{baseUrl}}/api/admin/agents/:id/overview"
-  params:
-    - name: id
-      value: ""
-      type: path
+  url: "{{baseUrl}}/api/admin/agents/223a5547-a246-4034-84a6-8270d9274a53/overview"
   auth:
     type: bearer
-    token: "{{token}}"
+    token: "{{ACCESS}}"
 
 settings:
   encodeUrl: true
