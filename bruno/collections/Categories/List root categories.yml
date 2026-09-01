@@ -10,7 +10,7 @@ http:
   url: "{{baseUrl}}/api/categories/"
   auth:
     type: bearer
-    token: "{{token}}"
+    token: "{{AGENT_ACCESS}}"
 
 settings:
   encodeUrl: true
