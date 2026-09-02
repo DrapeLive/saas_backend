@@ -8,6 +8,9 @@ info:
 http:
   method: GET
   url: "{{baseUrl}}/api/categories/"
+  headers:
+    - name: X-Company-Id
+      value: 34548a8b-3322-44f3-ad9b-48ba4e40278c
   auth:
     type: bearer
     token: "{{AGENT_ACCESS}}"

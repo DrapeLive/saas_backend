@@ -1,7 +1,7 @@
 name: Dev
 variables:
   - name: baseUrl
-    value: http://localhost:8000
+    value: https://beta.xlapparals.in
   - name: AGENT_ACCESS
     value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzg4MzMyODMyLCJpYXQiOjE3ODgyNDY0MzIsImp0aSI6ImY1MDI4MmIyMTE2NTQ0YmVhM2M3YjllMTU2NmUzNzM1IiwidXNlcl9pZCI6Ijk0OTY1YTI3LTg5YTMtNDQzYi05OWM4LTA4ZGFhNGI2MWVkMyIsInJvbGUiOiJhZ2VudCIsImNvbXBhbnlfaWQiOm51bGwsImlzX3N1cGVyX2FkbWluIjpmYWxzZX0.NGke49jfhhGVYUOwYScgNjIe8y-5ClxT89wEt79xWUY
   - name: AGENT_REFRESH
