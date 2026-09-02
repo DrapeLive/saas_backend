@@ -52,7 +52,9 @@ def create_agent(company, email, full_name, employee_code="AG-HOME"):
     return profile
 
 
-def create_order(company, customer, agent=None, total_amount="100.00", status_=OrderStatus.CONFIRMED):
+def create_order(
+    company, customer, agent=None, total_amount="100.00", status_=OrderStatus.CONFIRMED
+):
     return Order.objects.create(
         company=company,
         order_number=f"ORD-{uuid.uuid4().hex[:8].upper()}",
@@ -98,8 +100,12 @@ class AgentHomeSummaryTests(TestCase):
         self.client.credentials(**get_jwt_headers(self.agent.user))
 
     def test_home_returns_summary_cards_for_active_company(self):
-        create_order(self.company, self.customer, agent=self.agent, total_amount="250.00")
-        create_order(self.company, self.customer, agent=self.agent, total_amount="150.00")
+        create_order(
+            self.company, self.customer, agent=self.agent, total_amount="250.00"
+        )
+        create_order(
+            self.company, self.customer, agent=self.agent, total_amount="150.00"
+        )
         # cancelled orders should NOT count toward sales
         create_order(
             self.company,
@@ -109,8 +115,12 @@ class AgentHomeSummaryTests(TestCase):
             status_=OrderStatus.CANCELLED,
         )
         # another agent's order should not count
-        other_agent = create_agent(self.company, "other@home.com", "Other Agent", "AG-2")
-        create_order(self.company, self.customer, agent=other_agent, total_amount="5000.00")
+        other_agent = create_agent(
+            self.company, "other@home.com", "Other Agent", "AG-2"
+        )
+        create_order(
+            self.company, self.customer, agent=other_agent, total_amount="5000.00"
+        )
 
         resp = self.client.get("/api/agent/home", **agent_headers(self.company.id))
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
@@ -124,7 +134,9 @@ class AgentHomeSummaryTests(TestCase):
             self.company, self.customer, agent=self.agent, total_amount="100.00"
         )
 
-        resp = self.client.get("/api/agent/home", **agent_headers(self.other_company.id))
+        resp = self.client.get(
+            "/api/agent/home", **agent_headers(self.other_company.id)
+        )
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
         # The other company has no orders from this agent
         self.assertEqual(resp.data["summary"]["orders_today"], 0)
@@ -141,8 +153,12 @@ class AgentHomeSummaryTests(TestCase):
         self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_summary_focused_endpoint(self):
-        create_order(self.company, self.customer, agent=self.agent, total_amount="75.00")
-        resp = self.client.get("/api/agent/home/summary", **agent_headers(self.company.id))
+        create_order(
+            self.company, self.customer, agent=self.agent, total_amount="75.00"
+        )
+        resp = self.client.get(
+            "/api/agent/home/summary", **agent_headers(self.company.id)
+        )
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
         self.assertEqual(resp.data["orders_today"], 1)
         self.assertEqual(resp.data["sales_today"], "75.00")
@@ -196,7 +212,9 @@ class AgentHomeRecentOrdersTests(TestCase):
             submitted_at=now(),
             created_at=created,
         )
-        resp = self.client.get("/api/agent/home/recent-orders", **agent_headers(self.company.id))
+        resp = self.client.get(
+            "/api/agent/home/recent-orders", **agent_headers(self.company.id)
+        )
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
         self.assertEqual(len(resp.data), 1)
         row = resp.data[0]
@@ -229,14 +247,18 @@ class AgentHomeRecentOrdersTests(TestCase):
             status=OrderStatus.DRAFT,
             total_amount="10.00",
         )
-        resp = self.client.get("/api/agent/home/recent-orders", **agent_headers(self.company.id))
+        resp = self.client.get(
+            "/api/agent/home/recent-orders", **agent_headers(self.company.id)
+        )
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
         numbers = [r["order_number"] for r in resp.data]
         self.assertNotIn("ORD-OTHER-001", numbers)
         self.assertIn("ORD-MINE-001", numbers)
 
     def test_recent_orders_scoped_to_company(self):
-        resp = self.client.get("/api/agent/home/recent-orders", **agent_headers(self.other_company.id))
+        resp = self.client.get(
+            "/api/agent/home/recent-orders", **agent_headers(self.other_company.id)
+        )
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
         self.assertEqual(resp.data, [])
 
@@ -260,7 +282,9 @@ class AgentHomeBroadcastTests(TestCase):
         self.client.credentials(**get_jwt_headers(self.agent.user))
 
     def test_home_includes_active_broadcast(self):
-        create_broadcast(self.company, "Welcome to the platform!", created_by=self.admin)
+        create_broadcast(
+            self.company, "Welcome to the platform!", created_by=self.admin
+        )
         resp = self.client.get("/api/agent/home", **agent_headers(self.company.id))
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
         messages = resp.data["broadcast"]
@@ -268,18 +292,24 @@ class AgentHomeBroadcastTests(TestCase):
         self.assertEqual(messages[0]["message"], "Welcome to the platform!")
 
     def test_inactive_broadcast_excluded(self):
-        create_broadcast(self.company, "Old message", created_by=self.admin, active=False)
+        create_broadcast(
+            self.company, "Old message", created_by=self.admin, active=False
+        )
         resp = self.client.get("/api/agent/home", **agent_headers(self.company.id))
         self.assertEqual(resp.data["broadcast"], [])
 
     def test_broadcast_scoped_to_company(self):
         create_broadcast(self.company, "Company A message", created_by=self.admin)
-        resp = self.client.get("/api/agent/home", **agent_headers(self.other_company.id))
+        resp = self.client.get(
+            "/api/agent/home", **agent_headers(self.other_company.id)
+        )
         self.assertEqual(resp.data["broadcast"], [])
 
     def test_focused_broadcast_endpoint(self):
         create_broadcast(self.company, "Focused message", created_by=self.admin)
-        resp = self.client.get("/api/agent/home/broadcast", **agent_headers(self.company.id))
+        resp = self.client.get(
+            "/api/agent/home/broadcast", **agent_headers(self.company.id)
+        )
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
         self.assertEqual(len(resp.data), 1)
         self.assertEqual(resp.data[0]["message"], "Focused message")
@@ -292,7 +322,9 @@ class AdminBroadcastTests(TestCase):
         self.client = APIClient()
         self.company = create_company(status="active")
         self.admin = create_user(
-            role=RoleType.ADMIN, company=self.company, email="admin@bc.com",
+            role=RoleType.ADMIN,
+            company=self.company,
+            email="admin@bc.com",
             full_name="Admin BC",
         )
         self.agent = create_agent(self.company, "abc@bc.com", "Agent BC")
@@ -307,13 +339,17 @@ class AdminBroadcastTests(TestCase):
         self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
         self.assertEqual(resp.data["message"], "New offer")
         self.assertTrue(resp.data["is_active"])
-        self.assertEqual(BroadcastMessage.objects.filter(company=self.company).count(), 1)
+        self.assertEqual(
+            BroadcastMessage.objects.filter(company=self.company).count(), 1
+        )
 
     def test_admin_can_list_broadcast(self):
         create_broadcast(self.company, "One", created_by=self.admin)
         create_broadcast(self.company, "Two", created_by=self.admin)
         self.client.credentials(**get_jwt_headers(self.admin))
-        resp = self.client.get("/api/admin/broadcast/", **agent_headers(self.company.id))
+        resp = self.client.get(
+            "/api/admin/broadcast/", **agent_headers(self.company.id)
+        )
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
         self.assertEqual(len(resp.data), 2)
 
@@ -375,13 +411,16 @@ class AgentCatalogAccessTests(TestCase):
         self.assertGreaterEqual(len(resp.data["results"]), 1)
 
     def test_agent_can_retrieve_product(self):
-        resp = self.client.get(f"/api/products/{self.product.id}/", **agent_headers(self.company.id))
+        resp = self.client.get(
+            f"/api/products/{self.product.id}/", **agent_headers(self.company.id)
+        )
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
         self.assertEqual(resp.data["name"], "Cotton Shirt")
 
     def test_agent_can_scan_qr(self):
         resp = self.client.get(
-            f"/api/products/scan/{self.variant.qr_code}/", **agent_headers(self.company.id)
+            f"/api/products/scan/{self.variant.qr_code}/",
+            **agent_headers(self.company.id),
         )
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
         self.assertEqual(resp.data["scanned_variant_id"], str(self.variant.id))
@@ -406,17 +445,24 @@ class AgentCustomerAccessTests(TestCase):
 
     def test_agent_can_create_customer(self):
         resp = self.client.post(
-            "/api/admin/customers/",
-            {"legal_name": "New Customer Pvt Ltd", "trade_name": "New Customer",
-             "phone": "9123456780"},
+            "/api/customers/",
+            {
+                "legal_name": "New Customer Pvt Ltd",
+                "trade_name": "New Customer",
+                "phone": "9123456780",
+            },
             **agent_headers(self.company.id),
         )
         self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(CustomerProfile.objects.filter(company=self.company).count(), 1)
+        self.assertEqual(
+            CustomerProfile.objects.filter(company=self.company).count(), 1
+        )
 
     def test_agent_can_list_customers(self):
         create_customer(self.company, "Existing Co")
-        resp = self.client.get("/api/admin/customers/", **agent_headers(self.company.id))
+        resp = self.client.get(
+            "/api/admin/customers/", **agent_headers(self.company.id)
+        )
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
         self.assertEqual(len(resp.data["results"]), 1)
 
@@ -424,7 +470,9 @@ class AgentCustomerAccessTests(TestCase):
         other_company = create_company(name="Other Co", status="active")
         create_customer(self.company, "Mine")
         create_customer(other_company, "Theirs")
-        resp = self.client.get("/api/admin/customers/", **agent_headers(self.company.id))
+        resp = self.client.get(
+            "/api/admin/customers/", **agent_headers(self.company.id)
+        )
         self.assertEqual(len(resp.data["results"]), 1)
         self.assertEqual(resp.data["results"][0]["trade_name"], "Mine")
 

@@ -55,7 +55,7 @@ QUICK_ACTIONS = [
     {
         "key": "new_customer",
         "label": "New Customer",
-        "endpoint": "/api/admin/customers/",
+        "endpoint": "/api/customers/",
         "method": "post",
         "enabled": True,
     },
@@ -113,7 +113,9 @@ def _active_broadcasts(company):
             "The agent's most recent orders in the active company: order id, "
             "customer, amount, status, created time and human time-since."
         ),
-        parameters=[COMPANY_HEADER_PARAM, ],
+        parameters=[
+            COMPANY_HEADER_PARAM,
+        ],
         responses={200: AgentHomeRecentOrderSerializer(many=True), 400: RESPONSE_400},
     ),
     broadcast=extend_schema(
@@ -147,7 +149,9 @@ class AgentHomeViewSet(GenericViewSet):
     def _resolve_company(self, request):
         company = self._company(request)
         if company is None:
-            raise ValueError("No active company context. Use X-Company-Id header or switch company.")
+            raise ValueError(
+                "No active company context. Use X-Company-Id header or switch company."
+            )
         return company
 
     def _summary_data(self, agent_profile, company):
@@ -181,10 +185,14 @@ class AgentHomeViewSet(GenericViewSet):
         }
 
     def _recent_orders(self, agent_profile, company, limit=10):
-        orders = Order.objects.filter(
-            company=company,
-            agent=agent_profile,
-        ).select_related("customer").order_by("-created_at")[:limit]
+        orders = (
+            Order.objects.filter(
+                company=company,
+                agent=agent_profile,
+            )
+            .select_related("customer")
+            .order_by("-created_at")[:limit]
+        )
         data = []
         for o in orders:
             data.append(
@@ -287,7 +295,12 @@ class AgentHomeViewSet(GenericViewSet):
         description="Updates message, active flag or schedule window. Admin only.",
         parameters=[COMPANY_HEADER_PARAM],
         request=BroadcastCreateUpdateSerializer,
-        responses={200: BroadcastListSerializer, 400: RESPONSE_400, 403: RESPONSE_403, 404: RESPONSE_404},
+        responses={
+            200: BroadcastListSerializer,
+            400: RESPONSE_400,
+            403: RESPONSE_403,
+            404: RESPONSE_404,
+        },
     ),
     destroy=extend_schema(
         tags=["Broadcast"],
@@ -318,7 +331,9 @@ class BroadcastViewSet(GenericViewSet):
 
     def list(self, request, *args, **kwargs):
         company = self._company(request)
-        qs = BroadcastMessage.objects.filter(company=company).select_related("created_by")
+        qs = BroadcastMessage.objects.filter(company=company).select_related(
+            "created_by"
+        )
         return Response(BroadcastListSerializer(qs, many=True).data)
 
     def create(self, request, *args, **kwargs):
@@ -334,7 +349,9 @@ class BroadcastViewSet(GenericViewSet):
         bc = self._get_broadcast(pk, self._company(request))
         if bc is None:
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
-        serializer = BroadcastCreateUpdateSerializer(bc, data=request.data, partial=True)
+        serializer = BroadcastCreateUpdateSerializer(
+            bc, data=request.data, partial=True
+        )
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(BroadcastListSerializer(bc).data)
