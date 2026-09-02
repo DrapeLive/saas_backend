@@ -1,7 +1,7 @@
 info:
   name: super admin dashboard
   type: http
-  seq: 11
+  seq: 10
 
 http:
   method: GET
@@ -15,3 +15,4 @@ settings:
   timeout: 0
   followRedirects: true
   maxRedirects: 5
+  forwardAuthorizationHeader: true

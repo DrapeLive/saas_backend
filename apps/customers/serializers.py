@@ -1,6 +1,7 @@
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
+from apps.agents.models import AgentProfile
 from apps.customers.models import (
     CustomerCommunicationLog,
     CustomerDocument,
@@ -12,6 +13,12 @@ class CustomerSerializer(serializers.ModelSerializer):
     credit_utilization_pct = serializers.FloatField(read_only=True)
     assigned_agent_name = serializers.SerializerMethodField()
     total_outstanding = serializers.SerializerMethodField()
+    assigned_agent = serializers.SlugRelatedField(
+        slug_field="user_id",
+        queryset=AgentProfile.objects.all(),
+        allow_null=True,
+        required=False,
+    )
 
     class Meta:
         model = CustomerProfile
@@ -105,6 +112,13 @@ class CustomerOverviewSerializer(serializers.Serializer):
 
 
 class CustomerCreateSerializer(serializers.ModelSerializer):
+    assigned_agent = serializers.SlugRelatedField(
+        slug_field="user_id",
+        queryset=AgentProfile.objects.all(),
+        allow_null=True,
+        required=False,
+    )
+
     class Meta:
         model = CustomerProfile
         fields = [
@@ -143,6 +157,13 @@ class CustomerCreateSerializer(serializers.ModelSerializer):
 
 
 class CustomerUpdateSerializer(serializers.ModelSerializer):
+    assigned_agent = serializers.SlugRelatedField(
+        slug_field="user_id",
+        queryset=AgentProfile.objects.all(),
+        allow_null=True,
+        required=False,
+    )
+
     class Meta:
         model = CustomerProfile
         fields = [
@@ -202,7 +223,9 @@ class CustomerImportPreviewSerializer(serializers.Serializer):
 
 class ImportRowResultSerializer(serializers.Serializer):
     row_number = serializers.IntegerField()
-    errors = serializers.DictField(child=serializers.ListField(child=serializers.CharField()), default=dict)
+    errors = serializers.DictField(
+        child=serializers.ListField(child=serializers.CharField()), default=dict
+    )
 
 
 class CustomerImportPreviewResponseSerializer(serializers.Serializer):

@@ -7,41 +7,44 @@ info:
 
 http:
   method: POST
-  url: "{{baseUrl}}/api/admin/customers/"
+  url: "{{baseUrl}}/api/customers/"
+  headers:
+    - name: X-Company-Id
+      value: 34548a8b-3322-44f3-ad9b-48ba4e40278c
   body:
     type: json
     data: |-
       {
-        "legal_name": "",
-        "trade_name": "",
-        "owner_name": "",
-        "email": "",
-        "phone": "",
-        "whatsapp_number": "",
-        "gstin": "",
-        "pan": "",
-        "tags": "",
-        "billing_address_line1": "",
-        "billing_address_line2": "",
-        "billing_city": "",
-        "billing_state": "",
-        "billing_pincode": "",
-        "shipping_address_line1": "",
-        "shipping_address_line2": "",
-        "shipping_city": "",
-        "shipping_state": "",
-        "shipping_pincode": "",
-        "same_as_billing": false,
-        "assigned_agent": "",
-        "credit_limit": "",
-        "payment_terms_days": 0,
-        "auto_block_on_exceed": false,
+        "legal_name": "Malabar Home Supplies Private Limited",
+        "trade_name": "Malabar Home Supplies",
+        "owner_name": "Arun Kumar Nair",
+        "email": "arun@malabarhomesupplies.example.com",
+        "phone": "+91 98765 43210",
+        "whatsapp_number": "+91 98765 43210",
+        "gstin": "32ABCDE1234F1Z5",
+        "pan": "ABCDE1234F",
+        "tags": ["retail","home-supplies", "kerala"],
+        "billing_address_line1": "12/345, Main Road",
+        "billing_address_line2": "Near Municipal Office",
+        "billing_city": "Palakkad",
+        "billing_state": "Kerala",
+        "billing_pincode": "678001",
+        "shipping_address_line1": "12/345, Main Road",
+        "shipping_address_line2": "Near Municipal Office",
+        "shipping_city": "Palakkad",
+        "shipping_state": "Kerala",
+        "shipping_pincode": "678001",
+        "same_as_billing": true,
+        "assigned_agent": "94965a27-89a3-443b-99c8-08daa4b61ed3",
+        "credit_limit": "100000",
+        "payment_terms_days": 30,
+        "auto_block_on_exceed": true,
         "status": "active",
-        "internal_notes": ""
+        "internal_notes": "Dummy customer record for testing purposes."
       }
   auth:
     type: bearer
-    token: "{{token}}"
+    token: "{{AGENT_ACCESS}}"
 
 settings:
   encodeUrl: true

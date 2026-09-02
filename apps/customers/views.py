@@ -25,6 +25,12 @@ from apps.customers.customer_detail import (
     customer_payments,
     customer_summary,
 )
+from apps.customers.detail_serializers import (
+    CustomerOrdersSerializer,
+    CustomerOutstandingSerializer,
+    CustomerPaymentsSerializer,
+    CustomerSummarySerializer,
+)
 from apps.customers.models import CustomerProfile
 from apps.customers.serializers import (
     CreditActivityResponseSerializer,
@@ -39,12 +45,6 @@ from apps.customers.serializers import (
     CustomerSerializer,
     CustomerUpdateSerializer,
     GstinVerifyResponseSerializer,
-)
-from apps.customers.detail_serializers import (
-    CustomerOrdersSerializer,
-    CustomerOutstandingSerializer,
-    CustomerPaymentsSerializer,
-    CustomerSummarySerializer,
 )
 from apps.customers.services import compute_segment, verify_gstin
 from apps.invoices.models import Invoice, InvoiceStatus
@@ -63,36 +63,59 @@ class IsAdminOrSubAdmin(IsCompanyStaff):
         summary="List customers",
         parameters=[
             OpenApiParameter(
-                "page", OpenApiTypes.INT, OpenApiParameter.QUERY, description="Page number (default 1)."
+                "page",
+                OpenApiTypes.INT,
+                OpenApiParameter.QUERY,
+                description="Page number (default 1).",
             ),
             OpenApiParameter(
-                "page_size", OpenApiTypes.INT, OpenApiParameter.QUERY, description="Page size (default 10)."
+                "page_size",
+                OpenApiTypes.INT,
+                OpenApiParameter.QUERY,
+                description="Page size (default 10).",
             ),
             OpenApiParameter(
-                "search", OpenApiTypes.STR, OpenApiParameter.QUERY,
+                "search",
+                OpenApiTypes.STR,
+                OpenApiParameter.QUERY,
                 description="Search trade name, legal name, phone, GSTIN or email.",
             ),
             OpenApiParameter(
-                "status", OpenApiTypes.STR, OpenApiParameter.QUERY,
+                "status",
+                OpenApiTypes.STR,
+                OpenApiParameter.QUERY,
                 enum=["active", "inactive", "blocked"],
                 description="Filter by customer status.",
             ),
             OpenApiParameter(
-                "segment", OpenApiTypes.STR, OpenApiParameter.QUERY,
+                "segment",
+                OpenApiTypes.STR,
+                OpenApiParameter.QUERY,
                 enum=["bronze", "silver", "gold", "platinum"],
                 description="Filter by computed segment.",
             ),
             OpenApiParameter(
-                "assigned_agent", OpenApiTypes.UUID, OpenApiParameter.QUERY,
+                "assigned_agent",
+                OpenApiTypes.UUID,
+                OpenApiParameter.QUERY,
                 description="Filter by assigned agent id.",
             ),
             OpenApiParameter(
-                "tag", OpenApiTypes.STR, OpenApiParameter.QUERY,
+                "tag",
+                OpenApiTypes.STR,
+                OpenApiParameter.QUERY,
                 description="Filter by a single tag string.",
             ),
             OpenApiParameter(
-                "ordering", OpenApiTypes.STR, OpenApiParameter.QUERY,
-                enum=["trade_name", "created_at", "total_outstanding", "overdue_outstanding"],
+                "ordering",
+                OpenApiTypes.STR,
+                OpenApiParameter.QUERY,
+                enum=[
+                    "trade_name",
+                    "created_at",
+                    "total_outstanding",
+                    "overdue_outstanding",
+                ],
                 description="Sort field. Prefix with `-` for descending (default `-created_at`).",
             ),
         ],
@@ -142,7 +165,11 @@ class IsAdminOrSubAdmin(IsCompanyStaff):
         tags=["Customers"],
         summary="Verify GSTIN",
         description="Re-runs GSTIN verification for a customer and persists verified fields on success.",
-        responses={200: GstinVerifyResponseSerializer, 400: RESPONSE_400, 404: RESPONSE_404},
+        responses={
+            200: GstinVerifyResponseSerializer,
+            400: RESPONSE_400,
+            404: RESPONSE_404,
+        },
     ),
     compute_segment=extend_schema(
         tags=["Customers"],
@@ -174,7 +201,10 @@ class IsAdminOrSubAdmin(IsCompanyStaff):
     communication_logs=extend_schema(
         tags=["Customers"],
         summary="List communication logs",
-        responses={200: CustomerCommunicationLogSerializer(many=True), 404: RESPONSE_404},
+        responses={
+            200: CustomerCommunicationLogSerializer(many=True),
+            404: RESPONSE_404,
+        },
     ),
     summary=extend_schema(
         tags=["Customers"],
@@ -245,13 +275,13 @@ class CustomerViewSet(GenericViewSet):
             "list",
             "retrieve",
             "create",
+            "update",
             "documents",
+            "partial_update",
+            "destroy",
             "communication_logs",
         ):
-            # Agents can browse and create customers (quick action) but not
-            # manage credit / deletions / imports.
             return [IsAuthenticated(), CompanyApproved(), IsCompanyStaff()]
-        # update / destroy remain admin/sub-admin.
         return [IsAuthenticated(), CompanyApproved(), IsAdminOrSubAdmin()]
 
     def get_queryset(self):
@@ -260,11 +290,12 @@ class CustomerViewSet(GenericViewSet):
         )
 
     def _get_company(self, request):
-        """Resolve the active company (JWT claim or X-Company-Id for agents)."""
         return request.company or request.user.company
 
     def list(self, request, *args, **kwargs):
-        customers = self.get_queryset().filter(company=self._get_company(request))
+        id = self._get_company(request)
+
+        customers = self.get_queryset().filter(company=id)
 
         search = request.query_params.get("search")
         if search:
@@ -290,9 +321,6 @@ class CustomerViewSet(GenericViewSet):
 
         tag = request.query_params.get("tag")
         if tag:
-            # No portable JSON-array membership lookup across backends
-            # (SQLite lacks JSONField contains in Django 4.2), so match the
-            # quoted tag against the array's serialized form instead.
             customers = customers.annotate(
                 tags_text=Cast("tags", output_field=TextField()),
             ).filter(tags_text__icontains=f'"{tag}"')
@@ -366,9 +394,7 @@ class CustomerViewSet(GenericViewSet):
         gstin = request.data.get("gstin", "")
         if (
             gstin
-            and CustomerProfile.objects.filter(
-                company=company, gstin=gstin
-            ).exists()
+            and CustomerProfile.objects.filter(company=company, gstin=gstin).exists()
         ):
             return Response(
                 {"gstin": ["Customer with this GSTIN already exists in your company."]},

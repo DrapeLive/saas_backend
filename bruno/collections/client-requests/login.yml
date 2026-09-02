@@ -1,7 +1,7 @@
 info:
   name: login
   type: http
-  seq: 2
+  seq: 12
 
 http:
   method: POST
@@ -10,12 +10,8 @@ http:
     type: json
     data: |-
       {
-<<<<<<< HEAD
-        "email": "admin@gmail.com",
-=======
-        "email": "customer-admin@gmail.com",
->>>>>>> f16f1019f749298c51d93abed95918e7b4a46146
-        "password": "password!123"
+        "email": "agent@gmail.com",
+        "password": "password784"
       }
   auth: inherit
 

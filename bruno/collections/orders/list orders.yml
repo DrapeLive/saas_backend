@@ -5,7 +5,7 @@ info:
 
 http:
   method: GET
-  url: "{{BASE_URL}}/orders/"
+  url: "{{baseUrl}}/api/orders/"
   headers:
     - name: X-Company-Id
       value: 34548a8b-3322-44f3-ad9b-48ba4e40278c

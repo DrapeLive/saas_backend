@@ -7,15 +7,15 @@ info:
 
 http:
   method: DELETE
-  url: "{{baseUrl}}/api/admin/customers/:id/"
+  url: "{{baseUrl}}/api/customers/:id/"
   params:
     - name: id
-      value: ""
+      value: 09896752-4224-4721-b8f0-cf4b6ad35937
       type: path
       description: A UUID string identifying this customer profile.
   auth:
     type: bearer
-    token: "{{token}}"
+    token: "{{AGENT_ACCESS}}"
 
 settings:
   encodeUrl: true

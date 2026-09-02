@@ -8,6 +8,9 @@ info:
 http:
   method: GET
   url: "{{baseUrl}}/api/customers/"
+  headers:
+    - name: X-Company-Id
+      value: 34548a8b-3322-44f3-ad9b-48ba4e40278c
   params:
     - name: assigned_agent
       value: ""

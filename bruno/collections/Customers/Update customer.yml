@@ -7,46 +7,21 @@ info:
 
 http:
   method: PATCH
-  url: "{{baseUrl}}/api/admin/customers/:id/"
+  url: "{{baseUrl}}/api/customers/:id/"
   params:
     - name: id
-      value: ""
+      value: 09896752-4224-4721-b8f0-cf4b6ad35937
       type: path
       description: A UUID string identifying this customer profile.
   body:
     type: json
     data: |-
       {
-        "legal_name": "",
-        "trade_name": "",
-        "owner_name": "",
-        "email": "",
-        "phone": "",
-        "whatsapp_number": "",
-        "gstin": "",
-        "pan": "",
-        "tags": "",
-        "billing_address_line1": "",
-        "billing_address_line2": "",
-        "billing_city": "",
-        "billing_state": "",
-        "billing_pincode": "",
-        "shipping_address_line1": "",
-        "shipping_address_line2": "",
-        "shipping_city": "",
-        "shipping_state": "",
-        "shipping_pincode": "",
-        "same_as_billing": false,
-        "assigned_agent": "",
-        "credit_limit": "",
-        "payment_terms_days": 0,
-        "auto_block_on_exceed": false,
-        "status": "active",
-        "internal_notes": ""
+        "legal_name": "Malabar Home Supplies Private"
       }
   auth:
     type: bearer
-    token: "{{token}}"
+    token: "{{AGENT_ACCESS}}"
 
 settings:
   encodeUrl: true
