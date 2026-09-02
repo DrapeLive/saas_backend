@@ -7,7 +7,7 @@ info:
 
 http:
   method: GET
-  url: "{{baseUrl}}/api/admin/customers/"
+  url: "{{baseUrl}}/api/customers/"
   params:
     - name: assigned_agent
       value: ""
@@ -91,7 +91,7 @@ http:
       disabled: true
   auth:
     type: bearer
-    token: "{{ACCESS}}"
+    token: "{{AGENT_ACCESS}}"
 
 settings:
   encodeUrl: true

@@ -7,6 +7,6 @@ from apps.customers.views import CustomerViewSet
 app_name = "customers"
 
 router = DefaultRouter()
-router.register(r"customers/", CustomerViewSet, basename="customer")  # ✅
+router.register(r"customers", CustomerViewSet, basename="customer")  # ✅
 
 urlpatterns = router.urls
