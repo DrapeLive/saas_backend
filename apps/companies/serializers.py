@@ -1,10 +1,9 @@
 from typing import ClassVar
 
-from django.utils.text import slugify
 from rest_framework import serializers
 
 from apps.companies.models import Company, CompanySettings, CompanyStatus
-from apps.subscriptions.models import BillingCycle, Plan, Subscription
+from apps.subscriptions.models import Subscription
 
 
 class CompanySettingsSerializer(serializers.ModelSerializer):
@@ -23,6 +22,55 @@ class CompanySettingsSerializer(serializers.ModelSerializer):
             "commission_pay_day",
             "default_gst_rate",
             "reverse_charge",
+        ]
+
+
+class CompanySettingsResponseSerializer(serializers.ModelSerializer):
+    company_id = serializers.UUIDField(source="company.id", read_only=True)
+
+    class Meta:
+        model = CompanySettings
+        fields: ClassVar = [
+            "company_id",
+            "order_auto_confirm",
+            "order_approval_required",
+            "low_stock_threshold",
+            "credit_block_on_exceed",
+            "notify_order_whatsapp",
+            "notify_order_email",
+            "notify_low_stock",
+            "notify_payment_due_days",
+            "commission_cycle",
+            "commission_pay_day",
+            "default_gst_rate",
+            "reverse_charge",
+            "current_plan_tier",
+            "current_plan_name",
+            "plan_max_agents",
+            "plan_max_customers",
+            "plan_max_products",
+            "plan_max_orders_per_month",
+            "plan_storage_gb",
+            "analytics_advanced",
+            "offline_mode_enabled",
+            "api_access_enabled",
+            "custom_domain_enabled",
+            "dedicated_support",
+        ]
+        read_only_fields: ClassVar = [
+            "company_id",
+            "current_plan_tier",
+            "current_plan_name",
+            "plan_max_agents",
+            "plan_max_customers",
+            "plan_max_products",
+            "plan_max_orders_per_month",
+            "plan_storage_gb",
+            "analytics_advanced",
+            "offline_mode_enabled",
+            "api_access_enabled",
+            "custom_domain_enabled",
+            "dedicated_support",
         ]
 
 
@@ -142,66 +190,6 @@ class CompanySerializer(serializers.ModelSerializer):
         ]
 
 
-class CompanyCreateSerializer(serializers.Serializer):
-    name = serializers.CharField(max_length=200)
-    slug = serializers.SlugField(max_length=200, required=False)
-    gstin = serializers.CharField(max_length=15, required=False, allow_blank=True)
-    contact_email = serializers.EmailField()
-    contact_phone = serializers.CharField(max_length=15)
-    city = serializers.CharField(max_length=100, required=False, allow_blank=True)
-    state = serializers.CharField(max_length=100, required=False, allow_blank=True)
-    country = serializers.CharField(max_length=100, default="India")
-
-    # Admin user
-    admin_full_name = serializers.CharField(max_length=150)
-    admin_email = serializers.EmailField()
-    admin_password = serializers.CharField(write_only=True, min_length=8)
-    admin_phone = serializers.CharField(max_length=15, required=False, allow_blank=True)
-
-    # Subscription
-    plan_id = serializers.UUIDField(required=False)
-    billing_cycle = serializers.ChoiceField(
-        choices=BillingCycle.choices, default=BillingCycle.TRIAL
-    )
-    discount_pct = serializers.DecimalField(
-        max_digits=5, decimal_places=2, default=0, required=False
-    )
-
-    def validate_slug(self, value):
-        if Company.objects.filter(slug=value).exists():
-            raise serializers.ValidationError("This slug is already taken.")
-        return value
-
-    def validate_gstin(self, value):
-        if value and Company.objects.filter(gstin=value).exists():
-            raise serializers.ValidationError(
-                "A company with this GSTIN already exists."
-            )
-        return value
-
-    def validate_admin_email(self, value):
-        from apps.accounts.models import User
-
-        if User.objects.filter(email=value).exists():
-            raise serializers.ValidationError("A user with this email already exists.")
-        return value
-
-    def validate_plan_id(self, value):
-        if not Plan.objects.filter(id=value, is_active=True).exists():
-            raise serializers.ValidationError("Plan not found or inactive.")
-        return value
-
-    def validate(self, attrs):
-        if not attrs.get("slug"):
-            base_slug = slugify(attrs["name"])
-            slug, counter = base_slug, 1
-            while Company.objects.filter(slug=slug).exists():
-                slug = f"{base_slug}-{counter}"
-                counter += 1
-            attrs["slug"] = slug
-        return attrs
-
-
 class CompanyUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Company
@@ -212,6 +200,8 @@ class CompanyUpdateSerializer(serializers.ModelSerializer):
             "contact_email",
             "contact_phone",
             "website",
+            "pan",
+            "gstin",
             "address_line1",
             "address_line2",
             "city",
@@ -231,6 +221,16 @@ class CompanyUpdateSerializer(serializers.ModelSerializer):
             "whatsapp_enabled",
             "gst_verify_enabled",
         ]
+        read_only_fields: ClassVar = ["slug", "status"]
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        protected = {"slug", "status"} & set(attrs)
+        if protected:
+            raise serializers.ValidationError(
+                {field: "This field cannot be updated." for field in protected}
+            )
+        return attrs
 
 
 class CompanyStatusUpdateSerializer(serializers.Serializer):
@@ -241,18 +241,3 @@ class CompanyStatusUpdateSerializer(serializers.Serializer):
 class ExtendTrialSerializer(serializers.Serializer):
     days = serializers.IntegerField(min_value=1, max_value=90)
     reason = serializers.CharField(max_length=500, required=False, allow_blank=True)
-
-
-class CompanyStatusChangeResponseSerializer(serializers.Serializer):
-    detail = serializers.CharField()
-    company = CompanySerializer()
-
-
-class TrialExtensionResponseSerializer(serializers.Serializer):
-    detail = serializers.CharField()
-    trial_end = serializers.DateField(allow_null=True)
-
-
-class ImpersonateResponseSerializer(serializers.Serializer):
-    access = serializers.CharField()
-    expires_in = serializers.IntegerField()

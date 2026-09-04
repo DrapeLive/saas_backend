@@ -5,10 +5,10 @@ info:
 
 http:
   method: GET
-  url: "{{BASE_URL}}/super-admin/companies"
+  url: "{{baseUrl}}/api/super-admin/companies"
   auth:
     type: bearer
-    token: "{{ACCESS}}"
+    token: "{{SUPERADMIN_ACCESS}}"
 
 runtime:
   variables:
@@ -20,3 +20,4 @@ settings:
   timeout: 0
   followRedirects: true
   maxRedirects: 5
+  forwardAuthorizationHeader: true

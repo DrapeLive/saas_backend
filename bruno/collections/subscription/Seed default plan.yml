@@ -1,18 +1,14 @@
 info:
-  name: Change status of Company
+  name: Seed default plan
   type: http
-  seq: 9
+  seq: 18
 
 http:
   method: POST
-  url: "{{baseUrl}}/api/super-admin/companies/36e6aadf-2a1e-4113-a448-853c73d99236/status"
+  url: "{{baseUrl}}/api/plans/seed-defaults/"
   body:
     type: json
-    data: |-
-      {
-        "status": "active",
-        "reason": "nothing"
-      }
+    data: ""
   auth:
     type: bearer
     token: "{{SUPERADMIN_ACCESS}}"

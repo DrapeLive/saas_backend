@@ -18,6 +18,7 @@ from rest_framework.viewsets import GenericViewSet
 
 from apps.accounts.authentication import CustomJWTAuthentication
 from apps.accounts.permissions import IsAdmin, IsSuperAdmin
+from apps.core.openapi import RESPONSE_400, RESPONSE_401, RESPONSE_404
 from apps.subscriptions.models import (
     BillingCycle,
     Plan,
@@ -40,7 +41,6 @@ from apps.subscriptions.serializers import (
     SubscriptionUpgradeSerializer,
     UsageSnapshotSerializer,
 )
-from apps.core.openapi import RESPONSE_400, RESPONSE_401, RESPONSE_404
 
 # ─────────────────────────────────────────────────────────────────
 # PLAN VIEWSET  (SuperAdmin only)
@@ -81,7 +81,11 @@ from apps.core.openapi import RESPONSE_400, RESPONSE_401, RESPONSE_404
             "subscriptions remain on the plan — migrate those companies first."
         ),
         request=None,
-        responses={200: PlanToggleResponseSerializer, 400: RESPONSE_400, 404: RESPONSE_404},
+        responses={
+            200: PlanToggleResponseSerializer,
+            400: RESPONSE_400,
+            404: RESPONSE_404,
+        },
     ),
     seed_defaults=extend_schema(
         tags=["Plans"],
@@ -280,7 +284,11 @@ class PlanViewSet(GenericViewSet):
             "marks the company active."
         ),
         request=SubscriptionUpgradeSerializer,
-        responses={200: SubscriptionDetailSerializer, 400: RESPONSE_400, 404: RESPONSE_404},
+        responses={
+            200: SubscriptionDetailSerializer,
+            400: RESPONSE_400,
+            404: RESPONSE_404,
+        },
     ),
     extend=extend_schema(
         tags=["Subscriptions"],
@@ -290,14 +298,22 @@ class PlanViewSet(GenericViewSet):
             "support). Reactivates expired, grace or suspended subscriptions."
         ),
         request=SubscriptionExtendSerializer,
-        responses={200: SubscriptionDetailSerializer, 400: RESPONSE_400, 404: RESPONSE_404},
+        responses={
+            200: SubscriptionDetailSerializer,
+            400: RESPONSE_400,
+            404: RESPONSE_404,
+        },
     ),
     cancel=extend_schema(
         tags=["Subscriptions"],
         summary="Cancel subscription",
         description="Immediately cancels the subscription and marks the company expired.",
         request=None,
-        responses={200: SubscriptionDetailSerializer, 400: RESPONSE_400, 404: RESPONSE_404},
+        responses={
+            200: SubscriptionDetailSerializer,
+            400: RESPONSE_400,
+            404: RESPONSE_404,
+        },
     ),
     reactivate=extend_schema(
         tags=["Subscriptions"],
@@ -307,7 +323,11 @@ class PlanViewSet(GenericViewSet):
             "fresh billing period respecting the existing billing cycle."
         ),
         request=None,
-        responses={200: SubscriptionDetailSerializer, 400: RESPONSE_400, 404: RESPONSE_404},
+        responses={
+            200: SubscriptionDetailSerializer,
+            400: RESPONSE_400,
+            404: RESPONSE_404,
+        },
     ),
     events=extend_schema(
         tags=["Subscriptions"],
@@ -322,11 +342,6 @@ class PlanViewSet(GenericViewSet):
     ),
 )
 class SubscriptionViewSet(GenericViewSet):
-    """
-    SuperAdmin: full read + lifecycle management of any company's subscription.
-    Admin:      read-only access to their own company's subscription.
-    """
-
     authentication_classes = (CustomJWTAuthentication,)
     permission_classes = (IsSuperAdmin,)
 
@@ -379,14 +394,20 @@ class SubscriptionViewSet(GenericViewSet):
             else SubscriptionStatus.ACTIVE
         )
 
-        subscription = Subscription.objects.create(
+        subscription = Subscription(
             plan=plan,
             billing_cycle=billing_cycle,
             status=status_val,
         )
+        subscription.setup_periods()
+        subscription.save()
 
         company.subscription = subscription
         company.save(update_fields=["subscription"])
+
+        from apps.companies.services import apply_plan_to_company
+
+        apply_plan_to_company(company, plan)
 
         SubscriptionEvent.objects.create(
             subscription=subscription,
@@ -455,13 +476,12 @@ class SubscriptionViewSet(GenericViewSet):
         subscription.price_paid = price_paid
         subscription.status = SubscriptionStatus.ACTIVE
 
-        if billing_cycle == BillingCycle.YEARLY:
-            subscription.current_period_end = today + timedelta(days=365)
-        else:
-            subscription.current_period_end = today + timedelta(days=30)
-
-        subscription.current_period_start = today
+        subscription.setup_periods(today)
         subscription.save()
+
+        from apps.companies.services import apply_plan_to_company
+
+        apply_plan_to_company(subscription.company, new_plan)
 
         SubscriptionEvent.objects.create(
             subscription=subscription,
@@ -558,7 +578,18 @@ class SubscriptionViewSet(GenericViewSet):
 
         subscription.status = SubscriptionStatus.CANCELLED
         subscription.cancelled_at = now()
-        subscription.save(update_fields=["status", "cancelled_at"])
+        subscription.setup_periods()
+        subscription.save(
+            update_fields=[
+                "status",
+                "cancelled_at",
+                "trial_start",
+                "trial_end",
+                "current_period_start",
+                "current_period_end",
+                "grace_period_end",
+            ]
+        )
 
         SubscriptionEvent.objects.create(
             subscription=subscription,
@@ -607,17 +638,16 @@ class SubscriptionViewSet(GenericViewSet):
             )
 
         today = now().date()
-        # Bug #8 fix: honour the existing billing cycle instead of always granting 30 days
-        period_days = 365 if subscription.billing_cycle == BillingCycle.YEARLY else 30
         subscription.status = SubscriptionStatus.ACTIVE
-        subscription.current_period_start = today
-        subscription.current_period_end = today + timedelta(days=period_days)
-        subscription.cancelled_at = None
+        subscription.setup_periods(today)
         subscription.save(
             update_fields=[
                 "status",
+                "trial_start",
+                "trial_end",
                 "current_period_start",
                 "current_period_end",
+                "grace_period_end",
                 "cancelled_at",
             ]
         )
@@ -628,6 +658,10 @@ class SubscriptionViewSet(GenericViewSet):
             performed_by=request.user,
             notes=request.data.get("notes", ""),
         )
+
+        from apps.companies.services import apply_plan_to_company
+
+        apply_plan_to_company(subscription.company, subscription.plan)
 
         # Bug #4 fix: use try/except instead of hasattr (always True for reverse OneToOne)
         try:
@@ -717,15 +751,12 @@ class MySubscriptionViewSet(GenericViewSet):
         company = getattr(request.user, "company", None)
         if not company:
             return None
-        # Company.subscription is a OneToOne; use try/except to avoid RelatedObjectDoesNotExist
         try:
             return company.subscription
         except Exception:
             return None
 
     # GET /api/my-subscription/
-    # Bug #5 fix: renamed from `retrieve` to `list` — this is a non-pk endpoint and
-    # DRF's `retrieve` contract requires a pk argument. `list` is the correct action name.
     def list(self, request):
         subscription = self._get_subscription(request)
         if not subscription:

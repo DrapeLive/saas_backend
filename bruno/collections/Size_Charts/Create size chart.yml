@@ -12,12 +12,14 @@ http:
     type: json
     data: |-
       {
-        "name": "",
-        "sizes": ""
+        "name": "hello",
+        "sizes": [
+          {"hjjdsj": ["sdm", "dsd"]}
+        ]
       }
   auth:
     type: bearer
-    token: "{{token}}"
+    token: "{{ACCESS}}"
 
 settings:
   encodeUrl: true

@@ -115,17 +115,13 @@ class CategoryViewSet(GenericViewSet):
         except Category.DoesNotExist:
             return None
 
-    # GET /api/categories/
     def list(self, request):
         company = self._get_company(request)
-        qs = (
-            Category.objects.filter(company=company, is_deleted=False, parent=None)
-            .prefetch_related("children")
-            .order_by("display_order", "name")
+        qs = Category.objects.filter(company=company, is_deleted=False).order_by(
+            "display_order", "name"
         )
         return Response(CategoryListSerializer(qs, many=True).data)
 
-    # GET /api/categories/<pk>/
     def retrieve(self, request, pk=None):
         company = self._get_company(request)
         obj = self._get_obj(pk, company)

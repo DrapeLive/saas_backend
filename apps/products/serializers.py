@@ -16,29 +16,15 @@ from apps.products.models import (
 
 
 class CategoryListSerializer(serializers.ModelSerializer):
-    parent_name = serializers.CharField(
-        source="parent.name", read_only=True, default=None
-    )
-    product_count = serializers.SerializerMethodField()
-
     class Meta:
         model = Category
         fields: ClassVar = [
             "id",
             "name",
-            "slug",
-            "parent",
-            "parent_name",
             "image",
             "display_order",
-            "is_active",
             "default_commission_pct",
-            "product_count",
         ]
-
-    @extend_schema_field(serializers.IntegerField())
-    def get_product_count(self, obj):
-        return obj.products.count()
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -49,22 +35,13 @@ class CategorySerializer(serializers.ModelSerializer):
         fields: ClassVar = [
             "id",
             "name",
-            "slug",
-            "parent",
             "description",
             "image",
             "display_order",
-            "is_active",
             "default_commission_pct",
-            "children",
             "created_at",
             "updated_at",
         ]
-
-    @extend_schema_field(CategoryListSerializer(many=True))
-    def get_children(self, obj):
-        qs = obj.children.filter(is_deleted=False, is_active=True)
-        return CategoryListSerializer(qs, many=True).data
 
 
 class CategoryCreateUpdateSerializer(serializers.ModelSerializer):
@@ -72,26 +49,11 @@ class CategoryCreateUpdateSerializer(serializers.ModelSerializer):
         model = Category
         fields: ClassVar = [
             "name",
-            "slug",
-            "parent",
             "description",
             "image",
             "display_order",
-            "is_active",
             "default_commission_pct",
         ]
-
-    def validate_slug(self, value):
-        request = self.context.get("request")
-        company = getattr(request, "company", None)
-        qs = Category.objects.filter(company=company, slug=value, is_deleted=False)
-        if self.instance:
-            qs = qs.exclude(pk=self.instance.pk)
-        if qs.exists():
-            raise serializers.ValidationError(
-                "A category with this slug already exists."
-            )
-        return value
 
 
 class SizeChartSerializer(serializers.ModelSerializer):
@@ -462,7 +424,7 @@ class ProductInventoryListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = VariantSize
-        fields = [
+        fields: ClassVar = [
             "id",
             "product",
             "image",

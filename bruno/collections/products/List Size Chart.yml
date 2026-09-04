@@ -5,7 +5,10 @@ info:
 
 http:
   method: GET
-  url: "{{BASE_URL}}/size-charts/"
+  url: "{{baseUrl}}/api/size-charts/"
+  headers:
+    - name: X-Company-Id
+      value: 34548a8b-3322-44f3-ad9b-48ba4e40278c
   auth:
     type: bearer
     token: "{{ACCESS}}"
@@ -15,3 +18,4 @@ settings:
   timeout: 0
   followRedirects: true
   maxRedirects: 5
+  forwardAuthorizationHeader: true

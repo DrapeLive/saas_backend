@@ -10,11 +10,11 @@ http:
   url: "{{baseUrl}}/api/products/:id/"
   params:
     - name: id
-      value: ""
+      value: 2e77b239-a7d4-412d-83c1-308a5244c983
       type: path
   auth:
     type: bearer
-    token: "{{token}}"
+    token: "{{ACCESS}}"
 
 settings:
   encodeUrl: true

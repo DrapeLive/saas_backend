@@ -10,11 +10,11 @@ http:
   url: "{{baseUrl}}/api/size-charts/:id/"
   params:
     - name: id
-      value: ""
+      value: b8a66a05-eef1-4301-87f4-a45065162e4a
       type: path
   auth:
     type: bearer
-    token: "{{token}}"
+    token: "{{ACCESS}}"
 
 settings:
   encodeUrl: true

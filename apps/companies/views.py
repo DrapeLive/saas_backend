@@ -1,116 +1,29 @@
 from datetime import timedelta
 
 from django.utils.timezone import now
-from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import status
 from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.accounts.authentication import CustomJWTAuthentication
-from apps.accounts.permissions import IsSuperAdmin
+from apps.accounts.permissions import CompanyApproved, IsAdmin, IsSuperAdmin
 from apps.audits.models import AuditLog
-from apps.companies.models import Company
+from apps.companies.models import Company, CompanySettings
 from apps.companies.serializers import (
     CompanyListSerializer,
     CompanySerializer,
-    CompanyStatusChangeResponseSerializer,
+    CompanySettingsResponseSerializer,
+    CompanySettingsSerializer,
     CompanyStatusUpdateSerializer,
+    CompanyUpdateSerializer,
     ExtendTrialSerializer,
-    ImpersonateResponseSerializer,
-    TrialExtensionResponseSerializer,
 )
 from apps.subscriptions.models import SubscriptionEvent
-from apps.core.openapi import (
-    RESPONSE_400,
-    RESPONSE_403,
-    RESPONSE_404,
-    RESPONSE_409,
-)
 
 
-@extend_schema_view(
-    list=extend_schema(
-        tags=["Companies"],
-        summary="List all companies",
-        description=(
-            "Super-admin only. Lists every tenant company on the platform with "
-            "subscription plan/tier/trial details, newest first."
-        ),
-        responses={200: CompanyListSerializer(many=True)},
-    ),
-    retrieve=extend_schema(
-        tags=["Companies"],
-        summary="Get company details",
-        responses={200: CompanySerializer, 404: RESPONSE_404},
-    ),
-    update_status=extend_schema(
-        tags=["Companies"],
-        summary="Change company status",
-        description=(
-            "Super-admin only. Transitions a company between pending, trial, "
-            "active, suspended, expired and grace."
-        ),
-        request=CompanyStatusUpdateSerializer,
-        responses={
-            200: CompanyStatusChangeResponseSerializer,
-            400: RESPONSE_400,
-            404: RESPONSE_404,
-        },
-    ),
-    suspend=extend_schema(
-        tags=["Companies"],
-        summary="Suspend company",
-        responses={
-            200: CompanyStatusChangeResponseSerializer,
-            400: RESPONSE_400,
-            404: RESPONSE_404,
-        },
-    ),
-    activate=extend_schema(
-        tags=["Companies"],
-        summary="Activate suspended company",
-        responses={
-            200: CompanyStatusChangeResponseSerializer,
-            400: RESPONSE_400,
-            404: RESPONSE_404,
-        },
-    ),
-    extend_trial=extend_schema(
-        tags=["Companies"],
-        summary="Extend trial period",
-        description="Extends the trial end date of a company currently in `trial` status.",
-        request=ExtendTrialSerializer,
-        responses={
-            200: TrialExtensionResponseSerializer,
-            400: RESPONSE_400,
-            404: RESPONSE_404,
-        },
-    ),
-    impersonate=extend_schema(
-        tags=["Companies"],
-        summary="Impersonate company admin",
-        description=(
-            "Issues a 30-minute access token for the company's first admin, "
-            "flagged with the `impersonating` claim. Used by support."
-        ),
-        responses={
-            200: ImpersonateResponseSerializer,
-            400: RESPONSE_400,
-            404: RESPONSE_404,
-        },
-    ),
-    destroy=extend_schema(
-        tags=["Companies"],
-        summary="Soft-delete company",
-        description=(
-            "Marks a company as deleted (only allowed when not on an active "
-            "subscription). Returns 204 on success."
-        ),
-        responses={204: None, 404: RESPONSE_404, 409: RESPONSE_409},
-    ),
-)
 class SuperAdminCompanyViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
     permission_classes = (IsSuperAdmin,)
@@ -118,6 +31,8 @@ class SuperAdminCompanyViewSet(GenericViewSet):
     def get_serializer_class(self):
         if self.action == "update_status":
             return CompanyStatusUpdateSerializer
+        if self.action == "update":
+            return CompanyUpdateSerializer
         return CompanyListSerializer
 
     def list(self, request, *args, **kwargs):
@@ -135,6 +50,29 @@ class SuperAdminCompanyViewSet(GenericViewSet):
             )
         serializer = CompanySerializer(company)
         return Response(serializer.data)
+
+    def update(self, request, pk=None, *args, **kwargs):
+        company = self._get_company(pk, request)
+        if company is None:
+            return Response(
+                {"detail": "Company not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        old_data = CompanySerializer(company).data
+        serializer = CompanyUpdateSerializer(company, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        changed = _audit_changes(serializer, request, old_data)
+        if changed:
+            self._log_audit(
+                request,
+                company,
+                "company.update",
+                old_value={k: v["old"] for k, v in changed.items()},
+                new_value={k: v["new"] for k, v in changed.items()},
+            )
+        return Response(CompanySerializer(company).data)
 
     @action(detail=True, methods=["post"], url_path="status")
     def update_status(self, request, pk=None, *args, **kwargs):
@@ -355,3 +293,129 @@ class SuperAdminCompanyViewSet(GenericViewSet):
 
         self._log_audit(request, company, "company.delete")
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class CompanyDetailViewSet(GenericViewSet):
+    authentication_classes = (CustomJWTAuthentication,)
+    permission_classes = (IsAuthenticated, CompanyApproved, IsAdmin)
+    serializer_class = CompanyUpdateSerializer
+
+    def update(self, request, *args, **kwargs):
+        company = request.company
+        if company is None:
+            return Response(
+                {"detail": "Company not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        old_data = CompanySerializer(company).data
+        serializer = CompanyUpdateSerializer(company, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        changed = _audit_changes(serializer, request, old_data)
+        if changed:
+            AuditLog.objects.create(
+                company=company,
+                user=request.user,
+                user_role=request.user.role,
+                action="company.update",
+                entity_type="Company",
+                entity_id=company.pk,
+                old_value={k: v["old"] for k, v in changed.items()},
+                new_value={k: v["new"] for k, v in changed.items()},
+                ip_address=request.META.get("REMOTE_ADDR", ""),
+                user_agent=request.META.get("HTTP_USER_AGENT", "")[:500],
+            )
+        return Response(CompanySerializer(company).data)
+
+
+def _audit_changes(serializer, request, old_data):
+    """Build a JSON-serializable dict of changed scalar fields for audit logs."""
+    from django.core.files.uploadedfile import UploadedFile
+
+    changed = {}
+    for k, v in request.data.items():
+        if k not in serializer.fields:
+            continue
+        if isinstance(v, (UploadedFile, dict, list)):
+            continue
+        if old_data.get(k) != v:
+            changed[k] = {"old": old_data.get(k), "new": v}
+    return changed
+
+
+def _get_company_settings(company):
+    settings, _ = CompanySettings.objects.get_or_create(company=company)
+    return settings
+
+
+class CompanySettingsViewSet(GenericViewSet):
+    """
+    Admin-facing view of the caller's own company settings.
+
+    - GET   /api/admin/company/settings   → full settings (editable + plan snapshot)
+    - PATCH /api/admin/company/settings   → update editable settings fields
+
+    Plan-derived fields (limits + advanced feature flags) are read-only and are
+    synced from the company's subscription plan via `apply_plan_to_company`.
+    """
+
+    authentication_classes = (CustomJWTAuthentication,)
+    permission_classes = (IsAuthenticated, CompanyApproved, IsAdmin)
+    queryset = CompanySettings.objects.none()
+
+    def get_serializer_class(self):
+        if self.action == "update":
+            return CompanySettingsSerializer
+        return CompanySettingsResponseSerializer
+
+    def _get_settings(self, request):
+        company = request.company
+        if company is None:
+            return None
+        return _get_company_settings(company)
+
+    def retrieve(self, request, *args, **kwargs):
+        settings = self._get_settings(request)
+        if settings is None:
+            return Response(
+                {"detail": "Company not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response(CompanySettingsResponseSerializer(settings).data)
+
+    def update(self, request, *args, **kwargs):
+        settings = self._get_settings(request)
+        if settings is None:
+            return Response(
+                {"detail": "Company not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        old_data = CompanySettingsSerializer(settings).data
+        serializer = CompanySettingsSerializer(
+            settings, data=request.data, partial=True
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        changed = {
+            k: {"old": old_data.get(k), "new": v}
+            for k, v in request.data.items()
+            if k in serializer.fields and old_data.get(k) != v
+        }
+        if changed:
+            AuditLog.objects.create(
+                company=request.company,
+                user=request.user,
+                user_role=request.user.role,
+                action="company.settings.update",
+                entity_type="CompanySettings",
+                entity_id=settings.pk,
+                old_value={k: v["old"] for k, v in changed.items()},
+                new_value={k: v["new"] for k, v in changed.items()},
+                ip_address=request.META.get("REMOTE_ADDR", ""),
+                user_agent=request.META.get("HTTP_USER_AGENT", "")[:500],
+            )
+        return Response(CompanySettingsResponseSerializer(settings).data)

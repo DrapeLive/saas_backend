@@ -1,14 +1,19 @@
 info:
-  name: super admin dashboard
+  name: get company settings
   type: http
   seq: 10
 
 http:
   method: GET
-  url: "{{baseUrl}}/api/super-admin/dashboard"
+  url: "{{baseUrl}}/api/super-admin/companies"
   auth:
     type: bearer
     token: "{{SUPERADMIN_ACCESS}}"
+
+runtime:
+  variables:
+    - name: BASE_URL
+      value: http://localhost:8000/api
 
 settings:
   encodeUrl: true

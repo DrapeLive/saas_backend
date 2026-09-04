@@ -1,21 +1,22 @@
 info:
-  name: Change status of Company
+  name: list invitations
   type: http
-  seq: 9
+  seq: 34
 
 http:
   method: POST
-  url: "{{baseUrl}}/api/super-admin/companies/36e6aadf-2a1e-4113-a448-853c73d99236/status"
+  url: "{{baseUrl}}/admin/invitations"
   body:
     type: json
     data: |-
       {
-        "status": "active",
-        "reason": "nothing"
+        "email": "agent@gmail.com",
+        "phone": "9878605748",
+        "max_uses": 7
       }
   auth:
     type: bearer
-    token: "{{SUPERADMIN_ACCESS}}"
+    token: "{{ACCESS}}"
 
 settings:
   encodeUrl: true

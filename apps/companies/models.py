@@ -127,5 +127,27 @@ class CompanySettings(UUIDModel, TimeStampedModel):
     default_gst_rate = models.DecimalField(max_digits=5, decimal_places=2, default=5.00)
     reverse_charge = models.BooleanField(default=False)
 
+    # Plan snapshot (synced from the active subscription plan)
+    current_plan_tier = models.CharField(max_length=20, blank=True)
+    current_plan_name = models.CharField(max_length=100, blank=True)
+    plan_max_agents = models.PositiveIntegerField(default=0, help_text="0 = unlimited")
+    plan_max_customers = models.PositiveIntegerField(
+        default=0, help_text="0 = unlimited"
+    )
+    plan_max_products = models.PositiveIntegerField(
+        default=0, help_text="0 = unlimited"
+    )
+    plan_max_orders_per_month = models.PositiveIntegerField(
+        default=0, help_text="0 = unlimited"
+    )
+    plan_storage_gb = models.PositiveIntegerField(default=0)
+
+    # Plan feature entitlements (synced from the active subscription plan)
+    analytics_advanced = models.BooleanField(default=False)
+    offline_mode_enabled = models.BooleanField(default=False)
+    api_access_enabled = models.BooleanField(default=False)
+    custom_domain_enabled = models.BooleanField(default=False)
+    dedicated_support = models.BooleanField(default=False)
+
     class Meta:
         db_table = "companies_settings"

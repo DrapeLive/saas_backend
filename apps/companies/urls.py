@@ -2,11 +2,25 @@
 
 from django.urls import path
 
-from apps.companies.views import SuperAdminCompanyViewSet
+from apps.companies.views import (
+    CompanyDetailViewSet,
+    CompanySettingsViewSet,
+    SuperAdminCompanyViewSet,
+)
 
 app_name = "companies"
 
 urlpatterns = [
+    path(
+        "admin/company",
+        CompanyDetailViewSet.as_view({"patch": "update"}),
+        name="admin-company-update",
+    ),  # ✅
+    path(
+        "admin/company/settings",
+        CompanySettingsViewSet.as_view({"get": "retrieve", "patch": "update"}),
+        name="admin-company-settings",
+    ),  # ✅
     path(
         "super-admin/companies",
         SuperAdminCompanyViewSet.as_view({"get": "list"}),
@@ -14,7 +28,9 @@ urlpatterns = [
     ),  # ✅
     path(
         "super-admin/companies/<uuid:pk>",
-        SuperAdminCompanyViewSet.as_view({"get": "retrieve", "delete": "destroy"}),
+        SuperAdminCompanyViewSet.as_view(
+            {"get": "retrieve", "patch": "update", "delete": "destroy"}
+        ),
         name="super-admin-companies-detail",
     ),  # ✅
     path(

@@ -1,6 +1,4 @@
-import json
 import uuid
-from io import BytesIO
 from typing import ClassVar
 
 from django.core.files import File
@@ -22,19 +20,9 @@ class Category(CompanyScopeModel, SoftDeleteModel):
     """
 
     name = models.CharField(max_length=100)
-    slug = models.SlugField(max_length=120)
-    parent = models.ForeignKey(
-        "self",
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        related_name="children",
-    )
     description = models.TextField(blank=True)
     image = models.ImageField(upload_to="media/categories/", null=True, blank=True)
     display_order = models.PositiveSmallIntegerField(default=0)
-    is_active = models.BooleanField(default=True)
-
     default_commission_pct = models.DecimalField(
         max_digits=5,
         decimal_places=2,
@@ -45,7 +33,7 @@ class Category(CompanyScopeModel, SoftDeleteModel):
 
     class Meta:
         db_table = "products_category"
-        unique_together: ClassVar = [("company", "slug")]
+        unique_together: ClassVar = [("company", "name")]
 
     def __str__(self):
         return f"{self.name} ({self.company.name})"
@@ -80,9 +68,7 @@ class Product(CompanyScopeModel, SoftDeleteModel):
         SizeChart, null=True, blank=True, on_delete=models.SET_NULL
     )
 
-    mrp = models.DecimalField(
-        max_digits=10, decimal_places=2, null=True, blank=True
-    )
+    mrp = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     wholesale_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
 
     minimum_order_qty = models.PositiveIntegerField(default=1)

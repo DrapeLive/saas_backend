@@ -1,11 +1,17 @@
 info:
-  name: retrieve company
+  name: update company
   type: http
-  seq: 2
+  seq: 9
 
 http:
-  method: GET
+  method: PATCH
   url: "{{baseUrl}}/api/super-admin/companies/36e6aadf-2a1e-4113-a448-853c73d99236"
+  body:
+    type: multipart-form
+    data:
+      - name: gstin
+        type: text
+        value: "7985348"
   auth:
     type: bearer
     token: "{{SUPERADMIN_ACCESS}}"

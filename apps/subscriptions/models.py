@@ -1,3 +1,4 @@
+from datetime import timedelta
 from typing import ClassVar
 
 from django.db import models
@@ -188,6 +189,55 @@ class Subscription(UUIDModel, TimeStampedModel):
             SubscriptionStatus.ACTIVE,
             SubscriptionStatus.GRACE,
         )
+
+    @property
+    def cycle_days(self):
+        """Number of days in the current billing cycle (30 monthly, 365 yearly)."""
+        return 365 if self.billing_cycle == BillingCycle.YEARLY else 30
+
+    def setup_periods(self, today=None):
+        """
+        Populate the subscription period fields from the current status, billing
+        cycle and plan trial length.
+
+        - TRIAL  → sets trial_start / trial_end (+ current period mirrors the trial)
+        - ACTIVE → sets current_period_start / current_period_end from the cycle
+        - GRACE  → sets current period + grace_period_end
+        - others → clears all period fields
+        """
+        from django.utils.timezone import now
+
+        from apps.subscriptions.models import SubscriptionStatus
+
+        today = today or now().date()
+
+        if self.status == SubscriptionStatus.TRIAL:
+            self.trial_start = today
+            self.trial_end = today + timedelta(days=self.plan.trial_days)
+            self.current_period_start = today
+            self.current_period_end = self.trial_end
+            self.grace_period_end = None
+            self.cancelled_at = None
+            return
+
+        if self.status in (SubscriptionStatus.ACTIVE, SubscriptionStatus.GRACE):
+            self.trial_start = None
+            self.trial_end = None
+            self.current_period_start = today
+            self.current_period_end = today + timedelta(days=self.cycle_days)
+            if self.status == SubscriptionStatus.GRACE:
+                self.grace_period_end = self.current_period_end + timedelta(days=7)
+            else:
+                self.grace_period_end = None
+            self.cancelled_at = None
+            return
+
+        # CANCELLED / EXPIRED / SUSPENDED: clear active period fields
+        self.trial_start = None
+        self.trial_end = None
+        self.current_period_start = None
+        self.current_period_end = None
+        self.grace_period_end = None
 
 
 class SubscriptionEvent(UUIDModel):

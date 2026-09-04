@@ -5,16 +5,17 @@ info:
 
 http:
   method: GET
-  url: "{{BASE_URL}}/plans/"
+  url: "{{baseUrl}}/api/plans/"
   body:
     type: json
     data: ""
   auth:
     type: bearer
-    token: "{{access}}"
+    token: "{{SUPERADMIN_ACCESS}}"
 
 settings:
   encodeUrl: true
   timeout: 0
   followRedirects: true
   maxRedirects: 5
+  forwardAuthorizationHeader: true

@@ -13,7 +13,7 @@ http:
       value: 34548a8b-3322-44f3-ad9b-48ba4e40278c
   auth:
     type: bearer
-    token: "{{AGENT_ACCESS}}"
+    token: "{{ACCESS}}"
 
 settings:
   encodeUrl: true

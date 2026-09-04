@@ -73,6 +73,11 @@ urlpatterns = [
         name="admin-agents-leaderboard",
     ),  # ✅
     path(
+        "admin/agents/agent-memberships",
+        AgentMembershipViewSet.as_view({"get": "memberships"}),
+        name="admin-agents-memberships",
+    ),
+    path(
         "admin/agents/<uuid:pk>",
         AgentMembershipViewSet.as_view(
             {"get": "retrieve", "patch": "partial_update", "delete": "destroy"}

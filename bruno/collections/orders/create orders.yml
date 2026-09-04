@@ -5,7 +5,7 @@ info:
 
 http:
   method: POST
-  url: "{{BASE_URL}}/orders/"
+  url: "{{baseUrl}}/orders/"
   headers:
     - name: X-Company-Id
       value: 34548a8b-3322-44f3-ad9b-48ba4e40278c
@@ -41,3 +41,4 @@ settings:
   timeout: 0
   followRedirects: true
   maxRedirects: 5
+  forwardAuthorizationHeader: true

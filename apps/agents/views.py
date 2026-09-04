@@ -30,6 +30,14 @@ from apps.accounts.permissions import (
     IsAdminOrSubAdmin,
     IsAgent,
 )
+from apps.agents import agent_detail as agent_detail_service
+from apps.agents.detail_serializers import (
+    AgentAdjustmentSerializer,
+    AgentCommissionSerializer,
+    AgentOverviewDetailSerializer,
+    AgentPayoutSerializer,
+    AgentTransactionSerializer,
+)
 from apps.agents.models import AgentCompanyMembership, AgentProfile
 from apps.agents.serializers import (
     AgentCompanySerializer,
@@ -41,21 +49,13 @@ from apps.agents.serializers import (
     SwitchCompanyRequestSerializer,
     SwitchCompanyResponseSerializer,
 )
-from apps.agents.detail_serializers import (
-    AgentAdjustmentSerializer,
-    AgentCommissionSerializer,
-    AgentOverviewDetailSerializer,
-    AgentPayoutSerializer,
-    AgentTransactionSerializer,
-)
-from apps.agents import agent_detail as agent_detail_service
 from apps.commissions.models import CommissionEntry, CommissionPayout
 from apps.core.openapi import (
-    DetailResponseSerializer,
     COMPANY_HEADER_PARAM,
     RESPONSE_400,
     RESPONSE_403,
     RESPONSE_404,
+    DetailResponseSerializer,
 )
 from apps.core.pagination import DefaultPageNumberPagination
 from apps.orders.models import Order
@@ -106,13 +106,22 @@ from apps.orders.models import Order
     retrieve=extend_schema(
         tags=["Agents"],
         summary="Get agent membership",
-        responses={200: AgentMembershipSerializer, 403: RESPONSE_403, 404: RESPONSE_404},
+        responses={
+            200: AgentMembershipSerializer,
+            403: RESPONSE_403,
+            404: RESPONSE_404,
+        },
     ),
     partial_update=extend_schema(
         tags=["Agents"],
         summary="Update agent membership",
         description="Updates `territory`, `monthly_target` or `custom_commission_plan`.",
-        responses={200: AgentMembershipSerializer, 400: RESPONSE_400, 403: RESPONSE_403, 404: RESPONSE_404},
+        responses={
+            200: AgentMembershipSerializer,
+            400: RESPONSE_400,
+            403: RESPONSE_403,
+            404: RESPONSE_404,
+        },
     ),
     destroy=extend_schema(
         tags=["Agents"],
@@ -126,27 +135,52 @@ from apps.orders.models import Order
     approve=extend_schema(
         tags=["Agents"],
         summary="Approve agent membership",
-        responses={200: AgentMembershipSerializer, 400: RESPONSE_400, 403: RESPONSE_403, 404: RESPONSE_404},
+        responses={
+            200: AgentMembershipSerializer,
+            400: RESPONSE_400,
+            403: RESPONSE_403,
+            404: RESPONSE_404,
+        },
     ),
     reject=extend_schema(
         tags=["Agents"],
         summary="Reject agent membership",
-        responses={200: DetailResponseSerializer, 400: RESPONSE_400, 403: RESPONSE_403, 404: RESPONSE_404},
+        responses={
+            200: DetailResponseSerializer,
+            400: RESPONSE_400,
+            403: RESPONSE_403,
+            404: RESPONSE_404,
+        },
     ),
     suspend=extend_schema(
         tags=["Agents"],
         summary="Suspend agent",
-        responses={200: AgentMembershipSerializer, 400: RESPONSE_400, 403: RESPONSE_403, 404: RESPONSE_404},
+        responses={
+            200: AgentMembershipSerializer,
+            400: RESPONSE_400,
+            403: RESPONSE_403,
+            404: RESPONSE_404,
+        },
     ),
     reactivate=extend_schema(
         tags=["Agents"],
         summary="Reactivate agent",
-        responses={200: AgentMembershipSerializer, 400: RESPONSE_400, 403: RESPONSE_403, 404: RESPONSE_404},
+        responses={
+            200: AgentMembershipSerializer,
+            400: RESPONSE_400,
+            403: RESPONSE_403,
+            404: RESPONSE_404,
+        },
     ),
     review=extend_schema(
         tags=["Agents"],
         summary="Mark agent for review",
-        responses={200: AgentMembershipSerializer, 400: RESPONSE_400, 403: RESPONSE_403, 404: RESPONSE_404},
+        responses={
+            200: AgentMembershipSerializer,
+            400: RESPONSE_400,
+            403: RESPONSE_403,
+            404: RESPONSE_404,
+        },
     ),
     my_companies=extend_schema(
         tags=["Agents"],
@@ -184,7 +218,11 @@ from apps.orders.models import Order
     agent_performance=extend_schema(
         tags=["Agents"],
         summary="Agent performance",
-        responses={200: AgentPerformanceSerializer, 403: RESPONSE_403, 404: RESPONSE_404},
+        responses={
+            200: AgentPerformanceSerializer,
+            403: RESPONSE_403,
+            404: RESPONSE_404,
+        },
     ),
     agent_detail=extend_schema(
         tags=["Agents"],
@@ -193,7 +231,11 @@ from apps.orders.models import Order
             "Admin/sub-admin. Cards (credit balance, total paid YTD, pending sync), "
             "recent transactions and the invoice tally placeholder for one agent."
         ),
-        responses={200: AgentOverviewDetailSerializer, 403: RESPONSE_403, 404: RESPONSE_404},
+        responses={
+            200: AgentOverviewDetailSerializer,
+            403: RESPONSE_403,
+            404: RESPONSE_404,
+        },
     ),
     agent_transactions=extend_schema(
         tags=["Agents"],
@@ -201,16 +243,22 @@ from apps.orders.models import Order
         description="Merged payout + commission feed for one agent.",
         parameters=[
             OpenApiParameter(
-                "type", OpenApiTypes.STR, OpenApiParameter.QUERY,
+                "type",
+                OpenApiTypes.STR,
+                OpenApiParameter.QUERY,
                 enum=["payout", "order_commission", "adjustment"],
                 description="Filter by transaction type.",
             ),
             OpenApiParameter(
-                "month", OpenApiTypes.DATE, OpenApiParameter.QUERY,
+                "month",
+                OpenApiTypes.DATE,
+                OpenApiParameter.QUERY,
                 description="Settlement month (YYYY-MM-01).",
             ),
             OpenApiParameter(
-                "status", OpenApiTypes.STR, OpenApiParameter.QUERY,
+                "status",
+                OpenApiTypes.STR,
+                OpenApiParameter.QUERY,
                 description="Filter by entry status (commission/payout).",
             ),
         ],
@@ -221,11 +269,15 @@ from apps.orders.models import Order
         summary="Agent commissions",
         parameters=[
             OpenApiParameter(
-                "month", OpenApiTypes.DATE, OpenApiParameter.QUERY,
+                "month",
+                OpenApiTypes.DATE,
+                OpenApiParameter.QUERY,
                 description="Settlement month (YYYY-MM-01).",
             ),
             OpenApiParameter(
-                "status", OpenApiTypes.STR, OpenApiParameter.QUERY,
+                "status",
+                OpenApiTypes.STR,
+                OpenApiParameter.QUERY,
                 description="Filter by entry status: pending|approved|paid|disputed|adjusted.",
             ),
         ],
@@ -309,6 +361,7 @@ class AgentMembershipViewSet(GenericViewSet):
     def get_permissions(self):
         if self.action in (
             "list",
+            "memberships",
             "overview",
             "agent_detail",
             "agent_transactions",
@@ -337,15 +390,6 @@ class AgentMembershipViewSet(GenericViewSet):
             return [IsAuthenticated(), IsAgent()]
         return super().get_permissions()
 
-    def get_serializer_class(self):
-        if self.action == "partial_update":
-            return AgentMembershipUpdateSerializer
-        if self.action == "overview":
-            return AgentOverviewSerializer
-        if self.action in ("list", "retrieve"):
-            return AgentMembershipSerializer
-        return AgentMembershipSerializer
-
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset().filter(company=request.user.company)
 
@@ -364,6 +408,25 @@ class AgentMembershipViewSet(GenericViewSet):
         queryset = queryset.annotate(**self._agent_stats_annotations()).order_by(
             "-created_at"
         )
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = AgentMembershipSerializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        serializer = AgentMembershipSerializer(queryset, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=["get"], url_path="agent-memberships")
+    def memberships(self, request, *args, **kwargs):
+        queryset = (
+            self.get_queryset()
+            .filter(company=request.user.company)
+            .order_by("-created_at")
+        )
+
+        status_filter = request.query_params.get("status")
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
 
         page = self.paginate_queryset(queryset)
         if page is not None:
@@ -891,9 +954,7 @@ class AgentMembershipViewSet(GenericViewSet):
             return Response(
                 {"detail": "Agent not found."}, status=status.HTTP_404_NOT_FOUND
             )
-        data = agent_detail_service.agent_overview(
-            membership.agent, membership.company
-        )
+        data = agent_detail_service.agent_overview(membership.agent, membership.company)
         return Response(AgentOverviewDetailSerializer(data).data)
 
     # GET /api/admin/agents/<pk>/transactions/
@@ -905,7 +966,9 @@ class AgentMembershipViewSet(GenericViewSet):
                 {"detail": "Agent not found."}, status=status.HTTP_404_NOT_FOUND
             )
         params = self._txn_params(request)
-        data = agent_detail_service.agent_transactions(membership.agent, membership.company, **params)
+        data = agent_detail_service.agent_transactions(
+            membership.agent, membership.company, **params
+        )
         return Response(AgentTransactionSerializer(data, many=True).data)
 
     # GET /api/admin/agents/<pk>/commission/
@@ -943,5 +1006,7 @@ class AgentMembershipViewSet(GenericViewSet):
             return Response(
                 {"detail": "Agent not found."}, status=status.HTTP_404_NOT_FOUND
             )
-        qs = agent_detail_service.agent_adjustments(membership.agent, membership.company)
+        qs = agent_detail_service.agent_adjustments(
+            membership.agent, membership.company
+        )
         return Response(AgentAdjustmentSerializer(qs, many=True).data)

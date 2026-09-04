@@ -5,7 +5,7 @@ info:
 
 http:
   method: POST
-  url: "{{BASE_URL}}/auth/signup"
+  url: "{{baseUrl}}/api/auth/signup"
   body:
     type: json
     data: |-
@@ -14,13 +14,16 @@ http:
         "password": "password!123",
         "full_name": "Admin",
         "phone": "9878605748",
-        "company_name":"xcompany",
-        "company_slug": "x-company"
+        "company_name":"XL Company",
+        "company_slug": "xl-company"
       }
-  auth: inherit
+  auth:
+    type: bearer
+    token: "{{SUPERADMIN_ACCESS}}"
 
 settings:
   encodeUrl: true
   timeout: 0
   followRedirects: true
   maxRedirects: 5
+  forwardAuthorizationHeader: true

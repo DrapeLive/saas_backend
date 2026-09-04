@@ -10,7 +10,7 @@ http:
   url: "{{baseUrl}}/api/size-charts/"
   auth:
     type: bearer
-    token: "{{token}}"
+    token: "{{ACCESS}}"
 
 settings:
   encodeUrl: true
