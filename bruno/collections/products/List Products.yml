@@ -5,7 +5,7 @@ info:
 
 http:
   method: GET
-  url: "{{BASE_URL}}/products/"
+  url: "{{baseUrl}}/api/products/"
   auth:
     type: bearer
     token: "{{ACCESS}}"
@@ -15,3 +15,4 @@ settings:
   timeout: 0
   followRedirects: true
   maxRedirects: 5
+  forwardAuthorizationHeader: true

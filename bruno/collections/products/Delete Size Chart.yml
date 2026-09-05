@@ -5,16 +5,17 @@ info:
 
 http:
   method: DELETE
-  url: "{{BASE_URL}}/size-charts/f0ed5e65-ee64-49cc-b8a5-29e32d0ae5e6/"
+  url: "{{baseUrl}}/api/size-charts/34637cce-4d43-480f-9f9f-35108cb19a94/"
   body:
     type: json
     data: ""
   auth:
     type: bearer
-    token: "{{access_admin}}"
+    token: "{{ACCESS}}"
 
 settings:
   encodeUrl: true
   timeout: 0
   followRedirects: true
   maxRedirects: 5
+  forwardAuthorizationHeader: true

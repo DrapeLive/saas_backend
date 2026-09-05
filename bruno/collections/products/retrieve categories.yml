@@ -5,16 +5,17 @@ info:
 
 http:
   method: GET
-  url: "{{BASE_URL}}/categories/236280a8-6787-474a-ae56-a7ca32956508/"
+  url: "{{baseUrl}}/api/categories/f475cc24-34d8-4829-ad6d-4386463788da/"
   body:
     type: json
     data: ""
   auth:
     type: bearer
-    token: "{{access_admin}}"
+    token: "{{ACCESS}}"
 
 settings:
   encodeUrl: true
   timeout: 0
   followRedirects: true
   maxRedirects: 5
+  forwardAuthorizationHeader: true

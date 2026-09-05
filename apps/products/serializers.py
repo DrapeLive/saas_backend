@@ -28,8 +28,6 @@ class CategoryListSerializer(serializers.ModelSerializer):
 
 
 class CategorySerializer(serializers.ModelSerializer):
-    children = serializers.SerializerMethodField()
-
     class Meta:
         model = Category
         fields: ClassVar = [

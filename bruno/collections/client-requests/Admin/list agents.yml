@@ -5,7 +5,7 @@ info:
 
 http:
   method: GET
-  url: "{{BASE_URL}}/admin/agents"
+  url: "{{baseUrl}}/api/admin/agents"
   auth:
     type: bearer
     token: "{{ACCESS}}"
