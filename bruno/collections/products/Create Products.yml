@@ -11,41 +11,40 @@ http:
     data: |-
       {
         "category": "f475cc24-34d8-4829-ad6d-4386463788da",
-        "name": "Premium Cotton Polo T-Shirt",
-        "description": "Soft premium cotton polo t-shirt with ribbed collar and comfortable fit.",
-        "sku_prefix": "POL",
+        "name": "Classic Cotton Polo T-Shirt",
+        "description": "Comfortable cotton polo t-shirt with a soft finish, ribbed collar, and everyday fit.",
+        "sku_prefix": "CTP",
         "hsn_code": "61091000",
         "gst_rate": "5.00",
         "size_chart": "e89612c8-f54c-479d-a56a-f4a072ec184f",
-        "mrp": "1299.00",
-        "wholesale_price": "850.00",
+        "mrp": "1199.00",
+        "wholesale_price": "780.00",
         "minimum_order_qty": 2,
         "order_in_multiples": 2,
         "color_variants": [
           {
             "color_name": "Navy Blue",
             "color_hex": "#1F3A93",
-            "image": 
             "sizes": [
               {
                 "size": "20",
-                "sku": "POL-NVY-20",
+                "sku": "CTP-NVY-20",
                 "price_override": null,
-                "stock_quantity": 60,
+                "stock_quantity": 52,
                 "reorder_level": 15
               },
               {
                 "size": "22",
-                "sku": "POL-NVY-22",
-                "price_override": "75.00",
-                "stock_quantity": 45,
+                "sku": "CTP-NVY-22",
+                "price_override": "70.00",
+                "stock_quantity": 41,
                 "reorder_level": 15
               },
               {
                 "size": "24",
-                "sku": "POL-NVY-24",
+                "sku": "CTP-NVY-24",
                 "price_override": null,
-                "stock_quantity": 35,
+                "stock_quantity": 33,
                 "reorder_level": 10
               }
             ]
@@ -55,24 +54,24 @@ http:
             "color_hex": "#556B2F",
             "sizes": [
               {
-                "size": "S",
-                "sku": "POL-OLV-S",
+                "size": "20",
+                "sku": "CTP-OLV-S",
                 "price_override": null,
-                "stock_quantity": 30,
+                "stock_quantity": 27,
                 "reorder_level": 8
               },
               {
-                "size": "M",
-                "sku": "POL-OLV-M",
-                "price_override": "50.00",
-                "stock_quantity": 28,
+                "size": "22",
+                "sku": "CTP-OLV-M",
+                "price_override": "45.00",
+                "stock_quantity": 25,
                 "reorder_level": 8
               },
               {
-                "size": "L",
-                "sku": "POL-OLV-L",
+                "size": "24",
+                "sku": "CTP-OLV-L",
                 "price_override": null,
-                "stock_quantity": 22,
+                "stock_quantity": 20,
                 "reorder_level": 8
               }
             ]

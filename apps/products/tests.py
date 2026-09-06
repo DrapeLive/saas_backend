@@ -12,6 +12,7 @@ from apps.products.models import (
     Category,
     ColorVariant,
     Product,
+    SizeChart,
     VariantSize,
 )
 
@@ -26,8 +27,8 @@ def _make_token(user, company):
     return str(token)
 
 
-class ProductInventoryListingTest(TestCase):
-    """Tests for GET /api/products/ — VariantSize-level inventory listing."""
+class ProductListTest(TestCase):
+    """Tests for GET /api/products/ — Product-level listing with nested variants.""" 
 
     def setUp(self):
         self.client = APIClient()
@@ -54,15 +55,26 @@ class ProductInventoryListingTest(TestCase):
         self.category = Category.objects.create(
             company=self.company,
             name="Men",
-            slug="men",
+        )
+        self.size_chart = SizeChart.objects.create(
+            company=self.company,
+            name="Standard",
+            sizes=["S", "M", "L", "XL"],
         )
         self.product = Product.objects.create(
             company=self.company,
             category=self.category,
             name="Classic T-Shirt",
+            description="Comfortable cotton tee.",
             sku_prefix="TSHIRT",
-            wholesale_price=Decimal("450.00"),
+            hsn_code="61091000",
+            gst_rate=Decimal("5.00"),
+            size_chart=self.size_chart,
             mrp=Decimal("999.00"),
+            wholesale_price=Decimal("450.00"),
+            minimum_order_qty=2,
+            order_in_multiples=2,
+            total_stock=105,
             status="active",
         )
         self.variant = ColorVariant.objects.create(
@@ -96,6 +108,16 @@ class ProductInventoryListingTest(TestCase):
             reserved_qty=0,
             reorder_level=10,
         )
+        # Second product with no variants (e.g. draft/blank product)
+        self.product_two = Product.objects.create(
+            company=self.company,
+            category=self.category,
+            name="Formal Shirt",
+            sku_prefix="FORMAL",
+            wholesale_price=Decimal("700.00"),
+            mrp=Decimal("1499.00"),
+            status="active",
+        )
 
     def test_default_list_returns_200(self):
         resp = self.client.get(self.url)
@@ -107,136 +129,155 @@ class ProductInventoryListingTest(TestCase):
         self.assertIn("count", data)
         self.assertIn("next", data)
         self.assertIn("previous", data)
-        self.assertIn("summary", data)
-        self.assertIn("filters", data)
         self.assertIn("results", data)
 
-    def test_count_reflects_variant_size_rows(self):
+    def test_count_reflects_products(self):
         resp = self.client.get(self.url)
-        self.assertEqual(resp.data["count"], 3)
+        self.assertEqual(resp.data["count"], 2)
 
     def test_result_structure(self):
         resp = self.client.get(self.url)
-        row = resp.data["results"][0]
-        self.assertIn("id", row)
-        self.assertIn("product", row)
-        self.assertIn("sku", row)
-        self.assertIn("category", row)
-        self.assertIn("color", row)
-        self.assertIn("size", row)
-        self.assertIn("price_per_unit", row)
-        self.assertIn("stock", row)
+        product = next(
+            r for r in resp.data["results"] if r["name"] == "Classic T-Shirt"
+        )
+        self.assertEqual(product["id"], str(self.product.id))
+        self.assertEqual(product["category"], self.category.id)
+        self.assertEqual(product["category_name"], "Men")
+        self.assertEqual(product["name"], "Classic T-Shirt")
+        self.assertEqual(product["description"], "Comfortable cotton tee.")
+        self.assertEqual(product["sku_prefix"], "TSHIRT")
+        self.assertEqual(product["hsn_code"], "61091000")
+        self.assertEqual(product["gst_rate"], "5.00")
+        self.assertEqual(product["size_chart"], self.size_chart.id)
+        self.assertEqual(product["size_chart_name"], "Standard")
+        self.assertEqual(product["mrp"], "999.00")
+        self.assertEqual(product["wholesale_price"], "450.00")
+        self.assertEqual(product["minimum_order_qty"], 2)
+        self.assertEqual(product["order_in_multiples"], 2)
+        self.assertEqual(product["total_stock"], 105)
+        self.assertEqual(product["status"], "active")
+        self.assertIn("color_variants", product)
+        self.assertIn("created_at", product)
+        self.assertIn("updated_at", product)
 
-        self.assertEqual(row["product"]["name"], "Classic T-Shirt")
-        self.assertEqual(row["category"]["name"], "Men")
-        self.assertEqual(row["color"]["name"], "Black")
-        self.assertEqual(row["color"]["hex"], "#000000")
-
-    def test_stock_fields(self):
+    def test_color_variants_nested_with_sizes(self):
         resp = self.client.get(self.url)
-        m_row = next(r for r in resp.data["results"] if r["size"] == "M")
-        stock = m_row["stock"]
-        self.assertEqual(stock["stock_quantity"], 100)
-        self.assertEqual(stock["reserved_quantity"], 20)
-        self.assertEqual(stock["available_quantity"], 80)
-        self.assertEqual(stock["reorder_level"], 10)
-        self.assertFalse(stock["is_low_stock"])
-        self.assertFalse(stock["is_out_of_stock"])
+        product = next(
+            r for r in resp.data["results"] if r["name"] == "Classic T-Shirt"
+        )
+        variant = product["color_variants"][0]
+        self.assertEqual(variant["color_name"], "Black")
+        self.assertEqual(variant["color_hex"], "#000000")
+        self.assertEqual(variant["sku"], "TSHIRT-BLACK")
+        self.assertTrue(variant["is_active"])
+        self.assertIn("qr_code", variant)
+        self.assertIn("created_at", variant)
+        self.assertIn("updated_at", variant)
 
-    def test_low_stock_variant(self):
+        sizes = variant["sizes"]
+        self.assertEqual(len(sizes), 3)
+        m = next(s for s in sizes if s["size"] == "M")
+        self.assertEqual(m["sku"], "TSHIRT-BLACK-M")
+        self.assertEqual(m["stock_quantity"], 100)
+        self.assertEqual(m["reserved_qty"], 20)
+        self.assertEqual(m["available_qty"], 80)
+        self.assertEqual(m["reorder_level"], 10)
+        self.assertFalse(m["is_low_stock"])
+        self.assertTrue(m["is_active"])
+
+    def test_low_stock_state(self):
         resp = self.client.get(self.url)
-        l_row = next(r for r in resp.data["results"] if r["size"] == "L")
+        product = next(
+            r for r in resp.data["results"] if r["name"] == "Classic T-Shirt"
+        )
+        l = next(s for s in product["color_variants"][0]["sizes"] if s["size"] == "L")
         # available=3, reorder=10 → low stock
-        self.assertTrue(l_row["stock"]["is_low_stock"])
+        self.assertTrue(l["is_low_stock"])
 
-    def test_out_of_stock_variant(self):
+    def test_out_of_stock_state(self):
         resp = self.client.get(self.url)
-        xl_row = next(r for r in resp.data["results"] if r["size"] == "XL")
-        self.assertTrue(xl_row["stock"]["is_out_of_stock"])
-        self.assertTrue(xl_row["stock"]["is_low_stock"])
-
-    def test_price_per_unit_uses_product_wholesale(self):
-        resp = self.client.get(self.url)
-        m_row = next(r for r in resp.data["results"] if r["size"] == "M")
-        self.assertEqual(m_row["price_per_unit"], "450.00")
-
-    def test_price_per_unit_uses_override_when_set(self):
-        self.variant_size_m.price_override = Decimal("550.00")
-        self.variant_size_m.save()
-        resp = self.client.get(self.url)
-        m_row = next(r for r in resp.data["results"] if r["size"] == "M")
-        self.assertEqual(m_row["price_per_unit"], "550.00")
-
-    def test_summary_stock_valuation(self):
-        # M: 100 × 450 = 45000, L: 5 × 450 = 2250, XL: 0 × 450 = 0
-        resp = self.client.get(self.url)
-        self.assertEqual(resp.data["summary"]["stock_valuation"], "47250.00")
-
-    def test_filters_sizes(self):
-        resp = self.client.get(self.url)
-        self.assertEqual(sorted(resp.data["filters"]["sizes"]), ["L", "M", "XL"])
+        product = next(
+            r for r in resp.data["results"] if r["name"] == "Classic T-Shirt"
+        )
+        xl = next(s for s in product["color_variants"][0]["sizes"] if s["size"] == "XL")
+        self.assertTrue(xl["is_low_stock"])
 
     def test_search_by_product_name(self):
         resp = self.client.get(self.url, {"search": "Classic"})
-        self.assertEqual(resp.data["count"], 3)
-
-    def test_search_by_sku(self):
-        resp = self.client.get(self.url, {"search": "TSHIRT-BLACK-M"})
         self.assertEqual(resp.data["count"], 1)
-        self.assertEqual(resp.data["results"][0]["sku"], "TSHIRT-BLACK-M")
+        self.assertEqual(resp.data["results"][0]["name"], "Classic T-Shirt")
+
+    def test_search_by_sku_prefix(self):
+        resp = self.client.get(self.url, {"search": "TSHIRT"})
+        self.assertEqual(resp.data["count"], 1)
 
     def test_search_by_color_name(self):
         resp = self.client.get(self.url, {"search": "Black"})
-        self.assertEqual(resp.data["count"], 3)
+        self.assertEqual(resp.data["count"], 1)
 
     def test_search_by_category_name(self):
         resp = self.client.get(self.url, {"search": "Men"})
-        self.assertEqual(resp.data["count"], 3)
+        self.assertEqual(resp.data["count"], 2)
 
     def test_filter_by_category(self):
         resp = self.client.get(self.url, {"category": str(self.category.id)})
-        self.assertEqual(resp.data["count"], 3)
+        self.assertEqual(resp.data["count"], 2)
 
     def test_filter_by_category_no_match(self):
-        resp = self.client.get(self.url, {"category": "00000000-0000-0000-0000-000000000000"})
+        resp = self.client.get(
+            self.url, {"category": "00000000-0000-0000-0000-000000000000"}
+        )
         self.assertEqual(resp.data["count"], 0)
+
+    def test_filter_by_status(self):
+        self.product.status = "inactive"
+        self.product.save(update_fields=["status"])
+        resp = self.client.get(self.url, {"status": "inactive"})
+        self.assertEqual(resp.data["count"], 1)
+        self.assertEqual(resp.data["results"][0]["name"], "Classic T-Shirt")
 
     def test_filter_by_size(self):
         resp = self.client.get(self.url, {"size": "M"})
         self.assertEqual(resp.data["count"], 1)
-        self.assertEqual(resp.data["results"][0]["size"], "M")
+        self.assertEqual(resp.data["results"][0]["name"], "Classic T-Shirt")
+
+    def test_filter_by_size_no_match(self):
+        resp = self.client.get(self.url, {"size": "XXL"})
+        self.assertEqual(resp.data["count"], 0)
 
     def test_filter_low_stock(self):
         resp = self.client.get(self.url, {"low_stock": "true"})
         # L (available=3 <= reorder=10) and XL (available=0 <= reorder=10)
-        self.assertEqual(resp.data["count"], 2)
+        self.assertEqual(resp.data["count"], 1)
+        self.assertEqual(resp.data["results"][0]["name"], "Classic T-Shirt")
 
     def test_filter_out_of_stock(self):
         resp = self.client.get(self.url, {"out_of_stock": "true"})
         self.assertEqual(resp.data["count"], 1)
-        self.assertEqual(resp.data["results"][0]["size"], "XL")
 
     def test_ordering_by_name(self):
         resp = self.client.get(self.url, {"ordering": "name"})
-        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        names = [r["name"] for r in resp.data["results"]]
+        self.assertEqual(names, sorted(names))
 
-    def test_ordering_by_stock_quantity_desc(self):
-        resp = self.client.get(self.url, {"ordering": "-stock_quantity"})
-        quantities = [r["stock"]["stock_quantity"] for r in resp.data["results"]]
-        self.assertEqual(quantities, sorted(quantities, reverse=True))
+    def test_ordering_by_total_stock_desc(self):
+        resp = self.client.get(self.url, {"ordering": "-total_stock"})
+        self.assertEqual(resp.data["results"][0]["name"], "Classic T-Shirt")
 
-    def test_ordering_by_price(self):
-        resp = self.client.get(self.url, {"ordering": "price"})
+    def test_ordering_by_mrp(self):
+        resp = self.client.get(self.url, {"ordering": "mrp"})
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
 
     def test_pagination_page_size(self):
-        resp = self.client.get(self.url, {"page_size": "2"})
-        self.assertEqual(len(resp.data["results"]), 2)
-        self.assertEqual(resp.data["count"], 3)
+        resp = self.client.get(self.url, {"page_size": "1", "ordering": "name"})
+        self.assertEqual(len(resp.data["results"]), 1)
+        self.assertEqual(resp.data["count"], 2)
         self.assertIsNotNone(resp.data["next"])
 
     def test_pagination_page_2(self):
-        resp = self.client.get(self.url, {"page_size": "2", "page": "2"})
+        resp = self.client.get(
+            self.url, {"page_size": "1", "page": "2", "ordering": "name"}
+        )
         self.assertEqual(len(resp.data["results"]), 1)
 
     def test_unauthenticated_returns_401(self):
@@ -244,23 +285,11 @@ class ProductInventoryListingTest(TestCase):
         resp = client.get(self.url)
         self.assertEqual(resp.status_code, status.HTTP_401_UNAUTHORIZED)
 
-    def test_inactive_variants_excluded(self):
-        self.variant_size_m.is_active = False
-        self.variant_size_m.save()
-        resp = self.client.get(self.url)
-        self.assertEqual(resp.data["count"], 2)
-
-    def test_inactive_color_variant_excluded(self):
-        self.variant.is_active = False
-        self.variant.save()
-        resp = self.client.get(self.url)
-        self.assertEqual(resp.data["count"], 0)
-
     def test_deleted_product_excluded(self):
         self.product.is_deleted = True
         self.product.save()
         resp = self.client.get(self.url)
-        self.assertEqual(resp.data["count"], 0)
+        self.assertEqual(resp.data["count"], 1)
 
 
 @override_settings(SPECTACULAR_SETTINGS={"PREPROCESSING_EXTENSIONS": []})

@@ -5,13 +5,14 @@ info:
 
 http:
   method: GET
-  url: "{{BASE_URL}}/products/2e77b239-a7d4-412d-83c1-308a5244c983/variants/3552bef1-36a5-426d-b58a-bf2fef50881e/"
+  url: "{{baseUrl}}/api/products/b5b04644-df0a-499c-8f57-96e9b4992563/variants/e3c23321-0c73-485c-beec-37dd7f575ec0/"
   auth:
     type: bearer
-    token: "{{access_admin}}"
+    token: "{{ACCESS}}"
 
 settings:
   encodeUrl: true
   timeout: 0
   followRedirects: true
   maxRedirects: 5
+  forwardAuthorizationHeader: true

@@ -169,46 +169,34 @@ class ColorVariantCreateSerializer(serializers.ModelSerializer):
 
 class ProductListSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source="category.name", read_only=True)
-    primary_image = serializers.SerializerMethodField()
-    variant_count = serializers.SerializerMethodField()
+    size_chart_name = serializers.CharField(
+        source="size_chart.name", read_only=True, default=None
+    )
+    color_variants = ColorVariantDetailSerializer(many=True, read_only=True)
 
     class Meta:
         model = Product
         fields: ClassVar = [
             "id",
-            "name",
             "category",
             "category_name",
+            "name",
+            "description",
             "sku_prefix",
             "hsn_code",
             "gst_rate",
+            "size_chart",
+            "size_chart_name",
             "mrp",
             "wholesale_price",
             "minimum_order_qty",
+            "order_in_multiples",
             "total_stock",
             "status",
-            "primary_image",
-            "variant_count",
+            "color_variants",
             "created_at",
+            "updated_at",
         ]
-
-    @extend_schema_field(serializers.CharField(allow_null=True))
-    def get_primary_image(self, obj):
-        variant = obj.color_variants.filter(is_primary=True).first()
-        if not variant:
-            variant = obj.color_variants.first()
-        if variant and variant.image:
-            request = self.context.get("request")
-            return (
-                request.build_absolute_uri(variant.image.url)
-                if request
-                else variant.image.url
-            )
-        return None
-
-    @extend_schema_field(serializers.IntegerField())
-    def get_variant_count(self, obj):
-        return obj.color_variants.count()
 
 
 class ProductDetailSerializer(serializers.ModelSerializer):
@@ -490,21 +478,3 @@ class InventoryFiltersSerializer(serializers.Serializer):
     """Facet values available in the current filtered result set."""
 
     sizes = serializers.ListField(child=serializers.CharField())
-
-
-class ProductInventoryPageSerializer(serializers.Serializer):
-    """Paginated inventory listing envelope returned by `GET /api/products/`."""
-
-    count = serializers.IntegerField()
-    next = serializers.CharField(allow_null=True)
-    previous = serializers.CharField(allow_null=True)
-    summary = ProductInventorySummarySerializer()
-    filters = InventoryFiltersSerializer()
-    results = ProductInventoryListSerializer(many=True)
-
-
-class ScanQRResponseSerializer(serializers.Serializer):
-    """Result of scanning a variant QR code."""
-
-    scanned_variant_id = serializers.UUIDField()
-    product = ProductDetailSerializer()

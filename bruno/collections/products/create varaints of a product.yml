@@ -5,7 +5,7 @@ info:
 
 http:
   method: POST
-  url: "{{BASE_URL}}/products/2e77b239-a7d4-412d-83c1-308a5244c983/variants/"
+  url: "{{baseUrl}}/api/products/2e77b239-a7d4-412d-83c1-308a5244c983/variants/"
   body:
     type: multipart-form
     data:
@@ -35,3 +35,4 @@ settings:
   timeout: 0
   followRedirects: true
   maxRedirects: 5
+  forwardAuthorizationHeader: true

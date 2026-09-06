@@ -5,16 +5,17 @@ info:
 
 http:
   method: DELETE
-  url: "{{BASE_URL}}/products/cdc55d01-338e-40cf-8fe0-6fd5998656b0/"
+  url: "{{baseUrl}}/api/products/315b4283-fa20-4319-905d-b0d7fdfe6bcd/"
   body:
     type: json
     data: ""
   auth:
     type: bearer
-    token: "{{access_admin}}"
+    token: "{{ACCESS}}"
 
 settings:
   encodeUrl: true
   timeout: 0
   followRedirects: true
   maxRedirects: 5
+  forwardAuthorizationHeader: true

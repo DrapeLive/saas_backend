@@ -1,17 +1,18 @@
 info:
-  name: update Products
+  name: Adjust Stock
   type: http
-  seq: 11
+  seq: 19
 
 http:
-  method: PATCH
-  url: "{{baseUrl}}/api/products/b5b04644-df0a-499c-8f57-96e9b4992563/"
+  method: POST
+  url: "{{baseUrl}}/api/stock/adjust/"
   body:
     type: json
     data: |-
       {
-        "name": "Classic Cotton Polo T-Shirt Hello"
-        
+        "variant_size_id": "e5dc2065-e8b3-411c-ad75-65b420da359f",
+        "quantity": 30, 
+        "reason": "Hello"
       }
   auth:
     type: bearer

@@ -62,7 +62,7 @@ urlpatterns = [
     # ─────────────────────────────────────────────────────────────
     # PRODUCTS
     # ─────────────────────────────────────────────────────────────
-    # GET    /api/products/                         Inventory listing (?page= ?page_size= ?search= ?category= ?status= ?size= ?low_stock= ?out_of_stock= ?ordering=)
+    # GET    /api/products/                         Product list (nested variants + sizes, paginated) (?page= ?page_size= ?search= ?category= ?status= ?size= ?low_stock= ?out_of_stock= ?ordering=)
     # POST   /api/products/                         Create product (with nested color_variants)
     # GET    /api/products/<pk>/                    Full detail (images + variants + sizes)
     # PATCH  /api/products/<pk>/                    Update product fields

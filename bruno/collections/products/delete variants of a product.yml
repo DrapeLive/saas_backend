@@ -5,7 +5,7 @@ info:
 
 http:
   method: DELETE
-  url: "{{BASE_URL}}/products/2e77b239-a7d4-412d-83c1-308a5244c983/variants/3552bef1-36a5-426d-b58a-bf2fef50881e/"
+  url: "{{baseUrl}}/api/products/2e77b239-a7d4-412d-83c1-308a5244c983/variants/3552bef1-36a5-426d-b58a-bf2fef50881e/"
   auth:
     type: bearer
     token: "{{access_admin}}"
@@ -15,3 +15,4 @@ settings:
   timeout: 0
   followRedirects: true
   maxRedirects: 5
+  forwardAuthorizationHeader: true
