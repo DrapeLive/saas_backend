@@ -5,7 +5,7 @@ info:
 
 http:
   method: POST
-  url: "{{baseUrl}}/admin/invitations"
+  url: "{{baseUrl}}/api/admin/invitations"
   body:
     type: json
     data: |-

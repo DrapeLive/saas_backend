@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     "apps.orders",
     "apps.payments",
     "apps.products",
+    "apps.reports",
     "apps.subscriptions",
     "apps.tally_integrations",
     "apps.companies",

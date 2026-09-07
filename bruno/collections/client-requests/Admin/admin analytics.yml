@@ -5,13 +5,14 @@ info:
 
 http:
   method: GET
-  url: "{{BASE_URL}}/admin/analytics"
+  url: "{{baseUrl}}/api/admin/analytics"
   auth:
     type: bearer
-    token: "{{access_admin}}"
+    token: "{{ACCESS}}"
 
 settings:
   encodeUrl: true
   timeout: 0
   followRedirects: true
   maxRedirects: 5
+  forwardAuthorizationHeader: true

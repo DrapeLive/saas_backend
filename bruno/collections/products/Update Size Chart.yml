@@ -5,7 +5,7 @@ info:
 
 http:
   method: PATCH
-  url: "{{BASE_URL}}/size-charts/f0ed5e65-ee64-49cc-b8a5-29e32d0ae5e6/"
+  url: "{{baseUrl}}/api/size-charts/f0ed5e65-ee64-49cc-b8a5-29e32d0ae5e6/"
   body:
     type: json
     data: |-
@@ -29,3 +29,4 @@ settings:
   timeout: 0
   followRedirects: true
   maxRedirects: 5
+  forwardAuthorizationHeader: true

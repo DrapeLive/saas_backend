@@ -5,7 +5,7 @@ info:
 
 http:
   method: POST
-  url: "{{BASE_URL}}/admin/agents/223a5547-a246-4034-84a6-8270d9274a53/approve"
+  url: "{{baseUrl}}/admin/agents/223a5547-a246-4034-84a6-8270d9274a53/approve"
   body:
     type: json
     data: ""
@@ -18,3 +18,4 @@ settings:
   timeout: 0
   followRedirects: true
   maxRedirects: 5
+  forwardAuthorizationHeader: true
