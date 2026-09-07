@@ -21,7 +21,7 @@ class Category(CompanyScopeModel, SoftDeleteModel):
 
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True)
-    image = models.ImageField(upload_to="media/categories/", null=True, blank=True)
+    image = models.ImageField(upload_to="categories/", null=True, blank=True)
     display_order = models.PositiveSmallIntegerField(default=0)
     default_commission_pct = models.DecimalField(
         max_digits=5,
@@ -98,7 +98,7 @@ class ColorVariant(UUIDModel, TimeStampedModel):
     color_name = models.CharField(max_length=100)
     color_hex = models.CharField(max_length=7, blank=True)
     image = models.ImageField(
-        upload_to="media/products/variants/", null=True, blank=True
+        upload_to="variants/", null=True, blank=True
     )
     is_primary = models.BooleanField(default=False)
     sku = models.CharField(max_length=50, unique=True)

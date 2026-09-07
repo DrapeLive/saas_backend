@@ -391,6 +391,34 @@ USE_TZ = True
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
+# ---------------------------------------------------------------------------
+# Media / File Storage — Supabase
+# ---------------------------------------------------------------------------
+MEDIA_URL = "/media/"
+
+SUPABASE_URL = config("SUPABASE_URL", default="")
+SUPABASE_KEY = config("SUPABASE_KEY", default="")
+SUPABASE_BUCKET = config("SUPABASE_BUCKET", default="")
+
+if SUPABASE_URL and SUPABASE_KEY and SUPABASE_BUCKET:
+    STORAGES = {
+        "default": {
+            "BACKEND": "apps.core.storage.SupabaseStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        },
+    }
+else:
+    STORAGES = {
+        "default": {
+            "BACKEND": "django.core.files.storage.FileSystemStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        },
+    }
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # ---------------------------------------------------------------------------

@@ -55,7 +55,7 @@ class Invoice(CompanyScopeModel):
 
     # PDF
     pdf_file = models.FileField(
-        upload_to="media/invoices/pdf/%Y/%m/", null=True, blank=True
+        upload_to="invoices/%Y/%m/", null=True, blank=True
     )
     pdf_generated_at = models.DateTimeField(null=True, blank=True)
 
