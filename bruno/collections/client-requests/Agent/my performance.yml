@@ -8,7 +8,7 @@ http:
   url: "{{baseUrl}}/api/auth/agents/performance"
   headers:
     - name: X-company-Id
-      value: 34548a8b-3322-44f3-ad9b-48ba4e40278c
+      value: 36e6aadf-2a1e-4113-a448-853c73d99236
   auth:
     type: bearer
     token: "{{AGENT_ACCESS}}"

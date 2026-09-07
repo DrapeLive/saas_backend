@@ -8,10 +8,10 @@ http:
   url: "{{baseUrl}}/api/categories/"
   headers:
     - name: X-Company-Id
-      value: 34548a8b-3322-44f3-ad9b-48ba4e40278c
+      value: 36e6aadf-2a1e-4113-a448-853c73d99236
   auth:
     type: bearer
-    token: "{{ACCESS}}"
+    token: "{{AGENT_ACCESS}}"
 
 settings:
   encodeUrl: true
