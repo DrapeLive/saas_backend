@@ -88,6 +88,22 @@ class AgentCompanySerializer(serializers.Serializer):
     order_count = serializers.IntegerField(default=0)
 
 
+class AgentJoinedCompanySerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    name = serializers.CharField()
+    membership_id = serializers.UUIDField()
+    membership_status = serializers.CharField()
+    territory = serializers.CharField()
+
+
+class AgentProfileSerializer(serializers.Serializer):
+    full_name = serializers.CharField()
+    total_sales = serializers.DecimalField(max_digits=14, decimal_places=2)
+    total_orders = serializers.IntegerField()
+    leaderboard_rank = serializers.IntegerField(allow_null=True)
+    joined_companies = AgentJoinedCompanySerializer(many=True)
+
+
 class AgentPerformanceSerializer(serializers.Serializer):
     orders_this_month = serializers.IntegerField()
     sales_this_month = serializers.DecimalField(max_digits=14, decimal_places=2)

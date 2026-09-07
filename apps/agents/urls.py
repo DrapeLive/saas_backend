@@ -47,6 +47,11 @@ urlpatterns = [
         name="auth-agent-companies",
     ),  # ✅
     path(
+        "auth/agents/profile",
+        AgentMembershipViewSet.as_view({"get": "profile"}),
+        name="auth-agent-profile",
+    ),
+    path(
         "auth/agents/switch-company",
         AgentMembershipViewSet.as_view({"post": "switch_company"}),
         name="auth-agent-switch-company",

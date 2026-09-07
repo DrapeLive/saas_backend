@@ -46,6 +46,7 @@ from apps.agents.serializers import (
     AgentMembershipUpdateSerializer,
     AgentOverviewSerializer,
     AgentPerformanceSerializer,
+    AgentProfileSerializer,
     SwitchCompanyRequestSerializer,
     SwitchCompanyResponseSerializer,
 )
@@ -189,6 +190,15 @@ from apps.orders.models import Order
         parameters=[COMPANY_HEADER_PARAM],
         responses={200: AgentCompanySerializer(many=True)},
     ),
+    profile=extend_schema(
+        tags=["Agents"],
+        summary="My profile (agent)",
+        description=(
+            "Agent-facing. Returns the agent's profile: full name, lifetime "
+            "sales/orders, leaderboard rank and the list of companies joined."
+        ),
+        responses={200: AgentProfileSerializer, 404: RESPONSE_404},
+    ),
     switch_company=extend_schema(
         tags=["Agents"],
         summary="Switch active company (agent)",
@@ -307,6 +317,8 @@ class AgentMembershipViewSet(GenericViewSet):
             return AgentOverviewSerializer
         if self.action == "my_performance":
             return AgentPerformanceSerializer
+        if self.action == "profile":
+            return AgentProfileSerializer
         return AgentMembershipSerializer
 
     def get_queryset(self):
@@ -707,6 +719,40 @@ class AgentMembershipViewSet(GenericViewSet):
             )
 
         return Response(AgentCompanySerializer(data, many=True).data)
+
+    @action(detail=False, methods=["get"], url_path="profile")
+    def profile(self, request, *args, **kwargs):
+        agent_profile = getattr(request.user, "agent_profile", None)
+        if not agent_profile:
+            return Response(
+                {"detail": "Agent profile not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        memberships = (
+            AgentCompanyMembership.objects.filter(agent=agent_profile)
+            .select_related("company")
+            .order_by("-created_at")
+        )
+        joined_companies = [
+            {
+                "id": str(m.company.id),
+                "name": m.company.name,
+                "membership_id": str(m.id),
+                "membership_status": m.status,
+                "territory": m.territory,
+            }
+            for m in memberships
+        ]
+
+        data = {
+            "full_name": request.user.full_name,
+            "total_sales": agent_profile.total_sales,
+            "total_orders": agent_profile.total_orders,
+            "leaderboard_rank": agent_profile.leaderboard_rank,
+            "joined_companies": joined_companies,
+        }
+        return Response(AgentProfileSerializer(data).data)
 
     @action(detail=False, methods=["post"], url_path="switch-company")
     def switch_company(self, request, *args, **kwargs):
