@@ -127,6 +127,7 @@ class ColorVariantListSerializer(serializers.ModelSerializer):
 
 class ColorVariantDetailSerializer(serializers.ModelSerializer):
     sizes = VariantSizeSerializer(many=True, read_only=True)
+    size_chart = SizeChartSerializer(source="product.size_chart", read_only=True)
 
     class Meta:
         model = ColorVariant
@@ -140,6 +141,7 @@ class ColorVariantDetailSerializer(serializers.ModelSerializer):
             "qr_code",
             "is_active",
             "sizes",
+            "size_chart",
             "created_at",
             "updated_at",
         ]

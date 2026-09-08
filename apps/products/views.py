@@ -305,9 +305,7 @@ class ProductViewSet(GenericViewSet):
             )
             return self.get_paginated_response(serializer.data)
 
-        serializer = ProductListSerializer(
-            qs, many=True, context={"request": request}
-        )
+        serializer = ProductListSerializer(qs, many=True, context={"request": request})
         return Response({"count": qs.count(), "results": serializer.data})
 
     # GET /api/products/<pk>/
@@ -363,24 +361,32 @@ class ProductViewSet(GenericViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     # GET /api/products/scan/<qr_code>/
-    @action(detail=False, methods=["get"], url_path=r"scan/(?P<qr_code>[0-9a-f-]+)")
+    @action(detail=False, methods=["get"], url_path=r"scan/(?P<qr_code>[0-9a-fA-F-]+)")
     def scan_qr(self, request, qr_code=None):
         company = self._get_company(request)
+
         try:
-            variant = ColorVariant.objects.get(
-                qr_code=qr_code, product__company=company, product__is_deleted=False
+            variant = (
+                ColorVariant.objects.select_related("product")
+                .prefetch_related("sizes")
+                .get(
+                    qr_code=qr_code,
+                    product__company=company,
+                    product__is_deleted=False,
+                )
             )
         except ColorVariant.DoesNotExist:
             return Response(
-                {"detail": "Variant not found."}, status=status.HTTP_404_NOT_FOUND
+                {"detail": "Variant not found."},
+                status=status.HTTP_404_NOT_FOUND,
             )
 
-        product_qs = Product.objects.prefetch_related("color_variants__sizes").get(
-            pk=variant.product_id
-        )
+        data = ColorVariantDetailSerializer(
+            variant,
+            context={"request": request},
+        ).data
 
-        data = ProductDetailSerializer(product_qs, context={"request": request}).data
-        return Response({"scanned_variant_id": str(variant.id), "product": data})
+        return Response(data)
 
 
 class ColorVariantViewSet(GenericViewSet):

@@ -5,20 +5,19 @@ info:
 
 http:
   method: POST
-  url: "{{baseUrl}}/orders/"
+  url: "{{baseUrl}}/api/orders/"
   headers:
     - name: X-Company-Id
-      value: 34548a8b-3322-44f3-ad9b-48ba4e40278c
+      value: "{{COMPANY_ID}}"
   body:
     type: json
     data: |-
       {
-        "customer": "b41c24bd-fb5d-4351-b71f-cef183bda290",
+        "customer": "1e2fa808-3f4c-42b6-8d23-99b5dc6ab5e0",
         "items": [
           {
-            "variant_size": "443aa359-6bd5-410c-9ee7-fffbe7f5a665",
-            "quantity": 2,
-            "discount_pct": 10
+            "variant_size": "0bf69bd6-6791-4764-a0b4-8e71e7b8596d",
+            "quantity": 2
           }
         ],
         "discount_pct": 5,
@@ -28,13 +27,13 @@ http:
         "delivery_state": "Karnataka",
         "delivery_pincode": "560001",
         "expected_delivery_date": "2026-08-05",
-        "order_notes": "Please deliver between 10 AM and 1 PM.",
+        "order_notes": " deliver between 10 AM and 1 PM.",
         "is_offline_order": false,
         "offline_created_at": null
       }
   auth:
     type: bearer
-    token: "{{access_agent}}"
+    token: "{{AGENT_ACCESS}}"
 
 settings:
   encodeUrl: true

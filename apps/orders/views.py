@@ -141,33 +141,6 @@ class OrderViewSet(GenericViewSet):
     # GET /api/orders/
     # ─────────────────────────────────────────────────────────────
 
-    @extend_schema(
-        operation_id="listOrders",
-        summary="List orders",
-        description=(
-            "Company-scoped order list. Agents automatically see only their "
-            "own orders. Each row includes the derived `packing_status`."
-        ),
-        parameters=[
-            OpenApiParameter(
-                "status",
-                OpenApiTypes.STR,
-                OpenApiParameter.QUERY,
-                enum=[s for s, _ in OrderStatus.choices],
-            ),
-            OpenApiParameter("agent_id", OpenApiTypes.UUID, OpenApiParameter.QUERY),
-            OpenApiParameter("customer_id", OpenApiTypes.UUID, OpenApiParameter.QUERY),
-            OpenApiParameter("search", OpenApiTypes.STR, OpenApiParameter.QUERY),
-            OpenApiParameter("date_from", OpenApiTypes.DATE, OpenApiParameter.QUERY),
-            OpenApiParameter("date_to", OpenApiTypes.DATE, OpenApiParameter.QUERY),
-            OpenApiParameter(
-                "pending_approval", OpenApiTypes.BOOL, OpenApiParameter.QUERY
-            ),
-            OpenApiParameter("offline", OpenApiTypes.BOOL, OpenApiParameter.QUERY),
-        ],
-        responses={200: OrderListSerializer(many=True)},
-        tags=["Orders"],
-    )
     def list(self, request):
         company = self._get_company(request)
         qs = (
@@ -218,20 +191,6 @@ class OrderViewSet(GenericViewSet):
     # GET /api/orders/<pk>/
     # ─────────────────────────────────────────────────────────────
 
-    @extend_schema(
-        operation_id="getOrder",
-        summary="Retrieve an order",
-        description=(
-            "Full order detail including items (with `packed_quantity`, "
-            "`pending_qty` and per-item `packing_status`), status history "
-            "and signature."
-        ),
-        responses={
-            200: OrderDetailSerializer,
-            404: OpenApiResponse(description="Order not found in your company."),
-        },
-        tags=["Orders"],
-    )
     def retrieve(self, request, pk=None):
         company = self._get_company(request)
         order = self._get_order(pk, company)
@@ -257,17 +216,6 @@ class OrderViewSet(GenericViewSet):
     # POST /api/orders/
     # ─────────────────────────────────────────────────────────────
 
-    @extend_schema(
-        operation_id="createOrder",
-        summary="Create an order",
-        description=(
-            "Calculates GST, checks the customer's credit limit, reserves "
-            "stock and triggers approval if required."
-        ),
-        request=OrderCreateSerializer,
-        responses={201: OrderDetailSerializer},
-        tags=["Orders"],
-    )
     @transaction.atomic
     def create(self, request):
         company = self._get_company(request)
@@ -414,26 +362,6 @@ class OrderViewSet(GenericViewSet):
     # POST /api/orders/<pk>/status/
     # ─────────────────────────────────────────────────────────────
 
-    @extend_schema(
-        operation_id="updateOrderStatus",
-        summary="Move order to another workflow status",
-        description=(
-            "Sets the workflow status (draft → submitted → confirmed → "
-            "processing → packed → ready → dispatched / delivered / cancelled). "
-            "Note: this is the *workflow* status — packing progress is tracked "
-            "separately via `pack-items` and exposed as the derived "
-            "`packing_status`."
-        ),
-        request=OrderStatusUpdateSerializer,
-        responses={200: OrderDetailSerializer},
-        tags=["Orders"],
-    )
-    @action(
-        detail=True,
-        methods=["post"],
-        url_path="status",
-        permission_classes=[IsAdminOrSubAdmin],
-    )
     @transaction.atomic
     def update_status(self, request, pk=None):
         company = self._get_company(request)
@@ -484,19 +412,6 @@ class OrderViewSet(GenericViewSet):
     # POST /api/orders/<pk>/approve/
     # ─────────────────────────────────────────────────────────────
 
-    @extend_schema(
-        operation_id="approveOrder",
-        summary="Approve or reject a pending order",
-        request=OrderApprovalSerializer,
-        responses={200: OrderDetailSerializer},
-        tags=["Orders"],
-    )
-    @action(
-        detail=True,
-        methods=["post"],
-        url_path="approve",
-        permission_classes=[IsAdminOrSubAdmin],
-    )
     @transaction.atomic
     def approve(self, request, pk=None):
         company = self._get_company(request)
@@ -557,15 +472,6 @@ class OrderViewSet(GenericViewSet):
     # POST /api/orders/<pk>/cancel/
     # ─────────────────────────────────────────────────────────────
 
-    @extend_schema(
-        operation_id="cancelOrder",
-        summary="Cancel an order",
-        description="Cancels the order and releases all reserved stock.",
-        request=OrderCancelSerializer,
-        responses={200: OrderDetailSerializer},
-        tags=["Orders"],
-    )
-    @action(detail=True, methods=["post"], url_path="cancel")
     @transaction.atomic
     def cancel(self, request, pk=None):
         company = self._get_company(request)
@@ -634,57 +540,6 @@ class OrderViewSet(GenericViewSet):
     # PACKING — record packed quantities per item
     # POST /api/orders/<pk>/pack-items/
     # ─────────────────────────────────────────────────────────────
-
-    @extend_schema(
-        operation_id="packOrderItems",
-        summary="Record packed quantities per item",
-        description=(
-            "Bulk-records how many units of each line item were physically "
-            "packed. Packed quantity may be **equal to or less than** the "
-            "ordered quantity — partial packing / shortfalls are expected and "
-            "over-packing is rejected.\n\n"
-            "- Every `item_id` must belong to this order.\n"
-            "- Allowed until the order is dispatched, delivered or cancelled.\n"
-            "- The order-level `packing_status` (unpacked / partially_packed / "
-            "packed) is **auto-derived** from its items; there is no separate "
-            "'mark as packed' call.\n"
-            "- Each change is appended to the order's status history for audit."
-        ),
-        request=PackItemsSerializer,
-        responses={
-            200: OrderDetailSerializer,
-            400: OpenApiResponse(
-                description="Validation failed — over-packing, foreign/unknown "
-                "item, duplicates, or a terminal order status.",
-            ),
-            403: OpenApiResponse(
-                description="Only Admin / SubAdmin may record packed quantities."
-            ),
-            404: OpenApiResponse(description="Order not found in your company."),
-        },
-        tags=["Orders"],
-        examples=[
-            OpenApiExample(
-                "Partial packing (ordered 100, packed 80)",
-                value={
-                    "items": [
-                        {
-                            "item_id": "6a3f8b2c-1d4e-4f5a-9b0c-7d8e6f5a4b3c",
-                            "packed_quantity": 80,
-                        }
-                    ],
-                    "notes": "20 units short-packed",
-                },
-                request_only=True,
-            ),
-        ],
-    )
-    @action(
-        detail=True,
-        methods=["post"],
-        url_path="pack-items",
-        permission_classes=[IsAdminOrSubAdmin],
-    )
     @transaction.atomic
     def pack_items(self, request, pk=None):
         company = self._get_company(request)
@@ -739,19 +594,6 @@ class OrderViewSet(GenericViewSet):
     # GET /api/orders/kanban/
     # ─────────────────────────────────────────────────────────────
 
-    @extend_schema(
-        operation_id="getOrderKanban",
-        summary="Kanban board",
-        description="Orders grouped by workflow status (submitted → ready).",
-        responses={200: KanbanStatusColumnSerializer},
-        tags=["Orders"],
-    )
-    @action(
-        detail=False,
-        methods=["get"],
-        url_path="kanban",
-        permission_classes=[IsAdminOrSubAdmin],
-    )
     def kanban(self, request):
         company = self._get_company(request)
         result = {}
@@ -777,17 +619,6 @@ class OrderViewSet(GenericViewSet):
     # OFFLINE SYNC
     # POST /api/orders/sync/
     # ─────────────────────────────────────────────────────────────
-
-    @extend_schema(
-        operation_id="syncOfflineOrders",
-        summary="Bulk offline order sync (Agent mobile app)",
-        request=OfflineSyncRequestSerializer,
-        responses={200: OfflineSyncResponseSerializer, 400: OpenApiResponse(description="'orders' must be a list.")},
-        tags=["Orders"],
-    )
-    @action(
-        detail=False, methods=["post"], url_path="sync", permission_classes=[IsAgent]
-    )
     @transaction.atomic
     def sync_offline(self, request):
         """
@@ -822,20 +653,6 @@ class OrderViewSet(GenericViewSet):
     # SIGNATURE CAPTURE
     # POST /api/orders/<pk>/signature/
     # ─────────────────────────────────────────────────────────────
-
-    @extend_schema(
-        operation_id="captureOrderSignature",
-        summary="Capture customer signature",
-        request=OrderSignatureSerializer,
-        responses={201: OrderSignatureSerializer},
-        tags=["Orders"],
-    )
-    @action(
-        detail=True,
-        methods=["post"],
-        url_path="signature",
-        permission_classes=[IsAgent],
-    )
     @transaction.atomic
     def capture_signature(self, request, pk=None):
         company = self._get_company(request)

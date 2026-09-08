@@ -5,16 +5,20 @@ info:
 
 http:
   method: GET
-  url: "{{BASE_URL}}/products/scan/a68e0902-b09c-403f-b7d2-1638c8a7718e/"
+  url: "{{baseUrl}}/api/products/scan/df71d4c2-b74c-4e57-85b0-b119ef30cdd4/"
+  headers:
+    - name: X-Company-Id
+      value: "{{COMPANY_ID}}"
   body:
     type: json
     data: ""
   auth:
     type: bearer
-    token: "{{access_admin}}"
+    token: "{{AGENT_ACCESS}}"
 
 settings:
   encodeUrl: true
   timeout: 0
   followRedirects: true
   maxRedirects: 5
+  forwardAuthorizationHeader: true
