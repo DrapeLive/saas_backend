@@ -2,53 +2,11 @@
 
 from django.urls import path
 
-from apps.commissions.views import CommissionEntryViewSet, CommissionPlanViewSet
+from apps.commissions.views import CommissionEntryViewSet
 
 app_name = "commissions"
 
 urlpatterns = [
-    # ─────────────────────────────────────────────────────────────
-    # COMMISSION PLANS  (Admin manages)
-    # ─────────────────────────────────────────────────────────────
-    # GET    /api/commission-plans/                          List plans
-    # POST   /api/commission-plans/                          Create plan (with slabs + category rates)
-    # GET    /api/commission-plans/<pk>/                     Plan detail
-    # PATCH  /api/commission-plans/<pk>/                     Update plan name / description / default flag
-    # DELETE /api/commission-plans/<pk>/                     Delete (blocked if default or agents assigned)
-    # POST   /api/commission-plans/<pk>/slabs/               Add a slab to the plan
-    # DELETE /api/commission-plans/<pk>/slabs/<slab_pk>/     Remove a slab
-    # POST   /api/commission-plans/<pk>/category-rates/      Add / overwrite category rate
-    path(
-        "commission-plans/",
-        CommissionPlanViewSet.as_view({"get": "list", "post": "create"}),
-        name="commission-plan-list-create",
-    ),
-    path(
-        "commission-plans/<uuid:pk>/",
-        CommissionPlanViewSet.as_view(
-            {
-                "get": "retrieve",
-                "patch": "partial_update",
-                "delete": "destroy",
-            }
-        ),
-        name="commission-plan-detail",
-    ),
-    path(
-        "commission-plans/<uuid:pk>/slabs/",
-        CommissionPlanViewSet.as_view({"post": "add_slab"}),
-        name="commission-plan-add-slab",
-    ),
-    path(
-        "commission-plans/<uuid:pk>/slabs/<uuid:slab_pk>/",
-        CommissionPlanViewSet.as_view({"delete": "remove_slab"}),
-        name="commission-plan-remove-slab",
-    ),
-    path(
-        "commission-plans/<uuid:pk>/category-rates/",
-        CommissionPlanViewSet.as_view({"post": "add_category_rate"}),
-        name="commission-plan-add-category-rate",
-    ),
     # ─────────────────────────────────────────────────────────────
     # COMMISSION ENTRIES  (auto-created on dispatch; Admin settles)
     # ─────────────────────────────────────────────────────────────

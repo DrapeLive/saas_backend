@@ -60,6 +60,7 @@ from apps.core.openapi import (
 )
 from apps.core.pagination import DefaultPageNumberPagination
 from apps.orders.models import Order
+from apps.sub_admin.services import scope_agent_membership_queryset
 
 
 @extend_schema_view(
@@ -116,7 +117,7 @@ from apps.orders.models import Order
     partial_update=extend_schema(
         tags=["Agents"],
         summary="Update agent membership",
-        description="Updates `territory`, `monthly_target` or `custom_commission_plan`.",
+        description="Updates `territory` or `monthly_target`.",
         responses={
             200: AgentMembershipSerializer,
             400: RESPONSE_400,
@@ -325,7 +326,6 @@ class AgentMembershipViewSet(GenericViewSet):
         return AgentCompanyMembership.objects.select_related(
             "agent__user",
             "company",
-            "custom_commission_plan",
             "approved_by",
             "reviewed_by",
         )
@@ -404,6 +404,7 @@ class AgentMembershipViewSet(GenericViewSet):
 
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset().filter(company=request.user.company)
+        queryset = scope_agent_membership_queryset(request.user, queryset)
 
         status_filter = request.query_params.get("status")
         if status_filter:
@@ -435,6 +436,7 @@ class AgentMembershipViewSet(GenericViewSet):
             .filter(company=request.user.company)
             .order_by("-created_at")
         )
+        queryset = scope_agent_membership_queryset(request.user, queryset)
 
         status_filter = request.query_params.get("status")
         if status_filter:

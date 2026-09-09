@@ -60,7 +60,7 @@ urlpatterns = [
     # Admin endpoints
     path(
         "admin/users",
-        AdminUserViewSet.as_view({"get": "list", "post": "create_sub_admin"}),
+        AdminUserViewSet.as_view({"get": "list"}),
         name="admin-users-list",
     ),  # ✅
     path(

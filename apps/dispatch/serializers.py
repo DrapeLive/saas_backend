@@ -8,7 +8,7 @@ from apps.dispatch.models import Dispatch
 class DispatchListSerializer(serializers.ModelSerializer):
     order_number = serializers.CharField(source="order.order_number", read_only=True)
     customer_name = serializers.CharField(
-        source="order.customer.business_name", read_only=True
+        source="order.customer.trade_name", read_only=True
     )
     dispatched_by_name = serializers.CharField(
         source="dispatched_by.full_name", read_only=True, default=None
@@ -35,7 +35,7 @@ class DispatchListSerializer(serializers.ModelSerializer):
 class DispatchDetailSerializer(serializers.ModelSerializer):
     order_number = serializers.CharField(source="order.order_number", read_only=True)
     customer_name = serializers.CharField(
-        source="order.customer.business_name", read_only=True
+        source="order.customer.trade_name", read_only=True
     )
     dispatched_by_name = serializers.CharField(
         source="dispatched_by.full_name", read_only=True, default=None

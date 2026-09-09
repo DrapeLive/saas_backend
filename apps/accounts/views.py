@@ -47,7 +47,6 @@ from apps.accounts.serializers import (
     AgentJoinSerializer,
     AgentRegisterSerializer,
     BusinessStatsSerializer,
-    CreateSubAdminSerializer,
     LoginSerializer,
     LogoutSerializer,
     PasswordChangeSerializer,
@@ -367,27 +366,12 @@ class AdminUserViewSet(GenericViewSet):
     permission_classes = (IsAuthenticated, CompanyApproved, CanManageUsers)
 
     def get_serializer_class(self):
-        if self.action == "create_sub_admin":
-            return CreateSubAdminSerializer
         return UserAdminSerializer
 
     def list(self, request, *args, **kwargs):
         users = User.objects.filter(company=request.user.company)
         serializer = UserAdminSerializer(users, many=True)
         return Response(serializer.data)
-
-    @action(detail=False, methods=["post"])
-    def create_sub_admin(self, request, *args, **kwargs):
-        """Create a sub-admin user."""
-
-        company = request.user.company
-
-        serializer = CreateSubAdminSerializer(
-            data=request.data, context={"company": company}
-        )
-        serializer.is_valid(raise_exception=True)
-        user = serializer.save()
-        return Response(UserAdminSerializer(user).data, status=status.HTTP_201_CREATED)
 
     def update(self, request, pk=None, *args, **kwargs):
         try:

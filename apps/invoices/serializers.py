@@ -50,7 +50,7 @@ class InvoiceListSerializer(serializers.ModelSerializer):
     """Lightweight — used in invoice table / outstanding list."""
 
     customer_name = serializers.CharField(
-        source="customer.business_name", read_only=True
+        source="customer.trade_name", read_only=True
     )
     days_overdue = serializers.SerializerMethodField()
 
@@ -84,7 +84,7 @@ class InvoiceListSerializer(serializers.ModelSerializer):
 
 class InvoiceDetailSerializer(serializers.ModelSerializer):
     customer_name = serializers.CharField(
-        source="customer.business_name", read_only=True
+        source="customer.trade_name", read_only=True
     )
     customer_gstin = serializers.CharField(
         source="customer.gstin", read_only=True, default=""
@@ -120,9 +120,6 @@ class InvoiceDetailSerializer(serializers.ModelSerializer):
             "is_interstate",
             "reverse_charge",
             "place_of_supply",
-            # Files
-            "pdf_file",
-            "pdf_generated_at",
             # Tally
             "tally_voucher_id",
             "tally_synced_at",
@@ -199,22 +196,3 @@ class InvoiceStatusUpdateSerializer(serializers.Serializer):
 
 class InvoiceVoidSerializer(serializers.Serializer):
     reason = serializers.CharField(min_length=5, max_length=500)
-
-
-class InvoicePDFRegenerateSerializer(serializers.Serializer):
-    """Triggers a background task to regenerate the invoice PDF."""
-
-    force = serializers.BooleanField(default=False)
-
-
-class InvoiceDownloadResponseSerializer(serializers.Serializer):
-    """Absolute URL of the generated invoice PDF."""
-
-    pdf_url = serializers.URLField()
-
-
-class InvoicePDFQueuedSerializer(serializers.Serializer):
-    """Confirmation that PDF regeneration was queued."""
-
-    detail = serializers.CharField()
-    invoice_id = serializers.UUIDField()

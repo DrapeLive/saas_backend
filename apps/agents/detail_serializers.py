@@ -42,7 +42,6 @@ class AgentOverviewDetailSerializer(serializers.Serializer):
 class AgentCommissionSerializer(serializers.ModelSerializer):
     agent_name = serializers.CharField(source="agent.user.full_name", read_only=True)
     order_number = serializers.CharField(source="order.order_number", read_only=True)
-    plan_name = serializers.CharField(source="plan.name", read_only=True, default=None)
 
     class Meta:
         model = CommissionEntry
@@ -52,7 +51,6 @@ class AgentCommissionSerializer(serializers.ModelSerializer):
             "agent_name",
             "order",
             "order_number",
-            "plan_name",
             "order_value",
             "commission_pct",
             "commission_amount",

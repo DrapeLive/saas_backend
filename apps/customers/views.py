@@ -48,6 +48,7 @@ from apps.customers.serializers import (
 )
 from apps.customers.services import compute_segment, verify_gstin
 from apps.invoices.models import Invoice, InvoiceStatus
+from apps.sub_admin.services import scope_customer_queryset
 
 
 class IsAdminOrSubAdmin(IsCompanyStaff):
@@ -296,6 +297,7 @@ class CustomerViewSet(GenericViewSet):
         id = self._get_company(request)
 
         customers = self.get_queryset().filter(company=id)
+        customers = scope_customer_queryset(request.user, customers)
 
         search = request.query_params.get("search")
         if search:

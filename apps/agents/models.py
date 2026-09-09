@@ -89,13 +89,6 @@ class AgentCompanyMembership(UUIDModel, TimeStampedModel):
         default=MembershipStatus.PENDING,
     )
 
-    custom_commission_plan = models.ForeignKey(
-        "commissions.CommissionPlan",
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-    )
-
     territory = models.CharField(max_length=200, blank=True)
 
     invitation_method = models.CharField(

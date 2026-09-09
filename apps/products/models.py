@@ -103,7 +103,6 @@ class ColorVariant(UUIDModel, TimeStampedModel):
     is_primary = models.BooleanField(default=False)
     sku = models.CharField(max_length=50, unique=True)
     qr_code = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
-    is_active = models.BooleanField(default=True)
 
     class Meta:
         db_table = "products_color_variant"
@@ -130,8 +129,6 @@ class VariantSize(UUIDModel, TimeStampedModel):
         default=0, help_text="Reserved for pending orders"
     )
     reorder_level = models.PositiveIntegerField(default=10)
-
-    is_active = models.BooleanField(default=True)
 
     class Meta:
         db_table = "products_variant_size"

@@ -19,9 +19,6 @@ class AgentMembershipSerializer(serializers.ModelSerializer):
     agent_id = serializers.UUIDField(read_only=True)
     user = AgentUserSerializer(source="agent.user", read_only=True)
     company_name = serializers.CharField(source="company.name", read_only=True)
-    commission_plan_name = serializers.CharField(
-        source="custom_commission_plan.name", read_only=True, default=None
-    )
     clients_count = serializers.IntegerField(read_only=True, default=0)
     commission_total = serializers.DecimalField(
         max_digits=14, decimal_places=2, read_only=True, default=0
@@ -43,8 +40,6 @@ class AgentMembershipSerializer(serializers.ModelSerializer):
             "commission_total",
             "commission_pending",
             "monthly_target",
-            "custom_commission_plan",
-            "commission_plan_name",
             "invitation_method",
             "joined_at",
             "removed_at",
@@ -59,7 +54,6 @@ class AgentMembershipSerializer(serializers.ModelSerializer):
             "agent_id",
             "user",
             "company_name",
-            "commission_plan_name",
             "status",
             "invitation_method",
             "joined_at",
@@ -75,7 +69,7 @@ class AgentMembershipSerializer(serializers.ModelSerializer):
 class AgentMembershipUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = AgentCompanyMembership
-        fields = ["territory", "monthly_target", "custom_commission_plan"]
+        fields = ["territory", "monthly_target"]
 
 
 class AgentCompanySerializer(serializers.Serializer):

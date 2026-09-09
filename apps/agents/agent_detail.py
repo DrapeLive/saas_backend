@@ -126,7 +126,7 @@ def agent_transactions(agent, company, type=None, month=None, status=None, limit
 
 def agent_commission(agent, company, month=None, status=None):
     qs = CommissionEntry.objects.filter(agent=agent, company=company).select_related(
-        "order", "plan"
+        "order"
     )
     if month:
         qs = qs.filter(settlement_month=month)

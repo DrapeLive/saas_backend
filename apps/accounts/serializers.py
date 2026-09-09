@@ -250,30 +250,6 @@ class UserAdminSerializer(serializers.ModelSerializer):
         ]
 
 
-class CreateSubAdminSerializer(serializers.Serializer):
-    email = serializers.EmailField()
-    password = serializers.CharField(write_only=True, validators=[validate_password])
-    full_name = serializers.CharField(max_length=150)
-    phone = serializers.CharField(max_length=15, required=False, allow_blank=True)
-
-    def validate_email(self, value):
-        if User.objects.filter(email__iexact=value).exists():
-            raise serializers.ValidationError("A user with this email already exists.")
-        return value.lower()
-
-    def create(self, validated_data):
-        company = self.context["company"]
-        user = User.objects.create_user(
-            email=validated_data["email"],
-            password=validated_data["password"],
-            full_name=validated_data["full_name"],
-            phone=validated_data.get("phone", ""),
-            role=RoleType.SUB_ADMIN,
-            company=company,
-        )
-        return user
-
-
 class SuperAdminDashboardSerializer(serializers.Serializer):
     total_companies = serializers.IntegerField()
     active_companies = serializers.IntegerField()

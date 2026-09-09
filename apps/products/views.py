@@ -34,6 +34,10 @@ from apps.products.serializers import (
     StockMovementSerializer,
     VariantSizeSerializer,
 )
+from apps.sub_admin.services import (
+    scope_category_queryset,
+    scope_product_queryset,
+)
 
 
 class CategoryViewSet(GenericViewSet):
@@ -72,6 +76,7 @@ class CategoryViewSet(GenericViewSet):
         qs = Category.objects.filter(company=company, is_deleted=False).order_by(
             "display_order", "name"
         )
+        qs = scope_category_queryset(request.user, qs)
         return Response(CategoryListSerializer(qs, many=True).data)
 
     def retrieve(self, request, pk=None):
@@ -227,6 +232,7 @@ class ProductViewSet(GenericViewSet):
             .prefetch_related("color_variants__sizes")
             .order_by("name")
         )
+        qs = scope_product_queryset(request.user, qs)
 
         # Search: product name, SKU prefix, color name, category name
         search = request.query_params.get("search")
@@ -475,8 +481,7 @@ class ColorVariantViewSet(GenericViewSet):
             variant = ColorVariant.objects.get(pk=pk, product=product)
         except ColorVariant.DoesNotExist:
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
-        variant.is_active = False
-        variant.save(update_fields=["is_active"])
+        variant.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 

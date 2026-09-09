@@ -1,17 +1,9 @@
 from decimal import Decimal
 
 from django.db import transaction
-from django.db.models import F, Sum
+from django.db.models import F
 from django.utils.timezone import now
-from drf_spectacular.utils import (
-    OpenApiExample,
-    OpenApiParameter,
-    OpenApiResponse,
-    OpenApiTypes,
-    extend_schema,
-)
 from rest_framework import status
-from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 
@@ -26,9 +18,6 @@ from apps.orders.models import (
     OrderStatusHistory,
 )
 from apps.orders.serializers import (
-    KanbanStatusColumnSerializer,
-    OfflineSyncRequestSerializer,
-    OfflineSyncResponseSerializer,
     OrderApprovalSerializer,
     OrderCancelSerializer,
     OrderCreateSerializer,
@@ -39,6 +28,18 @@ from apps.orders.serializers import (
     PackItemsSerializer,
 )
 from apps.products.models import StockMovement, VariantSize
+from apps.orders.services import send_order_notification
+from apps.sub_admin.services import scope_order_queryset
+
+
+def _is_interstate(company_state, customer_state):
+    """
+    GST: interstate when the supplier (company) and recipient (customer)
+    states differ. Missing data is treated as same-state (intrastate).
+    """
+    if not company_state or not customer_state:
+        return False
+    return company_state.strip().lower() != customer_state.strip().lower()
 
 
 class OrderViewSet(GenericViewSet):
@@ -74,14 +75,13 @@ class OrderViewSet(GenericViewSet):
         year = now().year
         return f"ORD-{year}-{count:05d}"
 
-    def _calculate_totals(self, items_data, discount_pct, company):
+    def _calculate_totals(self, items_data, discount_pct, company, customer_state=""):
         """
         Resolve prices from VariantSize, apply discount + GST.
         Returns (line_items, subtotal, discount_amount, taxable, cgst, sgst, igst, total, is_interstate).
         """
         subtotal = Decimal("0")
         line_items = []
-        customer_state = None  # resolved later for interstate check
 
         for item in items_data:
             variant = VariantSize.objects.select_related("color_variant__product").get(
@@ -114,9 +114,7 @@ class OrderViewSet(GenericViewSet):
         discount_amount = subtotal * discount_pct / 100
         taxable = subtotal - discount_amount
         gst_total = sum(i["gst_amount"] for i in line_items)
-        is_interstate = (
-            False  # simplified; real logic compares company state vs customer state
-        )
+        is_interstate = _is_interstate(company.state, customer_state)
         cgst = sgst = igst = Decimal("0")
         if is_interstate:
             igst = gst_total
@@ -149,6 +147,7 @@ class OrderViewSet(GenericViewSet):
             .prefetch_related("items")
             .order_by("-created_at")
         )
+        qs = scope_order_queryset(request.user, qs)
 
         # Filters
         status_f = request.query_params.get("status")
@@ -196,6 +195,13 @@ class OrderViewSet(GenericViewSet):
         order = self._get_order(pk, company)
         if not order:
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+        scoped_ids = set(
+            scope_order_queryset(request.user, Order.objects.all()).values_list(
+                "id", flat=True
+            )
+        )
+        if scoped_ids and order.id not in scoped_ids:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
 
         # Agents can only see their own orders
         if request.user.role == "agent":
@@ -235,6 +241,7 @@ class OrderViewSet(GenericViewSet):
 
         # Calculate totals
         discount_pct = data.get("discount_pct", Decimal("0"))
+        customer_state = customer.billing_state
         (
             line_items,
             subtotal,
@@ -245,7 +252,7 @@ class OrderViewSet(GenericViewSet):
             igst,
             total,
             is_interstate,
-        ) = self._calculate_totals(data["items"], discount_pct, company)
+        ) = self._calculate_totals(data["items"], discount_pct, company, customer_state)
 
         # Check credit limit
         settings = getattr(company, "settings", None)
@@ -254,7 +261,7 @@ class OrderViewSet(GenericViewSet):
                 return Response(
                     {
                         "detail": (
-                            f"Order total ₹{total} would exceed {customer.business_name}'s "
+                            f"Order total ₹{total} would exceed {customer.trade_name}'s "
                             f"credit limit of ₹{customer.credit_limit}."
                         )
                     },
@@ -352,6 +359,9 @@ class OrderViewSet(GenericViewSet):
         # Status history
         self._log_status_change(order, "", OrderStatus.SUBMITTED, request.user)
 
+        if customer.user:
+            send_order_notification(company, order, "order_submitted", customer.user)
+
         return Response(
             OrderDetailSerializer(order).data,
             status=status.HTTP_201_CREATED,
@@ -404,6 +414,28 @@ class OrderViewSet(GenericViewSet):
                     reference_id=order.id,
                     performed_by=request.user,
                 )
+            event = "order_cancelled"
+        elif new_status == OrderStatus.CONFIRMED:
+            event = "order_confirmed"
+        elif new_status == OrderStatus.DISPATCHED:
+            event = "order_dispatched"
+            # Direct status update bypasses the dispatch app: generate the
+            # sales invoice + commission so the ledger stays consistent.
+            from apps.orders.services import (
+                create_commission_entry,
+                generate_sales_invoice,
+            )
+
+            generate_sales_invoice(company, order)
+            if order.agent:
+                create_commission_entry(company, order, performed_by=request.user)
+        elif new_status == OrderStatus.DELIVERED:
+            event = "order_delivered"
+        else:
+            event = None
+
+        if event and order.customer.user:
+            send_order_notification(company, order, event, order.customer.user)
 
         return Response(OrderDetailSerializer(order).data)
 
@@ -464,6 +496,23 @@ class OrderViewSet(GenericViewSet):
                 VariantSize.objects.filter(pk=item.variant_size_id).update(
                     reserved_qty=F("reserved_qty") - item.quantity
                 )
+                StockMovement.objects.create(
+                    variant_size=item.variant_size,
+                    movement_type=StockMovement.MovementType.RELEASE,
+                    quantity=item.quantity,
+                    balance_after=item.variant_size.stock_quantity,
+                    reference_type="order",
+                    reference_id=order.id,
+                    performed_by=request.user,
+                )
+            if order.customer.user:
+                send_order_notification(
+                    company, order, "order_cancelled", order.customer.user
+                )
+            return Response(OrderDetailSerializer(order).data)
+
+        if order.customer.user:
+            send_order_notification(company, order, "order_confirmed", order.customer.user)
 
         return Response(OrderDetailSerializer(order).data)
 
@@ -533,6 +582,9 @@ class OrderViewSet(GenericViewSet):
                 reference_id=order.id,
                 performed_by=request.user,
             )
+
+        if order.customer.user:
+            send_order_notification(company, order, "order_cancelled", order.customer.user)
 
         return Response(OrderDetailSerializer(order).data)
 
@@ -611,6 +663,7 @@ class OrderViewSet(GenericViewSet):
                 .prefetch_related("items")
                 .order_by("created_at")
             )
+            qs = scope_order_queryset(request.user, qs)
             result[s] = OrderListSerializer(qs, many=True).data
 
         return Response(result)

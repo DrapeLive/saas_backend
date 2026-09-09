@@ -58,6 +58,8 @@ urlpatterns = [
                 ),
                 # Notifications
                 path("", include("apps.notifications.urls", namespace="notifications")),
+                # Sub Admins
+                path("", include("apps.sub_admin.urls", namespace="sub_admin")),
                 # Reports
                 path("", include("apps.reports.urls", namespace="reports")),
                 # Audit Logs

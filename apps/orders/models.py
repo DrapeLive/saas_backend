@@ -108,7 +108,7 @@ class Order(CompanyScopeModel):
         ]
 
     def __str__(self):
-        return f"{self.order_number} — {self.customer.business_name} [{self.status}]"
+        return f"{self.order_number} — {self.customer.trade_name} [{self.status}]"
 
     @property
     def packing_status(self):

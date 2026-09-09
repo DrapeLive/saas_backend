@@ -87,7 +87,6 @@ class VariantSizeSerializer(serializers.ModelSerializer):
             "available_qty",
             "reorder_level",
             "is_low_stock",
-            "is_active",
         ]
 
 
@@ -100,7 +99,6 @@ class VariantSizeCreateSerializer(serializers.ModelSerializer):
             "price_override",
             "stock_quantity",
             "reorder_level",
-            "is_active",
         ]
 
 
@@ -116,13 +114,12 @@ class ColorVariantListSerializer(serializers.ModelSerializer):
             "image",
             "is_primary",
             "sku",
-            "is_active",
             "total_stock",
         ]
 
     @extend_schema_field(serializers.IntegerField())
     def get_total_stock(self, obj):
-        return sum(s.available_qty for s in obj.sizes.filter(is_active=True))
+        return sum(s.available_qty for s in obj.sizes.all())
 
 
 class ColorVariantDetailSerializer(serializers.ModelSerializer):
@@ -139,7 +136,6 @@ class ColorVariantDetailSerializer(serializers.ModelSerializer):
             "is_primary",
             "sku",
             "qr_code",
-            "is_active",
             "sizes",
             "size_chart",
             "created_at",
@@ -157,7 +153,6 @@ class ColorVariantCreateSerializer(serializers.ModelSerializer):
             "color_hex",
             "image",
             "is_primary",
-            "is_active",
             "sizes",
         ]
 
@@ -361,8 +356,8 @@ class StockAdjustmentSerializer(serializers.Serializer):
     reason = serializers.CharField(max_length=500)
 
     def validate_variant_size_id(self, value):
-        if not VariantSize.objects.filter(id=value, is_active=True).exists():
-            raise serializers.ValidationError("Variant size not found or inactive.")
+        if not VariantSize.objects.filter(id=value).exists():
+            raise serializers.ValidationError("Variant size not found.")
         return value
 
     def validate_quantity(self, value):

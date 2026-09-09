@@ -18,6 +18,7 @@ from apps.accounts.authentication import CustomJWTAuthentication
 from apps.accounts.permissions import IsAdminOrSubAdmin
 from apps.core.openapi import RESPONSE_400, RESPONSE_404
 from apps.invoices.models import InvoiceStatus
+from apps.orders.services import update_customer_outstanding
 from apps.payments.models import OutstandingAging, Payment
 from apps.payments.serializers import (
     AgingReportSummarySerializer,
@@ -148,15 +149,9 @@ class PaymentViewSet(GenericViewSet):
             )
             invoice.save(update_fields=["amount_paid", "amount_due", "status"])
 
-        # Update customer outstanding
+        # Recompute the customer's outstanding from live unpaid invoices
         customer = payment.customer
-        customer.credit_utilized = max(
-            Decimal("0"), customer.credit_utilized - payment.amount
-        )
-        customer.total_outstanding = max(
-            Decimal("0"), customer.total_outstanding - payment.amount
-        )
-        customer.save(update_fields=["credit_utilized", "total_outstanding"])
+        update_customer_outstanding(customer)
 
         # tasks.send_payment_receipt.delay(str(payment.id))
         return Response(
@@ -176,7 +171,21 @@ class PaymentViewSet(GenericViewSet):
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        customer = payment.customer
+        invoice = payment.invoice
         payment.delete()
+        if invoice:
+            paid = invoice.amount_paid - payment.amount
+            invoice.amount_paid = max(Decimal("0"), paid)
+            invoice.amount_due = invoice.total_amount - invoice.amount_paid
+            if invoice.amount_due <= 0:
+                invoice.status = InvoiceStatus.PAID
+            elif invoice.amount_paid > 0:
+                invoice.status = InvoiceStatus.PARTIAL
+            else:
+                invoice.status = InvoiceStatus.ISSUED
+            invoice.save(update_fields=["amount_paid", "amount_due", "status"])
+        update_customer_outstanding(customer)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 

@@ -25,6 +25,11 @@ from apps.dispatch.serializers import (
     MarkDeliveredSerializer,
 )
 from apps.orders.models import OrderStatus, OrderStatusHistory
+from apps.orders.services import (
+    create_commission_entry,
+    generate_sales_invoice,
+    send_order_notification,
+)
 
 
 @extend_schema_view(
@@ -192,6 +197,16 @@ class DispatchViewSet(GenericViewSet):
         # tasks.generate_sales_invoice.delay(str(order.id))
         # tasks.send_dispatch_notification.delay(str(dispatch.id))
 
+        # Sales invoice + commission + notification for a dispatched order
+        generate_sales_invoice(company, order)
+        if order.agent:
+            create_commission_entry(company, order, performed_by=request.user)
+        customer_user = order.customer.user
+        if customer_user:
+            send_order_notification(
+                company, order, "order_dispatched", customer_user
+            )
+
         return Response(
             DispatchDetailSerializer(dispatch).data, status=status.HTTP_201_CREATED
         )
@@ -241,5 +256,9 @@ class DispatchViewSet(GenericViewSet):
             changed_by=request.user,
             notes=serializer.validated_data.get("notes", ""),
         )
+
+        customer_user = order.customer.user
+        if customer_user:
+            send_order_notification(company, order, "order_delivered", customer_user)
 
         return Response(DispatchDetailSerializer(dispatch).data)

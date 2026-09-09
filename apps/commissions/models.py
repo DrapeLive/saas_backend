@@ -3,53 +3,18 @@ from django.db import models
 from apps.core.models import CompanyScopeModel, TimeStampedModel, UUIDModel
 
 
-class CommissionPlan(CompanyScopeModel):
-    name = models.CharField(max_length=100)
-    description = models.TextField(blank=True)
-    is_default = models.BooleanField(default=False)
-
-    class Meta:
-        db_table = "commissions_plan"
-
-    def __str__(self):
-        return f"{self.name} ({self.company.name})"
-
-
-class CommissionSlab(UUIDModel, TimeStampedModel):
+class CategoryCommissionRate(CompanyScopeModel):
     """
-    Tiered slab within a CommissionPlan.
-    e.g., 0–₹1L → 2%, ₹1L–₹5L → 3%, Above ₹5L → 5%
-    """
-
-    plan = models.ForeignKey(
-        CommissionPlan, on_delete=models.CASCADE, related_name="slabs"
-    )
-    min_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    max_amount = models.DecimalField(
-        max_digits=12, decimal_places=2, null=True, blank=True
-    )
-    commission_pct = models.DecimalField(max_digits=5, decimal_places=2)
-
-    class Meta:
-        db_table = "commissions_slab"
-        ordering = ["min_amount"]
-
-
-class CategoryCommissionRate(UUIDModel, TimeStampedModel):
-    """
-    Category-specific commission override within a plan.
+    Commission rate for a product category within a company.
     e.g., Mens=2%, Kids=3%, Ladies=4%
     """
 
-    plan = models.ForeignKey(
-        CommissionPlan, on_delete=models.CASCADE, related_name="category_rates"
-    )
     category = models.ForeignKey("products.Category", on_delete=models.CASCADE)
     commission_pct = models.DecimalField(max_digits=5, decimal_places=2)
 
     class Meta:
         db_table = "commissions_category_rate"
-        unique_together = [("plan", "category")]
+        unique_together = [("company", "category")]
 
 
 class CommissionEntry(CompanyScopeModel):
@@ -71,7 +36,6 @@ class CommissionEntry(CompanyScopeModel):
     order = models.OneToOneField(
         "orders.Order", on_delete=models.CASCADE, related_name="commission"
     )
-    plan = models.ForeignKey(CommissionPlan, null=True, on_delete=models.SET_NULL)
 
     order_value = models.DecimalField(max_digits=14, decimal_places=2)
     commission_pct = models.DecimalField(max_digits=5, decimal_places=2)

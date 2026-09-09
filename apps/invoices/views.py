@@ -20,11 +20,8 @@ from apps.invoices.models import Invoice, InvoiceItem, InvoiceStatus, InvoiceTyp
 from apps.invoices.serializers import (
     InvoiceCreateSerializer,
     InvoiceDetailSerializer,
-    InvoiceDownloadResponseSerializer,
     InvoiceItemSerializer,
     InvoiceListSerializer,
-    InvoicePDFQueuedSerializer,
-    InvoicePDFRegenerateSerializer,
     InvoiceStatusUpdateSerializer,
     InvoiceVoidSerializer,
 )
@@ -82,18 +79,6 @@ from apps.invoices.serializers import (
         description="Irreversibly voids a draft/issued invoice with no recorded payments.",
         responses={200: InvoiceDetailSerializer, 400: RESPONSE_400, 404: RESPONSE_404},
     ),
-    regenerate_pdf=extend_schema(
-        tags=["Invoices"],
-        summary="Regenerate PDF",
-        description="Queues a background job to regenerate the invoice PDF.",
-        responses={200: InvoicePDFQueuedSerializer, 400: RESPONSE_400, 404: RESPONSE_404},
-    ),
-    download=extend_schema(
-        tags=["Invoices"],
-        summary="Download PDF",
-        description="Returns the absolute URL of the generated PDF.",
-        responses={200: InvoiceDownloadResponseSerializer, 404: RESPONSE_404},
-    ),
 )
 class InvoiceViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
@@ -106,8 +91,6 @@ class InvoiceViewSet(GenericViewSet):
             return InvoiceCreateSerializer
         if self.action == "void":
             return InvoiceVoidSerializer
-        if self.action == "regenerate_pdf":
-            return InvoicePDFRegenerateSerializer
         return InvoiceDetailSerializer
 
     def _get_company(self, request):
@@ -157,7 +140,7 @@ class InvoiceViewSet(GenericViewSet):
             qs = qs.filter(invoice_date__lte=date_to)
         if search:
             qs = qs.filter(invoice_number__icontains=search) | qs.filter(
-                customer__business_name__icontains=search
+                customer__trade_name__icontains=search
             )
 
         return Response(InvoiceListSerializer(qs, many=True).data)
@@ -241,31 +224,3 @@ class InvoiceViewSet(GenericViewSet):
         invoice.notes = serializer.validated_data["reason"]
         invoice.save(update_fields=["status", "notes"])
         return Response(InvoiceDetailSerializer(invoice).data)
-
-    # POST /api/invoices/<pk>/regenerate-pdf/
-    @action(detail=True, methods=["post"], url_path="regenerate-pdf")
-    def regenerate_pdf(self, request, pk=None):
-        company = self._get_company(request)
-        invoice = self._get_invoice(pk, company)
-        if not invoice:
-            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
-        serializer = InvoicePDFRegenerateSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        # tasks.generate_invoice_pdf.delay(str(invoice.id), force=serializer.validated_data["force"])
-        return Response(
-            {"detail": "PDF regeneration queued.", "invoice_id": str(invoice.id)}
-        )
-
-    # GET /api/invoices/<pk>/download/
-    @action(detail=True, methods=["get"], url_path="download")
-    def download(self, request, pk=None):
-        company = self._get_company(request)
-        invoice = self._get_invoice(pk, company)
-        if not invoice:
-            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
-        if not invoice.pdf_file:
-            return Response(
-                {"detail": "PDF not yet generated. Call regenerate-pdf first."},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-        return Response({"pdf_url": request.build_absolute_uri(invoice.pdf_file.url)})
