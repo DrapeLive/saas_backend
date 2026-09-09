@@ -1,3 +1,4 @@
+from decimal import Decimal
 from typing import ClassVar
 
 from django.utils import timezone
@@ -151,11 +152,13 @@ class UsageSnapshotSerializer(serializers.ModelSerializer):
 class SubscriptionListSerializer(serializers.ModelSerializer):
     plan_name = serializers.CharField(source="plan.name", read_only=True)
     plan_tier = serializers.CharField(source="plan.tier", read_only=True)
+    company_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Subscription
         fields: ClassVar[list[str]] = [
             "id",
+            "company_name",
             "plan_name",
             "plan_tier",
             "billing_cycle",
@@ -164,6 +167,11 @@ class SubscriptionListSerializer(serializers.ModelSerializer):
             "current_period_end",
             "price_paid",
         ]
+
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_company_name(self, obj):
+        company = getattr(obj, "company", None)
+        return company.name if company else None
 
 
 class SubscriptionDetailSerializer(serializers.ModelSerializer):
@@ -210,7 +218,7 @@ class SubscriptionUpgradeSerializer(serializers.Serializer):
     discount_pct = serializers.DecimalField(
         max_digits=5,
         decimal_places=2,
-        default=0,
+        default=Decimal("0"),
         min_value=0,
         max_value=100,
     )

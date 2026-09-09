@@ -5,7 +5,7 @@ info:
 
 http:
   method: POST
-  url: "{{BASE_URL}}/plans/6847d0ae-368a-4ca9-94c1-2b3e64a7b504/toggle-active/"
+  url: "{{baseUrl}}/api/plans/6847d0ae-368a-4ca9-94c1-2b3e64a7b504/toggle-active/"
   body:
     type: json
     data: ""
@@ -18,3 +18,4 @@ settings:
   timeout: 0
   followRedirects: true
   maxRedirects: 5
+  forwardAuthorizationHeader: true

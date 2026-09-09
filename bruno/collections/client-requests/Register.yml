@@ -10,12 +10,12 @@ http:
     type: json
     data: |-
       {
-        "email": "admin@gmail.com",
+        "email": "hamza@gmail.com",
         "password": "password!123",
-        "full_name": "Admin",
+        "full_name": "Hamza",
         "phone": "9878605748",
-        "company_name":"XL Company",
-        "company_slug": "xl-company"
+        "company_name":"KT Company",
+        "company_slug": "kt-company"
       }
   auth:
     type: bearer

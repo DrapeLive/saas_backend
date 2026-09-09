@@ -11,7 +11,7 @@ http:
     data:
       - name: gstin
         type: text
-        value: "7985348"
+        value: ""
   auth:
     type: bearer
     token: "{{SUPERADMIN_ACCESS}}"

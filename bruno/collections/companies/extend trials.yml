@@ -5,7 +5,7 @@ info:
 
 http:
   method: POST
-  url: "{{BASE_URL}}/super-admin/companies/34548a8b-3322-44f3-ad9b-48ba4e40278c/extend-trial"
+  url: "{{baseUrl}}/api/super-admin/companies/36e6aadf-2a1e-4113-a448-853c73d99236/extend-trial"
   body:
     type: json
     data: |-
@@ -15,10 +15,11 @@ http:
       }
   auth:
     type: bearer
-    token: "{{access}}"
+    token: "{{SUPERADMIN_ACCESS}}"
 
 settings:
   encodeUrl: true
   timeout: 0
   followRedirects: true
   maxRedirects: 5
+  forwardAuthorizationHeader: true

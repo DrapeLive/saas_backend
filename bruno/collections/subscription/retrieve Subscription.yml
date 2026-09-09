@@ -5,16 +5,17 @@ info:
 
 http:
   method: GET
-  url: "{{BASE_URL}}/subscriptions/b3ecb7bd-361a-4fd2-b7f1-7a554c6475f2/"
+  url: "{{baseUrl}}/api/subscriptions/15c6292c-c43c-4f51-a2d4-463bdbafcf4b/"
   body:
     type: json
     data: ""
   auth:
     type: bearer
-    token: "{{access}}"
+    token: "{{SUPERADMIN_ACCESS}}"
 
 settings:
   encodeUrl: true
   timeout: 0
   followRedirects: true
   maxRedirects: 5
+  forwardAuthorizationHeader: true

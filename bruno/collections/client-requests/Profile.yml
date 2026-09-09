@@ -5,10 +5,10 @@ info:
 
 http:
   method: GET
-  url: "{{BASE_URL}}/auth/me"
+  url: "{{baseUrl}}/api/auth/me"
   auth:
     type: bearer
-    token: "{{AGENT_ACCESS}}"
+    token: "{{SUPERADMIN_ACCESS}}"
 
 settings:
   encodeUrl: true

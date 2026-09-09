@@ -5,7 +5,7 @@ info:
 
 http:
   method: POST
-  url: "{{BASE_URL}}/subscriptions/b3ecb7bd-361a-4fd2-b7f1-7a554c6475f2/reactivate/"
+  url: "{{baseUrl}}/api/subscriptions/b3ecb7bd-361a-4fd2-b7f1-7a554c6475f2/reactivate/"
   body:
     type: json
     data: ""
@@ -18,3 +18,4 @@ settings:
   timeout: 0
   followRedirects: true
   maxRedirects: 5
+  forwardAuthorizationHeader: true

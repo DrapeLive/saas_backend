@@ -220,6 +220,7 @@ class CompanyUpdateSerializer(serializers.ModelSerializer):
             "tally_company",
             "whatsapp_enabled",
             "gst_verify_enabled",
+            "setup_completed",
         ]
         read_only_fields: ClassVar = ["slug", "status"]
 

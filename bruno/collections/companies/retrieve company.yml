@@ -5,7 +5,7 @@ info:
 
 http:
   method: GET
-  url: "{{baseUrl}}/api/super-admin/companies/36e6aadf-2a1e-4113-a448-853c73d99236"
+  url: "{{baseUrl}}/api/super-admin/companies/39fdf6a9-46b8-4cb8-a56d-045e1e2ebbf0"
   auth:
     type: bearer
     token: "{{SUPERADMIN_ACCESS}}"

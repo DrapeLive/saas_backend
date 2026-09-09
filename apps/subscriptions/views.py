@@ -466,7 +466,7 @@ class SubscriptionViewSet(GenericViewSet):
             if billing_cycle == BillingCycle.YEARLY
             else new_plan.monthly_price
         )
-        price_paid = base_price * (1 - discount_pct / 100)
+        price_paid = base_price * (Decimal("1") - discount_pct / Decimal("100"))
         is_upgrade = new_plan.monthly_price >= old_plan.monthly_price
 
         today = now().date()

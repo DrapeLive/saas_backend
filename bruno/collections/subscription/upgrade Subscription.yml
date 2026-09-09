@@ -5,22 +5,23 @@ info:
 
 http:
   method: POST
-  url: "{{BASE_URL}}/subscriptions/b3ecb7bd-361a-4fd2-b7f1-7a554c6475f2/upgrade/"
+  url: "{{baseUrl}}/api/subscriptions/15c6292c-c43c-4f51-a2d4-463bdbafcf4b/upgrade/"
   body:
     type: json
     data: |-
       {
-        "plan_id": "53734936-9184-4a7c-809c-d42bb6ee904b",
+        "plan_id": "e2318392-67ca-4d4f-93ef-6403c128d65d",
         "billing_cycle": "monthly",
         "discount_pct": "10",
         "notes": "Good"
       }
   auth:
     type: bearer
-    token: "{{access}}"
+    token: "{{SUPERADMIN_ACCESS}}"
 
 settings:
   encodeUrl: true
   timeout: 0
   followRedirects: true
   maxRedirects: 5
+  forwardAuthorizationHeader: true
