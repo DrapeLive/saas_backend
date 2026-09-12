@@ -59,7 +59,7 @@ from apps.core.openapi import (
     DetailResponseSerializer,
 )
 from apps.core.pagination import DefaultPageNumberPagination
-from apps.orders.models import Order
+from apps.orders.models import Order, OrderStatus
 from apps.sub_admin.services import scope_agent_membership_queryset
 
 
@@ -747,11 +747,53 @@ class AgentMembershipViewSet(GenericViewSet):
             for m in memberships
         ]
 
+        # Lifetime performance across all companies the agent works in.
+        # The denormalized AgentProfile columns are not maintained, so compute
+        # these on the fly (cancellations excluded).
+        orders = Order.objects.filter(agent=agent_profile).exclude(
+            status=OrderStatus.CANCELLED
+        )
+        total_sales = (
+            orders.aggregate(
+                total=Coalesce(
+                    Sum("total_amount"),
+                    Value(0),
+                    output_field=DecimalField(max_digits=14, decimal_places=2),
+                )
+            )["total"]
+            or 0
+        )
+        total_orders = orders.count()
+
+        # Leaderboard rank is company-scoped. Use the active company context
+        # (JWT company_id or X-Company-Id header) when present; otherwise the
+        # agent is not ranked.
+        company = getattr(request, "company", None)
+        leaderboard_rank = None
+        if company is not None:
+            ranking = (
+                Order.objects.filter(company=company, agent__isnull=False)
+                .exclude(status=OrderStatus.CANCELLED)
+                .values("agent_id")
+                .annotate(
+                    total=Coalesce(
+                        Sum("total_amount"),
+                        Value(0),
+                        output_field=DecimalField(max_digits=14, decimal_places=2),
+                    )
+                )
+                .order_by("-total")
+            )
+            for i, entry in enumerate(ranking, start=1):
+                if entry["agent_id"] == agent_profile.id:
+                    leaderboard_rank = i
+                    break
+
         data = {
             "full_name": request.user.full_name,
-            "total_sales": agent_profile.total_sales,
-            "total_orders": agent_profile.total_orders,
-            "leaderboard_rank": agent_profile.leaderboard_rank,
+            "total_sales": total_sales,
+            "total_orders": total_orders,
+            "leaderboard_rank": leaderboard_rank,
             "joined_companies": joined_companies,
         }
         return Response(AgentProfileSerializer(data).data)

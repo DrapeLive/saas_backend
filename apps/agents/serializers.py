@@ -176,6 +176,7 @@ class MembershipActionResponseSerializer(serializers.Serializer):
 class AgentHomeSummarySerializer(serializers.Serializer):
     orders_today = serializers.IntegerField()
     sales_today = serializers.DecimalField(max_digits=14, decimal_places=2)
+    commission = serializers.DecimalField(max_digits=10, decimal_places=2)
 
 
 class QuickActionSerializer(serializers.Serializer):

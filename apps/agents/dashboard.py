@@ -31,6 +31,7 @@ from apps.agents.serializers import (
     BroadcastListSerializer,
     BroadcastSerializer,
 )
+from apps.commissions.models import CommissionEntry
 from apps.core.openapi import (
     COMPANY_HEADER_PARAM,
     RESPONSE_400,
@@ -178,9 +179,26 @@ class AgentHomeViewSet(GenericViewSet):
                 )
             )["total"]
         )
+        # Commission earned on the agent's orders placed today.
+        commission = (
+            CommissionEntry.objects.filter(
+                agent=agent_profile,
+                order__company=company,
+                order__created_at__date=today.date(),
+            )
+            .exclude(order__status__in=CANCELLED_LIKE)
+            .aggregate(
+                total=Coalesce(
+                    Sum("commission_amount"),
+                    Value(0),
+                    output_field=DecimalField(max_digits=10, decimal_places=2),
+                )
+            )["total"]
+        )
         return {
             "orders_today": orders_today,
             "sales_today": sales_today,
+            "commission": commission,
         }
 
     def _recent_orders(self, agent_profile, company, limit=10):
