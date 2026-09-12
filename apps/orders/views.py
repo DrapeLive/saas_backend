@@ -388,9 +388,17 @@ class OrderViewSet(GenericViewSet):
 
         # A purchase order is generated for every booked order (booking doc,
         # not a receivable). Idempotent — safe for offline-sync retries.
-        from apps.orders.services import generate_purchase_order
+        from apps.orders.services import create_commission_entry, generate_purchase_order
 
         generate_purchase_order(company, order)
+
+        # Sync the agent's commission (category-based) and performance metrics
+        # the moment the order is booked. Both are idempotent.
+        if order.agent:
+            create_commission_entry(company, order, performed_by=request.user)
+            from apps.agents.services import recompute_agent_metrics
+
+            recompute_agent_metrics(order.agent, company=company)
 
         return order, None
 

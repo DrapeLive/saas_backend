@@ -63,8 +63,9 @@ def compute_commission_for_order(company, order):
 @transaction.atomic
 def create_commission_entry(company, order, performed_by=None):
     """
-    Create a commission entry for an order's agent (if any) once the order is
-    dispatched. Idempotent: won't overwrite an existing entry for the order.
+    Create a commission entry for an order's agent (if any). The commission is
+    category-based (see `compute_commission_for_order`) and is created when the
+    order is booked. Idempotent: won't overwrite an existing entry for the order.
     """
     if not order.agent:
         return None
