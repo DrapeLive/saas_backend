@@ -14,22 +14,21 @@ from rest_framework import serializers
 # Status conventions
 # ─────────────────────────────────────────────────────────────────────────────
 
-#: Order statuses counted as real sales (excludes drafts, cancellations, holds).
+#: Order statuses counted as real sales (excludes cancellations).
 SALES_STATUSES = [
     "confirmed",
     "processing",
     "packed",
-    "ready",
     "dispatched",
     "delivered",
 ]
 
 #: Invoice statuses that still carry an outstanding amount.
-UNPAID_STATUSES = ["issued", "partial", "overdue"]
+UNPAID_STATUSES = ["issued", "partial"]
 
 #: Order statuses that represent a company accepted for sale-report derived
 #: metrics such as average order value and discount totals.
-SALES_EXCLUDED_STATUSES = ["draft", "cancelled"]
+SALES_EXCLUDED_STATUSES = ["cancelled"]
 
 #: Invoice types treated as outward/sales supply for the GST report.
 GST_SALES_INVOICE_TYPES = ["sales_invoice"]

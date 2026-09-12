@@ -147,13 +147,13 @@ class OrderListSerializer(PackingStatusMixin, serializers.ModelSerializer):
         source="agent.user.full_name", read_only=True, default=None
     )
     item_count = serializers.SerializerMethodField()
+    invoices = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
         fields: ClassVar = [
             "id",
             "order_number",
-            "po_number",
             "customer",
             "customer_name",
             "agent",
@@ -162,6 +162,7 @@ class OrderListSerializer(PackingStatusMixin, serializers.ModelSerializer):
             "packing_status",
             "total_amount",
             "item_count",
+            "invoices",
             "is_offline_order",
             "sync_status",
             "requires_approval",
@@ -172,6 +173,9 @@ class OrderListSerializer(PackingStatusMixin, serializers.ModelSerializer):
     @extend_schema_field(serializers.IntegerField())
     def get_item_count(self, obj):
         return obj.items.count()
+
+    def get_invoices(self, obj):
+        return list(obj.invoices.values("id", "invoice_type"))
 
 
 class OrderDetailSerializer(PackingStatusMixin, serializers.ModelSerializer):
@@ -184,13 +188,16 @@ class OrderDetailSerializer(PackingStatusMixin, serializers.ModelSerializer):
     items = OrderItemSerializer(many=True, read_only=True)
     status_history = OrderStatusHistorySerializer(many=True, read_only=True)
     signature = OrderSignatureSerializer(read_only=True)
+    invoices = serializers.SerializerMethodField()
+
+    def get_invoices(self, obj):
+        return list(obj.invoices.values("id", "invoice_type"))
 
     class Meta:
         model = Order
         fields: ClassVar = [
             "id",
             "order_number",
-            "po_number",
             "customer",
             "customer_details",
             "agent",
@@ -241,6 +248,7 @@ class OrderDetailSerializer(PackingStatusMixin, serializers.ModelSerializer):
             "items",
             "status_history",
             "signature",
+            "invoices",
         ]
 
 
@@ -378,7 +386,6 @@ class KanbanStatusColumnSerializer(serializers.Serializer):
     confirmed = OrderListSerializer(many=True)
     processing = OrderListSerializer(many=True)
     packed = OrderListSerializer(many=True)
-    ready = OrderListSerializer(many=True)
 
 
 class OfflineSyncRequestSerializer(serializers.Serializer):

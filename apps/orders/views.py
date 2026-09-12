@@ -16,6 +16,7 @@ from apps.orders.models import (
     OrderSignature,
     OrderStatus,
     OrderStatusHistory,
+    PackingStatus,
 )
 from apps.orders.serializers import (
     OrderApprovalSerializer,
@@ -27,8 +28,8 @@ from apps.orders.serializers import (
     OrderStatusUpdateSerializer,
     PackItemsSerializer,
 )
-from apps.products.models import StockMovement, VariantSize
 from apps.orders.services import send_order_notification
+from apps.products.models import StockMovement, VariantSize
 from apps.sub_admin.services import scope_order_queryset
 
 
@@ -67,6 +68,15 @@ class OrderViewSet(GenericViewSet):
             changed_by=user,
             notes=notes,
         )
+
+    def _advance_status(self, order, new_status, user, notes=""):
+        """Set a new order status and record the transition in status history."""
+        old_status = order.status
+        if old_status == new_status:
+            return
+        order.status = new_status
+        order.save(update_fields=["status", "updated_at"])
+        self._log_status_change(order, old_status, new_status, user, notes or "")
 
     def _build_order_number(self, company):
         # Use select_for_update inside the caller's atomic block to prevent
@@ -213,7 +223,7 @@ class OrderViewSet(GenericViewSet):
 
         # Re-fetch with nested relations scoped to company to prevent cross-company leak.
         order_full = Order.objects.prefetch_related(
-            "items", "status_history", "signature"
+            "items", "status_history", "signature", "invoices"
         ).get(pk=pk, company=company)
         return Response(OrderDetailSerializer(order_full).data)
 
@@ -225,15 +235,29 @@ class OrderViewSet(GenericViewSet):
     @transaction.atomic
     def create(self, request):
         company = self._get_company(request)
+        order, error_response = self._create_order(company, request, request.data)
+        if error_response is not None:
+            return error_response
+        return Response(
+            OrderDetailSerializer(order).data,
+            status=status.HTTP_201_CREATED,
+        )
 
+    def _create_order(self, company, request, payload):
+        """
+        Shared order-creation logic for POST /api/orders/ and the offline sync
+        path. Returns (order, error_response) — exactly one is non-None.
+        """
         serializer = OrderCreateSerializer(
-            data=request.data,
+            data=payload,
             context={
                 "request": request,
                 "company": company,
             },
         )
-        serializer.is_valid(raise_exception=True)
+        serializer.is_valid()
+        if serializer.errors:
+            return None, Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         data = serializer.validated_data
 
         # Resolve customer
@@ -258,7 +282,7 @@ class OrderViewSet(GenericViewSet):
         settings = getattr(company, "settings", None)
         if settings and settings.credit_block_on_exceed:
             if customer.credit_utilized + total > customer.credit_limit > 0:
-                return Response(
+                return None, Response(
                     {
                         "detail": (
                             f"Order total ₹{total} would exceed {customer.trade_name}'s "
@@ -282,7 +306,7 @@ class OrderViewSet(GenericViewSet):
                 and not agent_credit.is_credit_blocked
                 and agent_credit.credit_utilized + total > agent_credit.credit_limit > 0
             ):
-                return Response(
+                return None, Response(
                     {
                         "detail": (
                             f"Order total ₹{total} would exceed agent {request.user.full_name}'s "
@@ -362,10 +386,13 @@ class OrderViewSet(GenericViewSet):
         if customer.user:
             send_order_notification(company, order, "order_submitted", customer.user)
 
-        return Response(
-            OrderDetailSerializer(order).data,
-            status=status.HTTP_201_CREATED,
-        )
+        # A purchase order is generated for every booked order (booking doc,
+        # not a receivable). Idempotent — safe for offline-sync retries.
+        from apps.orders.services import generate_purchase_order
+
+        generate_purchase_order(company, order)
+
+        return order, None
 
     # ─────────────────────────────────────────────────────────────
     # UPDATE STATUS
@@ -512,7 +539,9 @@ class OrderViewSet(GenericViewSet):
             return Response(OrderDetailSerializer(order).data)
 
         if order.customer.user:
-            send_order_notification(company, order, "order_confirmed", order.customer.user)
+            send_order_notification(
+                company, order, "order_confirmed", order.customer.user
+            )
 
         return Response(OrderDetailSerializer(order).data)
 
@@ -545,7 +574,7 @@ class OrderViewSet(GenericViewSet):
                 return Response(
                     {"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND
                 )
-            if order.status not in [OrderStatus.DRAFT, OrderStatus.SUBMITTED]:
+            if order.status not in [OrderStatus.SUBMITTED]:
                 return Response(
                     {"detail": "Agents can only cancel draft or submitted orders."},
                     status=status.HTTP_400_BAD_REQUEST,
@@ -584,7 +613,9 @@ class OrderViewSet(GenericViewSet):
             )
 
         if order.customer.user:
-            send_order_notification(company, order, "order_cancelled", order.customer.user)
+            send_order_notification(
+                company, order, "order_cancelled", order.customer.user
+            )
 
         return Response(OrderDetailSerializer(order).data)
 
@@ -630,6 +661,25 @@ class OrderViewSet(GenericViewSet):
         order.refresh_from_db()
         new_packing_status = order.packing_status
 
+        # Auto-advance the order status based on the derived packing state.
+        # PROGRESS_STATUS_TRANSITIONS:
+        #   - PARTIALLY_PACKED -> PROCESSING (order moved to the packing stage)
+        #   - PACKED          -> PACKED (final pre-dispatch state; sticky once set)
+        # The order only advances forward from CONFIRMED/PROCESSING; once PACKED
+        # it is never downgraded even if packed quantities are later reduced.
+        if order.status in (OrderStatus.CONFIRMED, OrderStatus.PROCESSING):
+            if (
+                order.status == OrderStatus.CONFIRMED
+                and new_packing_status == PackingStatus.PARTIALLY_PACKED
+            ):
+                self._advance_status(order, OrderStatus.PROCESSING, request.user, notes)
+                order.refresh_from_db()
+            if (
+                order.status in (OrderStatus.CONFIRMED, OrderStatus.PROCESSING)
+                and new_packing_status == PackingStatus.PACKED
+            ):
+                self._advance_status(order, OrderStatus.PACKED, request.user, notes)
+
         if changes:
             self._log_status_change(
                 order,
@@ -654,7 +704,6 @@ class OrderViewSet(GenericViewSet):
             OrderStatus.CONFIRMED,
             OrderStatus.PROCESSING,
             OrderStatus.PACKED,
-            OrderStatus.READY,
         ]
         for s in kanban_statuses:
             qs = (
@@ -676,8 +725,10 @@ class OrderViewSet(GenericViewSet):
     def sync_offline(self, request):
         """
         Agent mobile app bulk-syncs orders created offline.
-        Each item in the list is processed independently.
+        Each payload is persisted independently inside its own savepoint so a
+        single failure doesn't roll back the rest of the batch.
         """
+        company = self._get_company(request)
         orders_data = request.data.get("orders", [])
         if not isinstance(orders_data, list):
             return Response(
@@ -687,18 +738,23 @@ class OrderViewSet(GenericViewSet):
 
         synced, failed = [], []
         for order_data in orders_data:
+            offline_ref = order_data.get("offline_ref")
             try:
-                serializer = OrderCreateSerializer(
-                    data={**order_data, "is_offline_order": True},
-                    context={"request": request},
-                )
-                serializer.is_valid(raise_exception=True)
-                # Re-use create logic via self.create with modified request
-                synced.append(order_data.get("offline_ref"))
+                with transaction.atomic():
+                    _, error_response = self._create_order(
+                        company, request, {**order_data, "is_offline_order": True}
+                    )
+                if error_response is not None:
+                    failed.append(
+                        {
+                            "offline_ref": offline_ref,
+                            "error": str(error_response.data),
+                        }
+                    )
+                else:
+                    synced.append(offline_ref)
             except Exception as e:
-                failed.append(
-                    {"offline_ref": order_data.get("offline_ref"), "error": str(e)}
-                )
+                failed.append({"offline_ref": offline_ref, "error": str(e)})
 
         return Response({"synced": synced, "failed": failed})
 

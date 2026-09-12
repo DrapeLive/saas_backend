@@ -2,13 +2,6 @@ from decimal import Decimal
 
 from django.db import transaction
 from django.db.models import Count, Q, Sum
-from django.utils.timezone import now
-from drf_spectacular.utils import (
-    OpenApiParameter,
-    OpenApiTypes,
-    extend_schema,
-    extend_schema_view,
-)
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -16,7 +9,6 @@ from rest_framework.viewsets import GenericViewSet
 
 from apps.accounts.authentication import CustomJWTAuthentication
 from apps.accounts.permissions import IsAdminOrSubAdmin
-from apps.core.openapi import RESPONSE_400, RESPONSE_404
 from apps.invoices.models import InvoiceStatus
 from apps.orders.services import update_customer_outstanding
 from apps.payments.models import OutstandingAging, Payment
@@ -31,47 +23,6 @@ from apps.payments.serializers import (
 )
 
 
-@extend_schema_view(
-    list=extend_schema(
-        tags=["Payments"],
-        summary="List payments",
-        parameters=[
-            OpenApiParameter(
-                "customer_id", OpenApiTypes.UUID, OpenApiParameter.QUERY, description="Filter by customer.",
-            ),
-            OpenApiParameter(
-                "agent_id", OpenApiTypes.UUID, OpenApiParameter.QUERY, description="Filter by collecting agent.",
-            ),
-            OpenApiParameter(
-                "mode", OpenApiTypes.STR, OpenApiParameter.QUERY, description="Payment mode.",
-            ),
-            OpenApiParameter(
-                "date_from", OpenApiTypes.DATE, OpenApiParameter.QUERY, description="Payment date from.",
-            ),
-            OpenApiParameter(
-                "date_to", OpenApiTypes.DATE, OpenApiParameter.QUERY, description="Payment date to.",
-            ),
-        ],
-        responses={200: PaymentListSerializer(many=True)},
-    ),
-    retrieve=extend_schema(
-        tags=["Payments"],
-        summary="Get payment",
-        responses={200: PaymentDetailSerializer, 404: RESPONSE_404},
-    ),
-    create=extend_schema(
-        tags=["Payments"],
-        summary="Record payment",
-        description="Records a payment, updates the invoice paid/due amounts and the customer's outstanding balance.",
-        responses={201: PaymentDetailSerializer, 400: RESPONSE_400},
-    ),
-    destroy=extend_schema(
-        tags=["Payments"],
-        summary="Delete payment",
-        description="Only non-Tally payments can be deleted. Returns 204.",
-        responses={204: None, 400: RESPONSE_400, 404: RESPONSE_404},
-    ),
-)
 class PaymentViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
     permission_classes = (IsAdminOrSubAdmin,)
@@ -189,40 +140,6 @@ class PaymentViewSet(GenericViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-@extend_schema_view(
-    list=extend_schema(
-        tags=["Payments"],
-        summary="List outstanding aging",
-        parameters=[
-            OpenApiParameter(
-                "agent_id", OpenApiTypes.UUID, OpenApiParameter.QUERY,
-                description="Only customers assigned to this agent.",
-            ),
-            OpenApiParameter(
-                "overdue_only", OpenApiTypes.BOOL, OpenApiParameter.QUERY,
-                description="`true` for customers with 90+ days overdue.",
-            ),
-            OpenApiParameter(
-                "segment", OpenApiTypes.STR, OpenApiParameter.QUERY,
-                enum=["wholesale_retail", "corporate_institutional", "walk_in"],
-                description="Filter by customer segment.",
-            ),
-        ],
-        responses={200: OutstandingAgingSerializer(many=True)},
-    ),
-    summary=extend_schema(
-        tags=["Payments"],
-        summary="Aging report summary",
-        description="Aggregated aging buckets across the whole company for the latest report date.",
-        responses={200: AgingReportSummarySerializer, 404: RESPONSE_404},
-    ),
-    send_reminder=extend_schema(
-        tags=["Payments"],
-        summary="Send payment reminders",
-        description="Queues WhatsApp/email payment reminders for a set of customers.",
-        responses={200: PaymentReminderQueuedSerializer, 400: RESPONSE_400},
-    ),
-)
 class OutstandingAgingViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
     permission_classes = (IsAdminOrSubAdmin,)

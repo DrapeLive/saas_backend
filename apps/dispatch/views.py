@@ -2,12 +2,6 @@ from django.db import transaction
 from django.db.models import F, Value
 from django.db.models.functions import Greatest
 from django.utils.timezone import now
-from drf_spectacular.utils import (
-    OpenApiParameter,
-    OpenApiTypes,
-    extend_schema,
-    extend_schema_view,
-)
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -15,7 +9,6 @@ from rest_framework.viewsets import GenericViewSet
 
 from apps.accounts.authentication import CustomJWTAuthentication
 from apps.accounts.permissions import IsAdminOrSubAdmin
-from apps.core.openapi import RESPONSE_400, RESPONSE_404
 from apps.dispatch.models import Dispatch
 from apps.dispatch.serializers import (
     DispatchCreateSerializer,
@@ -32,58 +25,6 @@ from apps.orders.services import (
 )
 
 
-@extend_schema_view(
-    list=extend_schema(
-        tags=["Dispatch"],
-        summary="List dispatches",
-        parameters=[
-            OpenApiParameter(
-                "status", OpenApiTypes.STR, OpenApiParameter.QUERY,
-                enum=["pending", "delivered"],
-                description="Filter by delivery state.",
-            ),
-            OpenApiParameter(
-                "date_from", OpenApiTypes.DATE, OpenApiParameter.QUERY,
-                description="Only dispatches from this date onwards.",
-            ),
-            OpenApiParameter(
-                "date_to", OpenApiTypes.DATE, OpenApiParameter.QUERY,
-                description="Only dispatches up to this date.",
-            ),
-            OpenApiParameter(
-                "search", OpenApiTypes.STR, OpenApiParameter.QUERY,
-                description="Search by LR number or order number.",
-            ),
-        ],
-        responses={200: DispatchListSerializer(many=True)},
-    ),
-    retrieve=extend_schema(
-        tags=["Dispatch"],
-        summary="Get dispatch",
-        responses={200: DispatchDetailSerializer, 404: RESPONSE_404},
-    ),
-    create=extend_schema(
-        tags=["Dispatch"],
-        summary="Create dispatch",
-        description=(
-            "Creates a dispatch for a packed order, advances the order to "
-            "`DISPATCHED` and deducts stock for the packed quantity."
-        ),
-        responses={201: DispatchDetailSerializer, 400: RESPONSE_400},
-    ),
-    partial_update=extend_schema(
-        tags=["Dispatch"],
-        summary="Update dispatch",
-        description="Update tracking/delivery info on an existing dispatch.",
-        responses={200: DispatchDetailSerializer, 400: RESPONSE_400, 404: RESPONSE_404},
-    ),
-    mark_delivered=extend_schema(
-        tags=["Dispatch"],
-        summary="Mark dispatch delivered",
-        description="Records actual delivery and advances the order to `DELIVERED`.",
-        responses={200: DispatchDetailSerializer, 400: RESPONSE_400, 404: RESPONSE_404},
-    ),
-)
 class DispatchViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
     permission_classes = (IsAdminOrSubAdmin,)
@@ -203,9 +144,7 @@ class DispatchViewSet(GenericViewSet):
             create_commission_entry(company, order, performed_by=request.user)
         customer_user = order.customer.user
         if customer_user:
-            send_order_notification(
-                company, order, "order_dispatched", customer_user
-            )
+            send_order_notification(company, order, "order_dispatched", customer_user)
 
         return Response(
             DispatchDetailSerializer(dispatch).data, status=status.HTTP_201_CREATED

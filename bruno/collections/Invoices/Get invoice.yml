@@ -8,13 +8,16 @@ info:
 http:
   method: GET
   url: "{{baseUrl}}/api/invoices/:id/"
+  headers:
+    - name: X-Company-Id
+      value: "{{COMPANY_ID}}"
   params:
     - name: id
-      value: ""
+      value: 04abf09d-5ca2-421f-8725-4b2d07d3e7f1
       type: path
   auth:
     type: bearer
-    token: "{{token}}"
+    token: "{{AGENT_ACCESS}}"
 
 settings:
   encodeUrl: true

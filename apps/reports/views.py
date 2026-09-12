@@ -182,9 +182,7 @@ class OrderReportViewSet(ReportsViewSet):
         if customer_id:
             qs = qs.filter(customer_id=customer_id)
         if search:
-            qs = qs.filter(
-                Q(order_number__icontains=search) | Q(po_number__icontains=search)
-            )
+            qs = qs.filter(order_number__icontains=search)
         return qs
 
     # GET /api/reports/orders/
@@ -207,7 +205,6 @@ class OrderReportViewSet(ReportsViewSet):
                 {
                     "order_id": o.id,
                     "order_number": o.order_number,
-                    "po_number": o.po_number,
                     "order_date": o.created_at,
                     "customer_id": o.customer_id,
                     "customer_name": o.customer.trade_name,

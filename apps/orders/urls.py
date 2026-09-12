@@ -12,7 +12,7 @@ urlpatterns = [
     # ORDERS  (Admin / SubAdmin / Agent)
     # ─────────────────────────────────────────────────────────────
     # GET    /api/orders/                List orders
-    #          ?status=draft|submitted|confirmed|processing|packed|ready|dispatched|delivered|cancelled|on_hold
+    #          ?status=submitted|confirmed|processing|packed|dispatched|delivered|cancelled
     #          ?agent_id=   ?customer_id=   ?search=
     #          ?date_from=  ?date_to=
     #          ?pending_approval=true    (Admin approval queue)
@@ -30,7 +30,7 @@ urlpatterns = [
     # ─────────────────────────────────────────────────────────────
     # COLLECTION-LEVEL ACTIONS
     # ─────────────────────────────────────────────────────────────
-    # GET    /api/orders/kanban/         Kanban board (submitted→ready, grouped by status)
+    # GET    /api/orders/kanban/         Kanban board (submitted→packed, grouped by status)
     # POST   /api/orders/sync/           Bulk offline order sync (Agent mobile app)
     path(
         "orders/kanban/",

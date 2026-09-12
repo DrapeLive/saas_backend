@@ -837,7 +837,7 @@ class AgentMembershipViewSet(GenericViewSet):
             CommissionEntry.objects.filter(
                 agent=agent_profile,
                 order__company=company,
-                order__status="draft",
+                order__status__in=["submitted", "confirmed", "processing", "packed"],
             ).aggregate(total=Sum("commission_amount"))["total"]
             or 0
         )

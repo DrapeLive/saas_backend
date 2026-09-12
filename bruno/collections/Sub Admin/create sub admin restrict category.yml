@@ -1,0 +1,26 @@
+info:
+  name: create sub admin restrict category
+  type: http
+  seq: 7
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/admin/sub-admins/4ab6f83d-674a-434f-aff5-4db1c4fa58fb/restrict-categories"
+  body:
+    type: json
+    data: |-
+      {
+        "category_ids": [
+          "f475cc24-34d8-4829-ad6d-4386463788da"
+        ]
+      }
+  auth:
+    type: bearer
+    token: "{{ACCESS}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

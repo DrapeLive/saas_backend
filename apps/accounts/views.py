@@ -17,6 +17,7 @@ from django.urls.resolvers import string
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.utils.timezone import now
+from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.exceptions import AuthenticationFailed
@@ -31,7 +32,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenViewBase
 
 from apps.accounts.authentication import CustomJWTAuthentication
-from apps.accounts.models import RoleType, User
+from apps.accounts.models import Permission, RoleType, User
 from apps.accounts.permissions import (
     CanManageUsers,
     CompanyApproved,
@@ -52,6 +53,7 @@ from apps.accounts.serializers import (
     PasswordChangeSerializer,
     PasswordResetConfirmSerializer,
     PasswordResetSerializer,
+    PermissionSerializer,
     SetupBankSerializer,
     SetupInvoiceSerializer,
     SetupNotificationSerializer,
@@ -71,7 +73,7 @@ from apps.agents.models import (
 )
 from apps.companies.models import Company, CompanySettings
 from apps.customers.models import CustomerProfile
-from apps.invoices.models import Invoice, InvoiceStatus
+from apps.invoices.models import Invoice, InvoiceStatus, InvoiceType
 from apps.orders.models import Order, OrderItem, OrderStatus
 from apps.products.models import VariantSize
 from apps.subscriptions.models import Subscription, SubscriptionEvent
@@ -586,9 +588,11 @@ class AdminDashboardViewSet(GenericViewSet):
             or 0
         )
 
-        invoices = Invoice.objects.filter(company=company)
+        invoices = Invoice.objects.filter(company=company).exclude(
+            invoice_type=InvoiceType.PURCHASE_ORDER
+        )
         outstanding_total = (
-            invoices.filter(status__in=["issued", "partial", "overdue"]).aggregate(
+            invoices.filter(status__in=["issued", "partial"]).aggregate(
                 total=Sum("amount_due")
             )["total"]
             or 0
@@ -597,7 +601,7 @@ class AdminDashboardViewSet(GenericViewSet):
         overdue_total = (
             invoices.filter(
                 due_date__lt=today_date,
-                status__in=["issued", "partial", "overdue"],
+                status__in=["issued", "partial"],
             ).aggregate(total=Sum("amount_due"))["total"]
             or 0
         )
@@ -740,9 +744,10 @@ class BusinessStatsViewSet(GenericViewSet):
         unpaid_statuses = [
             InvoiceStatus.ISSUED,
             InvoiceStatus.PARTIAL,
-            InvoiceStatus.OVERDUE,
         ]
-        invoices = Invoice.objects.filter(company=company)
+        invoices = Invoice.objects.filter(company=company).exclude(
+            invoice_type=InvoiceType.PURCHASE_ORDER
+        )
         overdue_qs = invoices.filter(
             due_date__lt=today_date,
             status__in=unpaid_statuses,
@@ -853,8 +858,8 @@ class AdminAnalyticsViewSet(GenericViewSet):
 
         invoices = Invoice.objects.filter(
             company=company,
-            status__in=["issued", "partial", "overdue"],
-        )
+            status__in=["issued", "partial"],
+        ).exclude(invoice_type=InvoiceType.PURCHASE_ORDER)
         aging = invoices.aggregate(
             current=Sum(
                 "amount_due",
@@ -973,3 +978,21 @@ class CompanySetupViewSet(GenericViewSet):
         request.company.setup_completed = True
         request.company.save(update_fields=["setup_completed"])
         return Response(serializer.data)
+
+
+@extend_schema_view(
+    list=extend_schema(
+        tags=["Permissions"],
+        summary="List permissions",
+        description="Lists all available module permissions. Read-only.",
+        responses={200: PermissionSerializer(many=True)},
+    ),
+)
+class PermissionViewSet(GenericViewSet):
+    authentication_classes = (CustomJWTAuthentication,)
+    permission_classes = (IsAuthenticated, CompanyApproved, IsAdmin)
+    serializer_class = PermissionSerializer
+
+    def list(self, request, *args, **kwargs):
+        permissions = Permission.objects.all().order_by("module")
+        return Response(PermissionSerializer(permissions, many=True).data)

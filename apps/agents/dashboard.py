@@ -41,7 +41,6 @@ from apps.orders.models import Order, OrderStatus
 
 CANCELLED_LIKE = (
     OrderStatus.CANCELLED,
-    OrderStatus.DRAFT,
 )
 
 QUICK_ACTIONS = [

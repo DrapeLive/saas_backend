@@ -5,16 +5,16 @@ info:
 
 http:
   method: GET
-  url: "{{BASE_URL}}/orders/8a6fe194-7a17-4850-ba84-fc826c53b040/"
+  url: "{{baseUrl}}/api/orders/bbe4bacf-39ac-4cde-a60c-401ccdb820b2/"
   headers:
     - name: X-Company-Id
-      value: 34548a8b-3322-44f3-ad9b-48ba4e40278c
+      value: "{{COMPANY_ID}}"
   body:
     type: json
     data: ""
   auth:
     type: bearer
-    token: "{{ACCESS}}"
+    token: "{{AGENT_ACCESS}}"
 
 settings:
   encodeUrl: true

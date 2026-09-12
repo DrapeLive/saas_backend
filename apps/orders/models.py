@@ -6,16 +6,13 @@ from apps.core.models import CompanyScopeModel, TimeStampedModel, UUIDModel
 
 
 class OrderStatus(models.TextChoices):
-    DRAFT = "draft", "Draft (Cart)"
     SUBMITTED = "submitted", "Submitted"
     CONFIRMED = "confirmed", "Confirmed"
     PROCESSING = "processing", "Processing"
     PACKED = "packed", "Packed"
-    READY = "ready", "Ready to Dispatch"
     DISPATCHED = "dispatched", "Dispatched"
     DELIVERED = "delivered", "Delivered"
     CANCELLED = "cancelled", "Cancelled"
-    ON_HOLD = "on_hold", "On Hold"
 
 
 class PackingStatus(models.TextChoices):
@@ -26,7 +23,6 @@ class PackingStatus(models.TextChoices):
 
 class Order(CompanyScopeModel):
     order_number = models.CharField(max_length=30, unique=True, blank=True)
-    po_number = models.CharField(max_length=30, blank=True, db_index=True)
 
     customer = models.ForeignKey(
         "customers.CustomerProfile",
@@ -44,7 +40,7 @@ class Order(CompanyScopeModel):
     status = models.CharField(
         max_length=20,
         choices=OrderStatus.choices,
-        default=OrderStatus.DRAFT,
+        default=OrderStatus.SUBMITTED,
     )
 
     subtotal = models.DecimalField(max_digits=14, decimal_places=2, default=0)

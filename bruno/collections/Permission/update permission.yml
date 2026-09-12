@@ -1,0 +1,31 @@
+info:
+  name: update permission
+  type: http
+  seq: 5
+
+http:
+  method: PATCH
+  url: "{{baseUrl}}/api/admin/role-templates/7c541e64-676b-4dac-8835-c80cf4aee506"
+  body:
+    type: json
+    data: |-
+      {
+        "name": "Sub Admin Template",
+        "description": "Only used for Sub Admins",
+        "rank": 70,
+        "is_default": false,
+        "permission_ids": [
+          "87ac55d0-5fb9-406c-a7ee-47544a981180",
+          "300797b8-d1eb-45bb-a340-9b63c5c3a15c"
+        ]
+      }
+  auth:
+    type: bearer
+    token: "{{ACCESS}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

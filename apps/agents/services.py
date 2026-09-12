@@ -3,10 +3,10 @@ from decimal import Decimal
 from django.db.models import Sum
 
 from apps.agents.models import AgentCreditLimit
-from apps.invoices.models import Invoice
+from apps.invoices.models import Invoice, InvoiceType
 
 # Invoice statuses that mean the customer still owes money.
-UNPAID_INVOICE_STATUSES = ("issued", "partial", "overdue")
+UNPAID_INVOICE_STATUSES = ("issued", "partial")
 
 
 def compute_agent_credit_utilized(agent_id, company_id):
@@ -20,7 +20,9 @@ def compute_agent_credit_utilized(agent_id, company_id):
             company_id=company_id,
             order__agent_id=agent_id,
             status__in=UNPAID_INVOICE_STATUSES,
-        ).aggregate(total=Sum("amount_due"))["total"]
+        )
+        .exclude(invoice_type=InvoiceType.PURCHASE_ORDER)
+        .aggregate(total=Sum("amount_due"))["total"]
         or Decimal("0.00")
     )
     return agg

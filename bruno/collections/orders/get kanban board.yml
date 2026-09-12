@@ -5,7 +5,7 @@ info:
 
 http:
   method: GET
-  url: "{{BASE_URL}}/orders/kanban/"
+  url: "{{baseUrl}}/api/orders/kanban/"
   headers:
     - name: X-Company-Id
       value: 34548a8b-3322-44f3-ad9b-48ba4e40278c
@@ -14,10 +14,11 @@ http:
     data: ""
   auth:
     type: bearer
-    token: "{{access_agent}}"
+    token: "{{ACCESS}}"
 
 settings:
   encodeUrl: true
   timeout: 0
   followRedirects: true
   maxRedirects: 5
+  forwardAuthorizationHeader: true

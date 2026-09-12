@@ -14,7 +14,7 @@ from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 
 from apps.accounts.authentication import CustomJWTAuthentication
-from apps.accounts.permissions import IsAdminOrSubAdmin
+from apps.accounts.permissions import IsAdminOrSubAdmin, IsAdminSubAdminOrAgent
 from apps.core.openapi import RESPONSE_400, RESPONSE_404
 from apps.invoices.models import Invoice, InvoiceItem, InvoiceStatus, InvoiceType
 from apps.invoices.serializers import (
@@ -22,7 +22,6 @@ from apps.invoices.serializers import (
     InvoiceDetailSerializer,
     InvoiceItemSerializer,
     InvoiceListSerializer,
-    InvoiceStatusUpdateSerializer,
     InvoiceVoidSerializer,
 )
 
@@ -33,30 +32,47 @@ from apps.invoices.serializers import (
         summary="List invoices",
         parameters=[
             OpenApiParameter(
-                "type", OpenApiTypes.STR, OpenApiParameter.QUERY,
+                "type",
+                OpenApiTypes.STR,
+                OpenApiParameter.QUERY,
                 enum=[c.value for c in InvoiceType],
-                description="Invoice type (sales_invoice, credit_note, debit_note, purchase_order).",
+                description="Invoice type (sales_invoice, purchase_order, credit_note, debit_note).",
             ),
             OpenApiParameter(
-                "status", OpenApiTypes.STR, OpenApiParameter.QUERY,
+                "status",
+                OpenApiTypes.STR,
+                OpenApiParameter.QUERY,
                 enum=[c.value for c in InvoiceStatus],
                 description="Invoice status.",
             ),
             OpenApiParameter(
-                "customer_id", OpenApiTypes.UUID, OpenApiParameter.QUERY, description="Filter by customer.",
+                "customer_id",
+                OpenApiTypes.UUID,
+                OpenApiParameter.QUERY,
+                description="Filter by customer.",
             ),
             OpenApiParameter(
-                "overdue", OpenApiTypes.BOOL, OpenApiParameter.QUERY,
+                "overdue",
+                OpenApiTypes.BOOL,
+                OpenApiParameter.QUERY,
                 description="`true` for issued/overdue invoices past their due date.",
             ),
             OpenApiParameter(
-                "date_from", OpenApiTypes.DATE, OpenApiParameter.QUERY, description="Invoice date from.",
+                "date_from",
+                OpenApiTypes.DATE,
+                OpenApiParameter.QUERY,
+                description="Invoice date from.",
             ),
             OpenApiParameter(
-                "date_to", OpenApiTypes.DATE, OpenApiParameter.QUERY, description="Invoice date to.",
+                "date_to",
+                OpenApiTypes.DATE,
+                OpenApiParameter.QUERY,
+                description="Invoice date to.",
             ),
             OpenApiParameter(
-                "search", OpenApiTypes.STR, OpenApiParameter.QUERY,
+                "search",
+                OpenApiTypes.STR,
+                OpenApiParameter.QUERY,
                 description="Search by invoice number or customer name.",
             ),
         ],
@@ -82,7 +98,13 @@ from apps.invoices.serializers import (
 )
 class InvoiceViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
-    permission_classes = (IsAdminOrSubAdmin,)
+    permission_classes = (IsAdminSubAdminOrAgent,)
+
+    def get_permissions(self):
+        # Agents can view invoices but only admin/subadmin may create or void.
+        if self.action in ("create", "void"):
+            return [IsAdminOrSubAdmin()]
+        return [IsAdminSubAdminOrAgent()]
 
     def get_serializer_class(self):
         if self.action == "list":
@@ -94,7 +116,9 @@ class InvoiceViewSet(GenericViewSet):
         return InvoiceDetailSerializer
 
     def _get_company(self, request):
-        return request.user.company
+        # Use request.company which is set by CustomJWTAuthentication and
+        # correctly resolves the company for agents using X-Company-Id header.
+        return request.company or request.user.company
 
     def _get_invoice(self, pk, company):
         try:
@@ -131,9 +155,9 @@ class InvoiceViewSet(GenericViewSet):
             qs = qs.filter(customer_id=customer_f)
         if overdue_f:
             qs = qs.filter(
-                status__in=[InvoiceStatus.ISSUED, InvoiceStatus.OVERDUE],
+                status=InvoiceStatus.ISSUED,
                 due_date__lt=now().date(),
-            )
+            ).exclude(invoice_type=InvoiceType.PURCHASE_ORDER)
         if date_from:
             qs = qs.filter(invoice_date__gte=date_from)
         if date_to:
@@ -143,6 +167,11 @@ class InvoiceViewSet(GenericViewSet):
                 customer__trade_name__icontains=search
             )
 
+        # Agents only see invoices on orders they booked.
+        if request.user.role == "agent":
+            agent_profile = getattr(request.user, "agent_profile", None)
+            qs = qs.filter(order__agent=agent_profile) if agent_profile else qs.none()
+
         return Response(InvoiceListSerializer(qs, many=True).data)
 
     # GET /api/invoices/<pk>/
@@ -151,6 +180,19 @@ class InvoiceViewSet(GenericViewSet):
         invoice = self._get_invoice(pk, company)
         if not invoice:
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Agents can only view invoices on orders they booked.
+        if request.user.role == "agent":
+            agent_profile = getattr(request.user, "agent_profile", None)
+            if (
+                not agent_profile
+                or invoice.order_id is None
+                or invoice.order.agent_id != agent_profile.id
+            ):
+                return Response(
+                    {"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND
+                )
+
         return Response(InvoiceDetailSerializer(invoice).data)
 
     # POST /api/invoices/  — manual credit/debit notes only
@@ -165,6 +207,10 @@ class InvoiceViewSet(GenericViewSet):
             company=company,
             invoice_number=company.get_next_invoice_number(),
             status=InvoiceStatus.DRAFT,
+            subtotal=Decimal("0"),
+            taxable_amount=Decimal("0"),
+            total_amount=Decimal("0"),
+            amount_due=Decimal("0"),
             **serializer.validated_data,
         )
 

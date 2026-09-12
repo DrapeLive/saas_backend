@@ -16,11 +16,19 @@ http:
         "customer": "1e2fa808-3f4c-42b6-8d23-99b5dc6ab5e0",
         "items": [
           {
-            "variant_size": "0bf69bd6-6791-4764-a0b4-8e71e7b8596d",
+            "variant_size": "cee29bf7-2a6a-4485-84fc-7a8d90b9a58b",
+            "quantity": 2
+          },
+          {
+            "variant_size": "bc3fd0ae-69f9-471b-900b-f828221e99b0",
+            "quantity": 2
+          },
+          {
+            "variant_size": "699c7979-03e3-4e97-8614-3957070c179e",
             "quantity": 2
           }
         ],
-        "discount_pct": 5,
+        "discount_pct": 0,
         "delivery_address_line1": "Flat 302, Green Residency",
         "delivery_address_line2": "MG Road",
         "delivery_city": "Bengaluru",

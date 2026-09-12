@@ -5,10 +5,13 @@ info:
 
 http:
   method: GET
-  url: "{{BASE_URL}}/admin/customers/"
+  url: "{{baseUrl}}/api/customers/"
+  headers:
+    - name: X-Company-Id
+      value: 36e6aadf-2a1e-4113-a448-853c73d99236
   auth:
     type: bearer
-    token: "{{ACCESS}}"
+    token: "{{AGENT_ACCESS}}"
 
 settings:
   encodeUrl: true

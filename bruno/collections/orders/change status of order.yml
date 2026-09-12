@@ -5,13 +5,17 @@ info:
 
 http:
   method: GET
-  url: "{{BASE_URL}}/orders/8fc9038d-94d2-47ee-b7a2-133263e3d3d9/status/"
+  url: "{{baseUrl}}/api/orders/8fc9038d-94d2-47ee-b7a2-133263e3d3d9/status/"
   headers:
     - name: X-Company-Id
       value: 34548a8b-3322-44f3-ad9b-48ba4e40278c
   body:
     type: json
-    data: ""
+    data: |-
+      {
+        "status": "confirmed",
+        "notes": "Okay Good"
+      }
   auth:
     type: bearer
     token: "{{access_agent}}"
@@ -21,3 +25,4 @@ settings:
   timeout: 0
   followRedirects: true
   maxRedirects: 5
+  forwardAuthorizationHeader: true

@@ -58,7 +58,6 @@ examples:
           {
             "id": "",
             "order_number": "",
-            "po_number": "",
             "customer": "",
             "customer_details": "",
             "agent": "",

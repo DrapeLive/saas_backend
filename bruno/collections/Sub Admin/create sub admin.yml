@@ -1,0 +1,29 @@
+info:
+  name: create sub admin
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/admin/sub-admins"
+  body:
+    type: json
+    data: |-
+      {
+        "email": "subadmin@gmail.com",
+        "password": "password!123",
+        "full_name": "Sub Admin",
+        "phone": "7867564578",
+        "role_template_id": "c2c0b615-45aa-4b4f-9998-7ab3eac8d7b4",
+        "approval_threshold": 12
+      }
+  auth:
+    type: bearer
+    token: "{{ACCESS}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

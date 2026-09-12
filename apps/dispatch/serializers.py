@@ -83,9 +83,9 @@ class DispatchCreateSerializer(serializers.ModelSerializer):
         ]
 
     def validate_order(self, value):
-        if value.status not in ["packed", "ready"]:
+        if value.status != "packed":
             raise serializers.ValidationError(
-                "Order must be in 'Packed' or 'Ready to Dispatch' status before dispatching."
+                "Order must be in 'Packed' status before dispatching."
             )
         if hasattr(value, "dispatch"):
             raise serializers.ValidationError(

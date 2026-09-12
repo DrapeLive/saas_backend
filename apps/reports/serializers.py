@@ -39,7 +39,6 @@ class SalesReportRowSerializer(serializers.Serializer):
 class OrderReportRowSerializer(serializers.Serializer):
     order_id = serializers.UUIDField()
     order_number = serializers.CharField()
-    po_number = serializers.CharField(allow_blank=True, default="")
     order_date = serializers.DateTimeField()
     customer_id = serializers.UUIDField()
     customer_name = serializers.CharField(allow_null=True, default=None)

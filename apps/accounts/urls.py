@@ -11,6 +11,7 @@ from apps.accounts.views import (
     CompanySetupViewSet,
     InvitationViewSet,
     LoginView,
+    PermissionViewSet,
     SignupView,
     SuperAdminDashboardViewSet,
     TokenRefreshApiView,
@@ -62,6 +63,11 @@ urlpatterns = [
         "admin/users",
         AdminUserViewSet.as_view({"get": "list"}),
         name="admin-users-list",
+    ),  # ✅
+    path(
+        "admin/permissions",
+        PermissionViewSet.as_view({"get": "list"}),
+        name="admin-permissions-list",
     ),  # ✅
     path(
         "admin/users/<uuid:pk>",

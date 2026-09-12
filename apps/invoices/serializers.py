@@ -69,14 +69,13 @@ class InvoiceListSerializer(serializers.ModelSerializer):
             "amount_paid",
             "amount_due",
             "days_overdue",
-            "tally_synced_at",
         ]
 
     @extend_schema_field(serializers.IntegerField())
     def get_days_overdue(self, obj):
         from django.utils import timezone
 
-        if obj.due_date and obj.status in [InvoiceStatus.OVERDUE, InvoiceStatus.ISSUED]:
+        if obj.due_date and obj.status == InvoiceStatus.ISSUED:
             delta = timezone.now().date() - obj.due_date
             return max(0, delta.days)
         return 0
@@ -120,9 +119,6 @@ class InvoiceDetailSerializer(serializers.ModelSerializer):
             "is_interstate",
             "reverse_charge",
             "place_of_supply",
-            # Tally
-            "tally_voucher_id",
-            "tally_synced_at",
             "notes",
             # Nested
             "items",
@@ -134,7 +130,7 @@ class InvoiceDetailSerializer(serializers.ModelSerializer):
     def get_days_overdue(self, obj):
         from django.utils import timezone
 
-        if obj.due_date and obj.status in [InvoiceStatus.OVERDUE, InvoiceStatus.ISSUED]:
+        if obj.due_date and obj.status == InvoiceStatus.ISSUED:
             delta = timezone.now().date() - obj.due_date
             return max(0, delta.days)
         return 0
@@ -179,19 +175,6 @@ class InvoiceCreateSerializer(serializers.ModelSerializer):
                     {"order": "Credit notes must reference the original order."}
                 )
         return attrs
-
-
-class InvoiceStatusUpdateSerializer(serializers.Serializer):
-    status = serializers.ChoiceField(choices=InvoiceStatus.choices)
-    notes = serializers.CharField(required=False, allow_blank=True)
-
-    def validate_status(self, value):
-        # Void is irreversible — handled in the view, but flag it here too
-        if value == InvoiceStatus.VOID:
-            raise serializers.ValidationError(
-                "Use the dedicated void endpoint to void an invoice."
-            )
-        return value
 
 
 class InvoiceVoidSerializer(serializers.Serializer):

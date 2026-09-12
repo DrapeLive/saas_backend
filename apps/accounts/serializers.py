@@ -2,7 +2,7 @@ from django.contrib.auth.password_validation import validate_password
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
-from apps.accounts.models import RoleType, User
+from apps.accounts.models import Permission, RoleType, User
 from apps.agents.models import AgentInvitation
 from apps.companies.models import Company, CompanySettings
 
@@ -373,4 +373,18 @@ class SetupNotificationSerializer(serializers.ModelSerializer):
             "notify_order_email",
             "notify_low_stock",
             "notify_payment_due_days",
+        ]
+
+
+class PermissionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Permission
+        fields = [
+            "id",
+            "module",
+            "can_view",
+            "can_add",
+            "can_edit",
+            "can_delete",
+            "can_export",
         ]

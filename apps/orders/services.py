@@ -11,7 +11,7 @@ from apps.notifications.models import Notification, NotificationStatus
 from apps.products.models import VariantSize
 
 # Invoice statuses that mean the customer still owes money.
-UNPAID_INVOICE_STATUSES = ("issued", "partial", "overdue")
+UNPAID_INVOICE_STATUSES = ("issued", "partial")
 
 
 def get_order_items_with_category(order):
@@ -125,7 +125,53 @@ def generate_sales_invoice(company, order):
         place_of_supply=order.delivery_state or "",
         notes=f"Auto-generated from order {order.order_number}",
     )
+    _create_invoice_items(invoice, order)
 
+    update_customer_outstanding(customer)
+    return invoice
+
+
+@transaction.atomic
+def generate_purchase_order(company, order):
+    """
+    Generate a purchase order when a order is booked. Idempotent: skips if a
+    purchase order already exists for the order. Not a receivable — it is
+    excluded from outstanding/credit calculations.
+    """
+    existing = Invoice.objects.filter(
+        company=company, order=order, invoice_type=InvoiceType.PURCHASE_ORDER
+    ).first()
+    if existing:
+        return existing
+
+    invoice = Invoice.objects.create(
+        company=company,
+        invoice_type=InvoiceType.PURCHASE_ORDER,
+        invoice_number=company.get_next_invoice_number(),
+        order=order,
+        customer=order.customer,
+        status=InvoiceStatus.ISSUED,
+        invoice_date=now().date(),
+        due_date=None,
+        subtotal=order.subtotal,
+        discount_amount=order.discount_amount,
+        taxable_amount=order.taxable_amount,
+        cgst_amount=order.cgst_amount,
+        sgst_amount=order.sgst_amount,
+        igst_amount=order.igst_amount,
+        total_amount=order.total_amount,
+        amount_paid=Decimal("0"),
+        amount_due=order.total_amount,
+        is_interstate=order.is_interstate,
+        place_of_supply=order.delivery_state or "",
+        notes=f"Auto-generated purchase order from order {order.order_number}",
+    )
+    _create_invoice_items(invoice, order)
+    return invoice
+
+
+def _create_invoice_items(invoice, order):
+    """Snapshot the order's line items as invoice items."""
     for item in get_order_items_with_category(order):
         InvoiceItem.objects.create(
             invoice=invoice,
@@ -140,9 +186,6 @@ def generate_sales_invoice(company, order):
             line_total=item.line_total,
         )
 
-    update_customer_outstanding(customer)
-    return invoice
-
 
 @transaction.atomic
 def update_customer_outstanding(customer):
@@ -155,7 +198,9 @@ def update_customer_outstanding(customer):
             company=customer.company,
             customer=customer,
             status__in=UNPAID_INVOICE_STATUSES,
-        ).aggregate(total=Sum("amount_due"))["total"]
+        )
+        .exclude(invoice_type=InvoiceType.PURCHASE_ORDER)
+        .aggregate(total=Sum("amount_due"))["total"]
         or Decimal("0.00")
     )
     fields = []
@@ -168,27 +213,6 @@ def update_customer_outstanding(customer):
     if fields:
         customer.save(update_fields=fields)
     return agg
-
-
-@transaction.atomic
-def update_overdue_outstanding(customer):
-    """
-    Recompute a customer's overdue outstanding — the sum of `amount_due` on
-    invoices past their due date. Call after invoice creation or daily.
-    """
-    overdue = (
-        Invoice.objects.filter(
-            company=customer.company,
-            customer=customer,
-            status__in=UNPAID_INVOICE_STATUSES,
-            due_date__lt=now().date(),
-        ).aggregate(total=Sum("amount_due"))["total"]
-        or Decimal("0.00")
-    )
-    if customer.overdue_outstanding != overdue:
-        customer.overdue_outstanding = overdue
-        customer.save(update_fields=["overdue_outstanding"])
-    return overdue
 
 
 def send_order_notification(company, order, event_type, recipient):

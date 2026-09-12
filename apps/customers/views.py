@@ -47,7 +47,7 @@ from apps.customers.serializers import (
     GstinVerifyResponseSerializer,
 )
 from apps.customers.services import compute_segment, verify_gstin
-from apps.invoices.models import Invoice, InvoiceStatus
+from apps.invoices.models import Invoice, InvoiceStatus, InvoiceType
 from apps.sub_admin.services import scope_customer_queryset
 
 
@@ -241,7 +241,6 @@ class CustomerViewSet(GenericViewSet):
     UNPAID_STATUSES = (
         InvoiceStatus.ISSUED,
         InvoiceStatus.PARTIAL,
-        InvoiceStatus.OVERDUE,
     )
 
     ORDERING_FIELDS = {
@@ -344,7 +343,8 @@ class CustomerViewSet(GenericViewSet):
             computed_total_outstanding=Coalesce(
                 Sum(
                     "invoices__amount_due",
-                    filter=Q(invoices__status__in=self.UNPAID_STATUSES),
+                    filter=Q(invoices__status__in=self.UNPAID_STATUSES)
+                    & ~Q(invoices__invoice_type=InvoiceType.PURCHASE_ORDER),
                 ),
                 Value(Decimal("0.00")),
                 output_field=DecimalField(max_digits=14, decimal_places=2),
@@ -365,6 +365,8 @@ class CustomerViewSet(GenericViewSet):
         total_outstanding_receivable = Invoice.objects.filter(
             company=company,
             status__in=self.UNPAID_STATUSES,
+        ).exclude(
+            invoice_type=InvoiceType.PURCHASE_ORDER
         ).aggregate(
             total=Coalesce(
                 Sum("amount_due"),

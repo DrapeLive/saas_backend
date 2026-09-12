@@ -1,9 +1,105 @@
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 
-from apps.accounts.models import RoleType, SubAdminProfile, User
+from apps.accounts.models import Permission, RoleTemplate, RoleType, SubAdminProfile, User
+from apps.accounts.serializers import PermissionSerializer
 from apps.agents.models import AgentProfile
 from apps.products.models import Category
+
+
+class RoleTemplateCreateSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=100)
+    description = serializers.CharField(max_length=500, required=False, allow_blank=True)
+    rank = serializers.IntegerField(min_value=0, max_value=100, required=False, default=50)
+    is_default = serializers.BooleanField(required=False, default=False)
+    permission_ids = serializers.ListField(
+        child=serializers.UUIDField(), write_only=True
+    )
+
+    def validate_permission_ids(self, value):
+        existing = set(Permission.objects.filter(pk__in=value).values_list("id", flat=True))
+        missing = [str(pk) for pk in value if pk not in existing]
+        if missing:
+            raise serializers.ValidationError(
+                f"Permissions do not exist: {missing}"
+            )
+        return value
+
+    def create(self, validated_data):
+        company = self.context["company"]
+        permission_ids = validated_data.pop("permission_ids", [])
+        is_default = validated_data.pop("is_default", False)
+        template = RoleTemplate.objects.create(
+            company=company,
+            is_default=is_default,
+            **validated_data,
+        )
+        if permission_ids:
+            template.permissions.set(Permission.objects.filter(pk__in=permission_ids))
+        if is_default:
+            RoleTemplate.objects.filter(
+                company=company, is_default=True
+            ).exclude(pk=template.pk).update(is_default=False)
+        return template
+
+
+class RoleTemplateUpdateSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=100, required=False)
+    description = serializers.CharField(max_length=500, required=False, allow_blank=True)
+    rank = serializers.IntegerField(min_value=0, max_value=100, required=False)
+    is_default = serializers.BooleanField(required=False)
+    permission_ids = serializers.ListField(
+        child=serializers.UUIDField(), required=False, write_only=True
+    )
+
+    def validate_permission_ids(self, value):
+        existing = set(Permission.objects.filter(pk__in=value).values_list("id", flat=True))
+        missing = [str(pk) for pk in value if pk not in existing]
+        if missing:
+            raise serializers.ValidationError(
+                f"Permissions do not exist: {missing}"
+            )
+        return value
+
+    def update(self, instance, validated_data):
+        company = self.context.get("company")
+        permission_ids = validated_data.pop("permission_ids", None)
+        is_default = validated_data.get("is_default")
+
+        for field, value in validated_data.items():
+            setattr(instance, field, value)
+        instance.save()
+
+        if permission_ids is not None:
+            instance.permissions.set(
+                Permission.objects.filter(pk__in=permission_ids)
+            )
+
+        if is_default:
+            RoleTemplate.objects.filter(
+                company=company, is_default=True
+            ).exclude(pk=instance.pk).update(is_default=False)
+
+        return instance
+
+
+class RoleTemplateDetailSerializer(serializers.ModelSerializer):
+    permissions = PermissionSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = RoleTemplate
+        fields = [
+            "id",
+            "name",
+            "description",
+            "rank",
+            "is_default",
+            "company",
+            "permissions",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
 
 
 class SubAdminCreateSerializer(serializers.Serializer):

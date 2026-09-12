@@ -3,14 +3,13 @@ from decimal import Decimal
 
 from django.db.models import Sum
 
-from apps.invoices.models import Invoice, InvoiceStatus
+from apps.invoices.models import Invoice, InvoiceStatus, InvoiceType
 from apps.orders.models import Order, OrderStatus
 from apps.payments.models import Payment
 
 UNPAID_STATUSES = (
     InvoiceStatus.ISSUED,
     InvoiceStatus.PARTIAL,
-    InvoiceStatus.OVERDUE,
 )
 
 # Order statuses that represent a real, counted sale / active pipeline entry.
@@ -19,15 +18,15 @@ OPEN_ORDER_STATUSES = (
     OrderStatus.CONFIRMED,
     OrderStatus.PROCESSING,
     OrderStatus.PACKED,
-    OrderStatus.READY,
     OrderStatus.DISPATCHED,
     OrderStatus.DELIVERED,
-    OrderStatus.ON_HOLD,
 )
 
 
 def _unpaid_invoices(customer):
-    return Invoice.objects.filter(customer=customer, status__in=UNPAID_STATUSES)
+    return Invoice.objects.filter(
+        customer=customer, status__in=UNPAID_STATUSES
+    ).exclude(invoice_type=InvoiceType.PURCHASE_ORDER)
 
 
 def _aging_buckets(customer, today=None):
@@ -166,11 +165,11 @@ def customer_orders(customer):
         status__in=OPEN_ORDER_STATUSES,
     )
     pending = counted.exclude(status=OrderStatus.DELIVERED)
-    total_life = counted.exclude(status=OrderStatus.ON_HOLD).aggregate(
+    total_life = counted.aggregate(
         s=Sum("total_amount")
     )["s"] or Decimal("0.00")
 
-    life_orders = counted.exclude(status=OrderStatus.ON_HOLD)
+    life_orders = counted
     order_count = life_orders.count()
     avg_value = round(total_life / order_count, 2) if order_count else Decimal("0.00")
 

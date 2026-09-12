@@ -1,6 +1,6 @@
 from django.urls import path
 
-from apps.sub_admin.views import SubAdminViewSet
+from apps.sub_admin.views import RoleTemplateViewSet, SubAdminViewSet
 
 app_name = "sub_admin"
 
@@ -30,5 +30,21 @@ urlpatterns = [
         "admin/sub-admins/<uuid:pk>/restrict-categories",
         SubAdminViewSet.as_view({"post": "restrict_categories"}),
         name="sub-admin-restrict-categories",
+    ),
+    path(
+        "admin/role-templates",
+        RoleTemplateViewSet.as_view({"get": "list", "post": "create"}),
+        name="role-template-list",
+    ),
+    path(
+        "admin/role-templates/<uuid:pk>",
+        RoleTemplateViewSet.as_view(
+            {
+                "get": "retrieve",
+                "patch": "partial_update",
+                "delete": "destroy",
+            }
+        ),
+        name="role-template-detail",
     ),
 ]
