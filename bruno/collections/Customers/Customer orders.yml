@@ -7,10 +7,10 @@ info:
 
 http:
   method: GET
-  url: "{{baseUrl}}/api/admin/customers/:id/orders/"
+  url: "{{baseUrl}}/api/customers/:id/orders/"
   params:
     - name: id
-      value: b41c24bd-fb5d-4351-b71f-cef183bda290
+      value: d6460cad-ad54-4bfe-b00c-13cbd1fd3921
       type: path
       description: A UUID string identifying this customer profile.
   auth:

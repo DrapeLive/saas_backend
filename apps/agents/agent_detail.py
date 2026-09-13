@@ -39,7 +39,7 @@ def agent_overview(agent, company, today=None):
     pending_invoices = (
         Invoice.objects.filter(company=company, order_id__in=order_ids)
         .exclude(status__in=("paid", "void"))
-        .filter(tally_synced_at__isnull=True)
+        .filter(order__tally_synced_at__isnull=True)
         .count()
     )
     pending_payments = (

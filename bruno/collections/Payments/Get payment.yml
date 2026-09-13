@@ -10,11 +10,11 @@ http:
   url: "{{baseUrl}}/api/payments/:id/"
   params:
     - name: id
-      value: ""
+      value: 83ed56dd-1747-48c6-a18e-3fd88d087ee7
       type: path
   auth:
     type: bearer
-    token: "{{token}}"
+    token: "{{ACCESS}}"
 
 settings:
   encodeUrl: true

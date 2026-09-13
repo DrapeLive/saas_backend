@@ -10,7 +10,7 @@ http:
   url: "{{baseUrl}}/api/admin/agents/:id"
   params:
     - name: id
-      value: ""
+      value: 8980a5a0-2407-4ea1-b0f2-016eda107984
       type: path
   body:
     type: json
@@ -22,7 +22,7 @@ http:
       }
   auth:
     type: bearer
-    token: "{{token}}"
+    token: "{{ACCESS}}"
 
 settings:
   encodeUrl: true

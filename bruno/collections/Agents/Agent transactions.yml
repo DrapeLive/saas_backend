@@ -10,12 +10,12 @@ http:
   url: "{{baseUrl}}/api/admin/agents/:id/transactions"
   params:
     - name: id
-      value: ""
+      value: 8980a5a0-2407-4ea1-b0f2-016eda107984
       type: path
     - name: month
       value: ""
       type: query
-      description: "Settlement month (YYYY-MM-01)."
+      description: Settlement month (YYYY-MM-01).
       disabled: true
     - name: page
       value: ""
@@ -35,11 +35,11 @@ http:
     - name: type
       value: ""
       type: query
-      description: "Filter by transaction type."
+      description: Filter by transaction type.
       disabled: true
   auth:
     type: bearer
-    token: "{{token}}"
+    token: "{{ACCESS}}"
 
 settings:
   encodeUrl: true
@@ -60,7 +60,7 @@ examples:
         - name: month
           value: ""
           type: query
-          description: "Settlement month (YYYY-MM-01)."
+          description: Settlement month (YYYY-MM-01).
           disabled: true
         - name: page
           value: ""
@@ -80,7 +80,7 @@ examples:
         - name: type
           value: ""
           type: query
-          description: "Filter by transaction type."
+          description: Filter by transaction type.
           disabled: true
     response:
       status: 200

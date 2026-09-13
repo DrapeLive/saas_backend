@@ -7,10 +7,10 @@ info:
 
 http:
   method: GET
-  url: "{{baseUrl}}/api/admin/customers/overview/"
+  url: "{{baseUrl}}/api/customers/overview/"
   auth:
     type: bearer
-    token: "{{token}}"
+    token: "{{ACCESS}}"
 
 settings:
   encodeUrl: true

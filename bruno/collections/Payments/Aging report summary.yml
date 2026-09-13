@@ -10,7 +10,7 @@ http:
   url: "{{baseUrl}}/api/outstanding/summary/"
   auth:
     type: bearer
-    token: "{{token}}"
+    token: "{{ACCESS}}"
 
 settings:
   encodeUrl: true

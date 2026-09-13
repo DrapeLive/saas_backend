@@ -4,16 +4,11 @@ info:
   seq: 34
 
 http:
-  method: POST
+  method: GET
   url: "{{baseUrl}}/api/admin/invitations"
   body:
     type: json
-    data: |-
-      {
-        "email": "agent@gmail.com",
-        "phone": "9878605748",
-        "max_uses": 7
-      }
+    data: ""
   auth:
     type: bearer
     token: "{{ACCESS}}"

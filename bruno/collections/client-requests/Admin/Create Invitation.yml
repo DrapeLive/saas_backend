@@ -10,9 +10,9 @@ http:
     type: json
     data: |-
       {
-        "email": "agent@gmail.com",
-        "phone": "9878605748",
-        "max_uses": 7
+        "email": "miqdad@gmail.com",
+        "phone": "9995676590",
+        "max_uses": 2
       }
   auth:
     type: bearer

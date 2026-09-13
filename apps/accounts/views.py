@@ -49,6 +49,7 @@ from apps.accounts.serializers import (
     AgentRegisterSerializer,
     BusinessStatsSerializer,
     LoginSerializer,
+    LoginUserSerializer,
     LogoutSerializer,
     PasswordChangeSerializer,
     PasswordResetConfirmSerializer,
@@ -77,6 +78,10 @@ from apps.invoices.models import Invoice, InvoiceStatus, InvoiceType
 from apps.orders.models import Order, OrderItem, OrderStatus
 from apps.products.models import VariantSize
 from apps.subscriptions.models import Subscription, SubscriptionEvent
+from apps.sub_admin.services import (
+    get_effective_permission_map,
+    get_subadmin_restrictions,
+)
 from apps.tally_integrations.models import TallySyncLog
 
 
@@ -116,7 +121,9 @@ class LoginView(TokenViewBase):
         password = serializer.validated_data["password"]
 
         try:
-            user = User.objects.get(email=email)
+            user = User.objects.select_related(
+                "company", "subadmin_profile"
+            ).get(email=email)
         except User.DoesNotExist:
             raise AuthenticationFailed("No active account found with this email.")
 
@@ -139,13 +146,15 @@ class LoginView(TokenViewBase):
             last_login_device=device,
         )
 
-        return Response(
-            {
-                "access": str(refresh.access_token),
-                "refresh": str(refresh),
-                "user": UserProfileSerializer(user).data,
-            }
-        )
+        data = {
+            "access": str(refresh.access_token),
+            "refresh": str(refresh),
+            "user": LoginUserSerializer(user).data,
+        }
+        if user.is_sub_admin:
+            data["permissions"] = get_effective_permission_map(user)
+            data["restrictions"] = get_subadmin_restrictions(user)
+        return Response(data)
 
 
 class SignupView(GenericViewSet):

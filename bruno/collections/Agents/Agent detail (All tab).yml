@@ -7,7 +7,7 @@ info:
 
 http:
   method: GET
-  url: "{{baseUrl}}/api/admin/agents/223a5547-a246-4034-84a6-8270d9274a53/overview"
+  url: "{{baseUrl}}/api/admin/agents/8980a5a0-2407-4ea1-b0f2-016eda107984/overview"
   auth:
     type: bearer
     token: "{{ACCESS}}"

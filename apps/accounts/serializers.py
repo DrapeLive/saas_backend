@@ -217,6 +217,29 @@ class UserProfileSerializer(serializers.ModelSerializer):
         return None
 
 
+class LoginUserSerializer(serializers.ModelSerializer):
+    company_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = [
+            "id",
+            "email",
+            "full_name",
+            "phone",
+            "role",
+            "company",
+            "company_name",
+        ]
+        read_only_fields = fields
+
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_company_name(self, obj):
+        if obj.company_id:
+            return obj.company.name
+        return None
+
+
 class UserProfileUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = User

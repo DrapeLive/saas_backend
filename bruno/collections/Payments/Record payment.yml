@@ -12,19 +12,19 @@ http:
     type: json
     data: |-
       {
-        "invoice": "",
-        "customer": "",
-        "agent": "",
-        "amount": "",
-        "payment_date": "",
+        "invoice": "50bfe34f-d413-45ef-b19a-719f1aaee878",
+        "customer": "1e2fa808-3f4c-42b6-8d23-99b5dc6ab5e0",
+        "agent": "3803b335-14f5-44d8-877c-0238204026a7",
+        "amount": "50000",
+        "payment_date": "2026-03-05",
         "mode": "cash",
         "reference_no": "",
         "receipt_file": "",
-        "notes": ""
+        "notes": "Payment"
       }
   auth:
     type: bearer
-    token: "{{token}}"
+    token: "{{ACCESS}}"
 
 settings:
   encodeUrl: true

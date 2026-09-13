@@ -7,47 +7,18 @@ info:
 
 http:
   method: POST
-  url: "{{baseUrl}}/api/admin/customers/:id/verify-gstin/"
+  url: "{{baseUrl}}/api/customers/:id/verify-gstin/"
   params:
     - name: id
-      value: ""
+      value: d6460cad-ad54-4bfe-b00c-13cbd1fd3921
       type: path
       description: A UUID string identifying this customer profile.
   body:
     type: json
-    data: |-
-      {
-        "legal_name": "",
-        "trade_name": "",
-        "owner_name": "",
-        "email": "",
-        "phone": "",
-        "whatsapp_number": "",
-        "gstin": "",
-        "pan": "",
-        "tags": "",
-        "billing_address_line1": "",
-        "billing_address_line2": "",
-        "billing_city": "",
-        "billing_state": "",
-        "billing_pincode": "",
-        "shipping_address_line1": "",
-        "shipping_address_line2": "",
-        "shipping_city": "",
-        "shipping_state": "",
-        "shipping_pincode": "",
-        "same_as_billing": false,
-        "assigned_agent": "",
-        "credit_limit": "",
-        "is_credit_blocked": false,
-        "payment_terms_days": 0,
-        "auto_block_on_exceed": false,
-        "status": "active",
-        "internal_notes": ""
-      }
+    data: ""
   auth:
     type: bearer
-    token: "{{token}}"
+    token: "{{ACCESS}}"
 
 settings:
   encodeUrl: true

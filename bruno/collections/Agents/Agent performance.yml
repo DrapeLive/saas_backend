@@ -10,11 +10,11 @@ http:
   url: "{{baseUrl}}/api/admin/agents/:id/performance"
   params:
     - name: id
-      value: ""
+      value: 8980a5a0-2407-4ea1-b0f2-016eda107984
       type: path
   auth:
     type: bearer
-    token: "{{token}}"
+    token: "{{ACCESS}}"
 
 settings:
   encodeUrl: true

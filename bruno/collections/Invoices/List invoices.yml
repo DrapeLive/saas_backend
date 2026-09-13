@@ -7,13 +7,11 @@ info:
 
 http:
   method: GET
-  url: "{{baseUrl}}/api/invoices/"
+  url: "{{baseUrl}}/api/invoices/?customer_id=d6460cad-ad54-4bfe-b00c-13cbd1fd3921"
   params:
     - name: customer_id
-      value: ""
+      value: d6460cad-ad54-4bfe-b00c-13cbd1fd3921
       type: query
-      description: Filter by customer.
-      disabled: true
     - name: date_from
       value: ""
       type: query
@@ -35,27 +33,7 @@ http:
       description: Search by invoice number or customer name.
       disabled: true
     - name: status
-      value: draft
-      type: query
-      description: Invoice status.
-      disabled: true
-    - name: status
-      value: issued
-      type: query
-      description: Invoice status.
-      disabled: true
-    - name: status
-      value: overdue
-      type: query
-      description: Invoice status.
-      disabled: true
-    - name: status
       value: paid
-      type: query
-      description: Invoice status.
-      disabled: true
-    - name: status
-      value: partial
       type: query
       description: Invoice status.
       disabled: true
@@ -86,7 +64,7 @@ http:
       disabled: true
   auth:
     type: bearer
-    token: "{{token}}"
+    token: "{{ACCESS}}"
 
 settings:
   encodeUrl: true

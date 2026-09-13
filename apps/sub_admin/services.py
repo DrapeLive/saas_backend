@@ -41,6 +41,61 @@ def can_manage_module(user, module):
     return permission.can_view
 
 
+def get_effective_permission_map(user):
+    """
+    Resolve a subadmin's effective permissions across every module.
+
+    Precedence matches ``can_manage_module``: RoleTemplate rules win,
+    custom overrides fill modules missing from the template, and modules
+    without any rule default to view-only. Returns a list of dicts.
+    """
+    profile = get_subadmin_profile(user)
+    if profile is None:
+        return []
+
+    module_map = {}
+    template = profile.role_template
+    if template is not None:
+        for perm in template.permissions.all():
+            module_map.setdefault(perm.module, perm)
+    for perm in profile.custom_permissions.all():
+        module_map.setdefault(perm.module, perm)
+
+    result = []
+    for module, _label in AppModule.choices:
+        perm = module_map.get(module)
+        result.append(
+            {
+                "module": module,
+                "can_view": perm.can_view if perm else True,
+                "can_add": perm.can_add if perm else False,
+                "can_edit": perm.can_edit if perm else False,
+                "can_delete": perm.can_delete if perm else False,
+                "can_export": perm.can_export if perm else False,
+            }
+        )
+    return result
+
+
+def get_subadmin_restrictions(user):
+    """
+    Return a subadmin's restrictions for the login payload, or None.
+    """
+    profile = get_subadmin_profile(user)
+    if profile is None:
+        return None
+    return {
+        "role_template": profile.role_template_id,
+        "agent_ids": list(
+            profile.restricted_agents.values_list("id", flat=True)
+        ),
+        "category_ids": list(
+            profile.restricted_categories.values_list("id", flat=True)
+        ),
+        "approval_threshold": profile.approval_threshold,
+    }
+
+
 def get_subadmin_restricted_agent_ids(user):
     """Agent IDs a subadmin is restricted to (empty = unrestricted)."""
     profile = get_subadmin_profile(user)

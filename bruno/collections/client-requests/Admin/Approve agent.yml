@@ -5,13 +5,13 @@ info:
 
 http:
   method: POST
-  url: "{{baseUrl}}/admin/agents/223a5547-a246-4034-84a6-8270d9274a53/approve"
+  url: "{{baseUrl}}/api/admin/agents/c1a28634-fc4d-41a0-be39-258b3a55176d/approve"
   body:
     type: json
     data: ""
   auth:
     type: bearer
-    token: "{{access_admin}}"
+    token: "{{ACCESS}}"
 
 settings:
   encodeUrl: true
