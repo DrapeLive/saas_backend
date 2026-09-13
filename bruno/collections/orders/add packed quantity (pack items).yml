@@ -5,7 +5,7 @@ info:
 
 http:
   method: POST
-  url: "{{BASE_URL}}/orders/8fc9038d-94d2-47ee-b7a2-133263e3d3d9/pack-items/"
+  url: "{{baseUrl}}/api/orders/85d90b34-9526-4c97-b277-2cb57b622f87/pack-items/"
   headers:
     - name: X-Company-Id
       value: 34548a8b-3322-44f3-ad9b-48ba4e40278c
@@ -13,19 +13,27 @@ http:
       value: application/json
   body:
     type: json
-    data: >-
+    data: |-
       {
         "items": [
-          { "item_id": "replace-with-order-item-id", "packed_quantity": 80 }
+          {
+            "item_id": "fcfeaac6-d321-4f4c-8dbf-005d36196006",
+            "packed_quantity": 1
+          },
+          {
+            "item_id": "14b5cf12-4d15-4e76-b9f4-1e7308c35cb3",
+            "packed_quantity": 1
+          }
         ],
         "notes": "20 units short-packed"
       }
   auth:
     type: bearer
-    token: "{{access_token}}"
+    token: "{{ACCESS}}"
 
 settings:
   encodeUrl: true
   timeout: 0
   followRedirects: true
   maxRedirects: 5
+  forwardAuthorizationHeader: true

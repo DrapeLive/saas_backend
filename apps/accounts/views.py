@@ -77,6 +77,7 @@ from apps.invoices.models import Invoice, InvoiceStatus, InvoiceType
 from apps.orders.models import Order, OrderItem, OrderStatus
 from apps.products.models import VariantSize
 from apps.subscriptions.models import Subscription, SubscriptionEvent
+from apps.tally_integrations.models import TallySyncLog
 
 
 def custom_exception_handler(exc, context):
@@ -571,38 +572,38 @@ class AdminDashboardViewSet(GenericViewSet):
         today = now()
         today_date = today.date()
 
-        base_orders = Order.objects.filter(company=company)
+        base_orders = Order.objects.filter(company=company).exclude(
+            status=OrderStatus.CANCELLED
+        )
 
         orders_pending = base_orders.filter(
-            status__in=[OrderStatus.CONFIRMED, OrderStatus.PROCESSING]
+            status__in=[
+                OrderStatus.SUBMITTED,
+                OrderStatus.CONFIRMED,
+                OrderStatus.PROCESSING,
+                OrderStatus.PACKED,
+            ]
         ).count()
 
         sales_total = (
-            base_orders.filter(
-                status__in=[
-                    OrderStatus.CONFIRMED,
-                    OrderStatus.PROCESSING,
-                    OrderStatus.DELIVERED,
-                ],
-            ).aggregate(total=Sum("total_amount"))["total"]
-            or 0
+            base_orders.aggregate(total=Sum("total_amount"))["total"] or 0
         )
 
-        invoices = Invoice.objects.filter(company=company).exclude(
-            invoice_type=InvoiceType.PURCHASE_ORDER
+        invoices = (
+            Invoice.objects.filter(company=company)
+            .exclude(invoice_type=InvoiceType.PURCHASE_ORDER)
+            .filter(
+                status__in=[InvoiceStatus.ISSUED, InvoiceStatus.PARTIAL],
+            )
         )
         outstanding_total = (
-            invoices.filter(status__in=["issued", "partial"]).aggregate(
-                total=Sum("amount_due")
-            )["total"]
-            or 0
+            invoices.aggregate(total=Sum("amount_due"))["total"] or 0
         )
 
         overdue_total = (
-            invoices.filter(
-                due_date__lt=today_date,
-                status__in=["issued", "partial"],
-            ).aggregate(total=Sum("amount_due"))["total"]
+            invoices.filter(due_date__lt=today_date).aggregate(
+                total=Sum("amount_due")
+            )["total"]
             or 0
         )
 
@@ -629,9 +630,26 @@ class AdminDashboardViewSet(GenericViewSet):
             or 0
         )
 
+        tally_logs = TallySyncLog.objects.filter(company=company)
+        latest = tally_logs.order_by("-synced_at").first()
+        has_failed = tally_logs.filter(
+            status=TallySyncLog.SyncStatus.FAILED
+        ).exists()
+        has_pending = tally_logs.filter(
+            status__in=[
+                TallySyncLog.SyncStatus.PENDING,
+                TallySyncLog.SyncStatus.RETRY,
+            ]
+        ).exists()
+        if has_failed:
+            tally_status = "failed"
+        elif has_pending:
+            tally_status = "pending"
+        else:
+            tally_status = "synced"
         tally_sync = {
-            "status": "synced",
-            "last_synced_at": None,
+            "status": tally_status,
+            "last_synced_at": latest.synced_at if latest else None,
         }
 
         return Response(

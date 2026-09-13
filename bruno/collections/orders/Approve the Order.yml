@@ -5,7 +5,7 @@ info:
 
 http:
   method: POST
-  url: "{{baseUrl}}/orders/f8777460-ba3d-4707-87cb-e978b3430108/approve"
+  url: "{{baseUrl}}/api/orders/85d90b34-9526-4c97-b277-2cb57b622f87/approve/"
   headers:
     - name: X-Company-Id
       value: 34548a8b-3322-44f3-ad9b-48ba4e40278c

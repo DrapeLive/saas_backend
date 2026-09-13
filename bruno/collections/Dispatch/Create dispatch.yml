@@ -12,21 +12,21 @@ http:
     type: json
     data: |-
       {
-        "order": "",
-        "lr_number": "",
-        "transport_name": "",
-        "vehicle_number": "",
-        "driver_contact": "",
-        "dispatch_date": "",
-        "expected_delivery": "",
-        "eway_bill_no": "",
+        "order": "85d90b34-9526-4c97-b277-2cb57b622f87",
+        "lr_number": "847387384",
+        "transport_name": "Vehicle",
+        "vehicle_number": "KL65F422",
+        "driver_contact": "8976567867",
+        "dispatch_date": "2026-04-30",
+        "expected_delivery": "2026-05-30",
+        "eway_bill_no": "894893",
         "boxes_count": 0,
-        "weight_kg": "",
-        "tracking_url": ""
+        "weight_kg": "89",
+        "tracking_url": "https://url.com"
       }
   auth:
     type: bearer
-    token: "{{token}}"
+    token: "{{ACCESS}}"
 
 settings:
   encodeUrl: true

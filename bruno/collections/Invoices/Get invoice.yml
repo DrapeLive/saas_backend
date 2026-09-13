@@ -13,11 +13,11 @@ http:
       value: "{{COMPANY_ID}}"
   params:
     - name: id
-      value: 04abf09d-5ca2-421f-8725-4b2d07d3e7f1
+      value: 7cd2c55f-4660-48a4-bf79-a81c16973bcf
       type: path
   auth:
     type: bearer
-    token: "{{AGENT_ACCESS}}"
+    token: "{{ACCESS}}"
 
 settings:
   encodeUrl: true
