@@ -73,6 +73,7 @@ from apps.agents.models import (
     AgentVisitLog,
 )
 from apps.companies.models import Company, CompanySettings
+from apps.core.openapi import RESPONSE_400, RESPONSE_404
 from apps.customers.models import CustomerProfile
 from apps.invoices.models import Invoice, InvoiceStatus, InvoiceType
 from apps.orders.models import Order, OrderItem, OrderStatus
@@ -1015,11 +1016,73 @@ class CompanySetupViewSet(GenericViewSet):
         responses={200: PermissionSerializer(many=True)},
     ),
 )
+@extend_schema_view(
+    list=extend_schema(
+        tags=["Permissions"],
+        summary="List permissions",
+        description="Lists all module permissions. Admin only.",
+        responses={200: PermissionSerializer(many=True)},
+    ),
+    create=extend_schema(
+        tags=["Permissions"],
+        summary="Create permission",
+        description="Creates a new module permission. Admin only.",
+        responses={201: PermissionSerializer, 400: RESPONSE_400},
+    ),
+    retrieve=extend_schema(
+        tags=["Permissions"],
+        summary="Get permission",
+        responses={200: PermissionSerializer, 404: RESPONSE_404},
+    ),
+    update=extend_schema(
+        tags=["Permissions"],
+        summary="Update permission",
+        responses={200: PermissionSerializer, 400: RESPONSE_400, 404: RESPONSE_404},
+    ),
+    partial_update=extend_schema(
+        tags=["Permissions"],
+        summary="Partially update permission",
+        responses={200: PermissionSerializer, 400: RESPONSE_400, 404: RESPONSE_404},
+    ),
+    destroy=extend_schema(
+        tags=["Permissions"],
+        summary="Delete permission",
+        responses={204: None, 404: RESPONSE_404},
+    ),
+)
 class PermissionViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
     permission_classes = (IsAuthenticated, CompanyApproved, IsAdmin)
     serializer_class = PermissionSerializer
+    queryset = Permission.objects.all().order_by("module")
 
     def list(self, request, *args, **kwargs):
-        permissions = Permission.objects.all().order_by("module")
-        return Response(PermissionSerializer(permissions, many=True).data)
+        return Response(PermissionSerializer(self.queryset, many=True).data)
+
+    def create(self, request, *args, **kwargs):
+        serializer = PermissionSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    def retrieve(self, request, pk=None, *args, **kwargs):
+        permission = self.get_object()
+        return Response(PermissionSerializer(permission).data)
+
+    def update(self, request, pk=None, *args, **kwargs):
+        partial = kwargs.pop("partial", False)
+        permission = self.get_object()
+        serializer = PermissionSerializer(
+            permission, data=request.data, partial=partial
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+    def partial_update(self, request, *args, **kwargs):
+        kwargs["partial"] = True
+        return self.update(request, *args, **kwargs)
+
+    def destroy(self, request, pk=None, *args, **kwargs):
+        self.get_object().delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)

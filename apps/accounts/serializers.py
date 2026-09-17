@@ -411,3 +411,10 @@ class PermissionSerializer(serializers.ModelSerializer):
             "can_delete",
             "can_export",
         ]
+
+    def validate_module(self, value):
+        if self.instance is None and Permission.objects.filter(module=value).exists():
+            raise serializers.ValidationError(
+                "A permission for this module already exists."
+            )
+        return value

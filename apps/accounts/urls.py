@@ -66,8 +66,20 @@ urlpatterns = [
     ),  # ✅
     path(
         "admin/permissions",
-        PermissionViewSet.as_view({"get": "list"}),
+        PermissionViewSet.as_view({"get": "list", "post": "create"}),
         name="admin-permissions-list",
+    ),  # ✅
+    path(
+        "admin/permissions/<uuid:pk>",
+        PermissionViewSet.as_view(
+            {
+                "get": "retrieve",
+                "put": "update",
+                "patch": "partial_update",
+                "delete": "destroy",
+            }
+        ),
+        name="admin-permissions-detail",
     ),  # ✅
     path(
         "admin/users/<uuid:pk>",
