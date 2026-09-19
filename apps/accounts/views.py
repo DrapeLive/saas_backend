@@ -1057,7 +1057,7 @@ class PermissionViewSet(GenericViewSet):
     queryset = Permission.objects.all().order_by("module")
 
     def list(self, request, *args, **kwargs):
-        return Response(PermissionSerializer(self.queryset, many=True).data)
+        return Response(PermissionSerializer(self.get_queryset(), many=True).data)
 
     def create(self, request, *args, **kwargs):
         serializer = PermissionSerializer(data=request.data)
