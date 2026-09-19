@@ -188,15 +188,13 @@ class ColorVariantCreateSerializer(serializers.ModelSerializer):
         if not isinstance(value, list) or len(value) == 0:
             raise serializers.ValidationError("Sizes must be a non-empty list.")
         seen = set()
+        deduped = []
         for item in value:
             size = item.get("size")
-            if size in seen:
-                raise serializers.ValidationError(
-                    f"Duplicate size '{size}' in color variant. "
-                    "Each size must be unique per color."
-                )
-            seen.add(size)
-        return value
+            if size not in seen:
+                seen.add(size)
+                deduped.append(item)
+        return deduped
 
     def create(self, validated_data):
         sizes_data = validated_data.pop("sizes", [])
