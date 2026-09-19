@@ -1,6 +1,6 @@
 from typing import ClassVar
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.utils.text import slugify
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
@@ -184,6 +184,20 @@ class ColorVariantCreateSerializer(serializers.ModelSerializer):
             "sizes",
         ]
 
+    def validate_sizes(self, value):
+        if not isinstance(value, list) or len(value) == 0:
+            raise serializers.ValidationError("Sizes must be a non-empty list.")
+        seen = set()
+        for item in value:
+            size = item.get("size")
+            if size in seen:
+                raise serializers.ValidationError(
+                    f"Duplicate size '{size}' in color variant. "
+                    "Each size must be unique per color."
+                )
+            seen.add(size)
+        return value
+
     def create(self, validated_data):
         sizes_data = validated_data.pop("sizes", [])
         product = validated_data["product"]
@@ -191,16 +205,23 @@ class ColorVariantCreateSerializer(serializers.ModelSerializer):
         validated_data["sku"] = _generate_unique_sku(
             ColorVariant, f"{product.sku_prefix}-{color_slug}"
         )
-        variant = ColorVariant.objects.create(**validated_data)
-        used_size_skus = set()
-        for size_data in sizes_data:
-            size_sku = _generate_unique_sku(
-                VariantSize,
-                f"{variant.sku}-{size_data['size']}",
-                exclude=used_size_skus,
-            )
-            used_size_skus.add(size_sku)
-            VariantSize.objects.create(color_variant=variant, sku=size_sku, **size_data)
+        try:
+            variant = ColorVariant.objects.create(**validated_data)
+            used_size_skus = set()
+            for size_data in sizes_data:
+                size_sku = _generate_unique_sku(
+                    VariantSize,
+                    f"{variant.sku}-{size_data['size']}",
+                    exclude=used_size_skus,
+                )
+                used_size_skus.add(size_sku)
+                VariantSize.objects.create(
+                    color_variant=variant, sku=size_sku, **size_data
+                )
+        except IntegrityError as exc:
+            raise serializers.ValidationError(
+                f"Could not create color variant: {exc}"
+            ) from exc
         return variant
 
 
@@ -311,39 +332,44 @@ class ProductCreateSerializer(serializers.ModelSerializer):
 
         total_stock = 0
 
-        for variant_data in variants_data:
-            sizes_data = variant_data.pop("sizes", [])
+        try:
+            for variant_data in variants_data:
+                sizes_data = variant_data.pop("sizes", [])
 
-            color_slug = slugify(variant_data["color_name"]).upper().replace("-", "")
-            variant_data.pop("sku", None)
+                color_slug = slugify(variant_data["color_name"]).upper().replace("-", "")
+                variant_data.pop("sku", None)
 
-            variant = ColorVariant.objects.create(
-                product=product,
-                sku=_generate_unique_sku(
-                    ColorVariant, f"{product.sku_prefix}-{color_slug}"
-                ),
-                **variant_data,
-            )
-
-            used_size_skus = set()
-            for size_data in sizes_data:
-                size_data.pop("sku", None)
-                stock = size_data.get("stock_quantity", 0)
-
-                size_sku = _generate_unique_sku(
-                    VariantSize,
-                    f"{variant.sku}-{size_data['size']}",
-                    exclude=used_size_skus,
-                )
-                used_size_skus.add(size_sku)
-
-                VariantSize.objects.create(
-                    color_variant=variant,
-                    sku=size_sku,
-                    **size_data,
+                variant = ColorVariant.objects.create(
+                    product=product,
+                    sku=_generate_unique_sku(
+                        ColorVariant, f"{product.sku_prefix}-{color_slug}"
+                    ),
+                    **variant_data,
                 )
 
-                total_stock += stock
+                used_size_skus = set()
+                for size_data in sizes_data:
+                    size_data.pop("sku", None)
+                    stock = size_data.get("stock_quantity", 0)
+
+                    size_sku = _generate_unique_sku(
+                        VariantSize,
+                        f"{variant.sku}-{size_data['size']}",
+                        exclude=used_size_skus,
+                    )
+                    used_size_skus.add(size_sku)
+
+                    VariantSize.objects.create(
+                        color_variant=variant,
+                        sku=size_sku,
+                        **size_data,
+                    )
+
+                    total_stock += stock
+        except IntegrityError as exc:
+            raise serializers.ValidationError(
+                f"Could not save product variants: {exc}"
+            ) from exc
 
         product.total_stock = total_stock
         product.save(update_fields=["total_stock"])
