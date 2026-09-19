@@ -13,7 +13,7 @@ from apps.orders.models import (
     OrderStatusHistory,
     PackingStatus,
 )
-from apps.products.serializers import VariantSizeSerializer
+from apps.products.serializers import SizeChartSerializer, VariantSizeSerializer
 
 
 class OrderStatusHistorySerializer(serializers.ModelSerializer):
@@ -50,6 +50,11 @@ class OrderSignatureSerializer(serializers.ModelSerializer):
 
 class OrderItemSerializer(serializers.ModelSerializer):
     variant_details = VariantSizeSerializer(source="variant_size", read_only=True)
+    size_chart = SizeChartSerializer(
+        source="variant_size.color_variant.product.size_chart",
+        read_only=True,
+        default=None,
+    )
     pending_qty = serializers.IntegerField(
         read_only=True,
         help_text="Ordered quantity minus packed quantity.",
@@ -66,6 +71,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
             "id",
             "variant_size",
             "variant_details",
+            "size_chart",
             "product_name",
             "color_name",
             "size",
