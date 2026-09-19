@@ -15,6 +15,30 @@ from apps.products.models import (
 )
 
 
+def _generate_unique_sku(model, base_sku, exclude=()):
+    """
+    Return ``base_sku`` if unused, otherwise append a numeric suffix ("-2", "-3").
+
+    SKUs are derived from the product's ``sku_prefix`` + color slug, so different
+    products sharing a prefix can collide. This helper keeps the "prefix" readable
+    while guaranteeing global uniqueness under the model's ``sku`` constraint.
+    """
+    field = model._meta.get_field("sku")
+    max_length = field.max_length or 50
+    exclude = set(exclude)
+
+    candidate = base_sku
+    if len(candidate) > max_length:
+        candidate = candidate[:max_length]
+
+    counter = 2
+    while model.objects.filter(sku=candidate).exists() or candidate in exclude:
+        suffix = f"-{counter}"
+        candidate = f"{candidate[: max_length - len(suffix)]}{suffix}"
+        counter += 1
+    return candidate
+
+
 class CategoryListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
@@ -91,6 +115,10 @@ class VariantSizeSerializer(serializers.ModelSerializer):
 
 
 class VariantSizeCreateSerializer(serializers.ModelSerializer):
+    sku = serializers.CharField(
+        max_length=60, required=False, allow_blank=True, write_only=True
+    )
+
     class Meta:
         model = VariantSize
         fields: ClassVar = [
@@ -158,9 +186,21 @@ class ColorVariantCreateSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         sizes_data = validated_data.pop("sizes", [])
+        product = validated_data["product"]
+        color_slug = slugify(validated_data["color_name"]).upper().replace("-", "")
+        validated_data["sku"] = _generate_unique_sku(
+            ColorVariant, f"{product.sku_prefix}-{color_slug}"
+        )
         variant = ColorVariant.objects.create(**validated_data)
+        used_size_skus = set()
         for size_data in sizes_data:
-            VariantSize.objects.create(color_variant=variant, **size_data)
+            size_sku = _generate_unique_sku(
+                VariantSize,
+                f"{variant.sku}-{size_data['size']}",
+                exclude=used_size_skus,
+            )
+            used_size_skus.add(size_sku)
+            VariantSize.objects.create(color_variant=variant, sku=size_sku, **size_data)
         return variant
 
 
@@ -279,17 +319,27 @@ class ProductCreateSerializer(serializers.ModelSerializer):
 
             variant = ColorVariant.objects.create(
                 product=product,
-                sku=f"{product.sku_prefix}-{color_slug}",
+                sku=_generate_unique_sku(
+                    ColorVariant, f"{product.sku_prefix}-{color_slug}"
+                ),
                 **variant_data,
             )
 
+            used_size_skus = set()
             for size_data in sizes_data:
                 size_data.pop("sku", None)
                 stock = size_data.get("stock_quantity", 0)
 
+                size_sku = _generate_unique_sku(
+                    VariantSize,
+                    f"{variant.sku}-{size_data['size']}",
+                    exclude=used_size_skus,
+                )
+                used_size_skus.add(size_sku)
+
                 VariantSize.objects.create(
                     color_variant=variant,
-                    sku=f"{variant.sku}-{size_data['size']}",
+                    sku=size_sku,
                     **size_data,
                 )
 
