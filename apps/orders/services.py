@@ -36,6 +36,10 @@ def compute_commission_for_order(company, order):
     weighted average of category rates; the amount is that rate applied to the
     order's taxable amount.
 
+    The rate for a category is taken from an explicit per-company
+    `CategoryCommissionRate` when one exists, falling back to the product
+    category's `default_commission_pct`.
+
     Returns a tuple (commission_pct, commission_amount) as Decimals.
     """
     rates = {
@@ -47,8 +51,10 @@ def compute_commission_for_order(company, order):
     value_total = Decimal("0")
     for item in get_order_items_with_category(order):
         line_value = item.line_total
-        category_id = item.variant_size.color_variant.product.category_id
-        rate = rates.get(category_id, Decimal("0"))
+        category = item.variant_size.color_variant.product.category
+        rate = rates.get(
+            category.id, category.default_commission_pct or Decimal("0")
+        )
         weighted_total += line_value * rate
         value_total += line_value
 
