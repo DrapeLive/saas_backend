@@ -393,18 +393,43 @@ STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
 # ---------------------------------------------------------------------------
-# Media / File Storage — Supabase
+# Media / File Storage — AWS S3 (works with any S3-compatible provider)
 # ---------------------------------------------------------------------------
 MEDIA_URL = "/media/"
 
-SUPABASE_URL = config("SUPABASE_URL", default="")
-SUPABASE_KEY = config("SUPABASE_KEY", default="")
-SUPABASE_BUCKET = config("SUPABASE_BUCKET", default="")
+AWS_ACCESS_KEY_ID = config("AWS_ACCESS_KEY_ID", default="")
+AWS_SECRET_ACCESS_KEY = config("AWS_SECRET_ACCESS_KEY", default="")
+AWS_STORAGE_BUCKET_NAME = config("AWS_STORAGE_BUCKET_NAME", default="")
 
-if SUPABASE_URL and SUPABASE_KEY and SUPABASE_BUCKET:
+# AWS_S3_REGION_NAME / AWS_S3_ENDPOINT_URL fall back to the conventional AWS_*
+# names already used in the environment.
+AWS_S3_REGION_NAME = config("AWS_S3_REGION_NAME", default="") or config(
+    "AWS_REGION", default=""
+)
+# Custom endpoint for S3-compatible providers (Neon, Cloudflare R2, MinIO, ...).
+# Leave blank to talk to real AWS S3.
+AWS_S3_ENDPOINT_URL = config("AWS_S3_ENDPOINT_URL", default="") or config(
+    "AWS_ENDPOINT_URL_S3", default=""
+)
+
+# Buckets are public-read, so serve plain public URLs instead of presigned ones.
+AWS_QUERYSTRING_AUTH = False
+# S3-compatible stores such as Neon reject ACL headers; objects are public anyway.
+AWS_DEFAULT_ACL = None
+AWS_S3_ADDRESSING_STYLE = "path"
+AWS_S3_SIGNATURE_VERSION = "s3v4"
+AWS_S3_OBJECT_PARAMETERS = {
+    "CacheControl": "public, max-age=31536000, immutable",
+}
+
+USE_S3 = bool(
+    AWS_STORAGE_BUCKET_NAME and AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY
+)
+
+if USE_S3:
     STORAGES = {
         "default": {
-            "BACKEND": "apps.core.storage.SupabaseStorage",
+            "BACKEND": "storages.backends.s3.S3Storage",
         },
         "staticfiles": {
             "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",

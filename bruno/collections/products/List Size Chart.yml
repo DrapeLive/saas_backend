@@ -5,7 +5,7 @@ info:
 
 http:
   method: GET
-  url: "{{baseUrl}}/api/size-charts/"
+  url: "{{baseUrl}}/api/size-charts/e89612c8-f54c-479d-a56a-f4a072ec184f/"
   headers:
     - name: X-Company-Id
       value: 34548a8b-3322-44f3-ad9b-48ba4e40278c

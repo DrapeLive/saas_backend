@@ -8,7 +8,7 @@ http:
   url: "{{baseUrl}}/api/auth/me"
   auth:
     type: bearer
-    token: "{{SUPERADMIN_ACCESS}}"
+    token: "{{ACCESS}}"
 
 settings:
   encodeUrl: true

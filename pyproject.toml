@@ -13,11 +13,11 @@ dependencies = [
     "djangorestframework==3.17.1",
     "djangorestframework-simplejwt==5.5.1",
     "django-storages==1.14.4",
-    "supabase==2.31.0",
     "drf-spectacular>=0.30.0",
     "pillow==12.2.0",
     "psycopg2-binary==2.9.12",
     "python-decouple==3.8",
     "sqlparse==0.5.5",
     "typing-extensions==4.15.0",
+    "boto3>=1.43.105",
 ]

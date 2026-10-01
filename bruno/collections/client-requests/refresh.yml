@@ -5,12 +5,12 @@ info:
 
 http:
   method: POST
-  url: "{{BASE_URL}}/auth/refresh"
+  url: "{{baseUrl}}/api/auth/refresh"
   body:
     type: json
     data: |-
       {
-        "refresh": "{{AGENT_REFRESH}}"
+        "refresh": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6MTc5MjUwNzIwNywiaWF0IjoxNzg5OTE1MjA3LCJqdGkiOiI0MTM2MzJlM2M0MDY0YTM1OGE2ZDBmMDRiZGIzNDk1NyIsInVzZXJfaWQiOiI5MTViN2IyYi1iZjk0LTRiYmQtYjEyNS00MWZhN2YzMGMwODciLCJyb2xlIjoiYWRtaW4iLCJjb21wYW55X2lkIjoiMDhlNTYwZWYtNDE1OC00YmFhLWE1ZjYtYWU5NGM2YmYxMjEwIiwiaXNfc3VwZXJfYWRtaW4iOmZhbHNlfQ.nWWXSXK-7sxR_hGZADTjiKlSS3acnmXMV_-i1OZoDWw"
       }
   auth: inherit
 
