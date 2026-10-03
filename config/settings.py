@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import dj_database_url
+from botocore.config import Config
 from decouple import config
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -396,6 +397,7 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 # Media / File Storage — AWS S3 (works with any S3-compatible provider)
 # ---------------------------------------------------------------------------
 MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
 
 AWS_ACCESS_KEY_ID = config("AWS_ACCESS_KEY_ID", default="")
 AWS_SECRET_ACCESS_KEY = config("AWS_SECRET_ACCESS_KEY", default="")
@@ -421,6 +423,26 @@ AWS_S3_SIGNATURE_VERSION = "s3v4"
 AWS_S3_OBJECT_PARAMETERS = {
     "CacheControl": "public, max-age=31536000, immutable",
 }
+
+# botocore >= 1.36 defaults request_checksum_calculation to "when_supported",
+# which makes every PutObject/UploadPart stream its body as
+# `Content-Encoding: aws-chunked` with an `X-Amz-Trailer: x-amz-checksum-crc32`
+# trailer and `X-Amz-Content-SHA256: STREAMING-UNSIGNED-PAYLOAD-TRAILER`.
+# Neon Object Storage only supports Content-Type / Content-Disposition /
+# Cache-Control / x-amz-meta-* on PutObject and rejects that payload framing,
+# so every upload fails. Opting back into "when_required" restores a plain
+# PutObject with a normal payload hash.
+#
+# Setting AWS_S3_CLIENT_CONFIG makes django-storages ignore
+# AWS_S3_ADDRESSING_STYLE and AWS_S3_SIGNATURE_VERSION
+# (storages/backends/s3.py:344-349), so both are repeated in the Config below.
+AWS_S3_CLIENT_CONFIG = Config(
+    signature_version="s3v4",
+    s3={"addressing_style": "path"},
+    request_checksum_calculation="when_required",
+    response_checksum_validation="when_required",
+    retries={"max_attempts": 3, "mode": "standard"},
+)
 
 USE_S3 = bool(
     AWS_STORAGE_BUCKET_NAME and AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY
