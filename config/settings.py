@@ -394,29 +394,40 @@ STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
 # ---------------------------------------------------------------------------
-# Media / File Storage — AWS S3 (works with any S3-compatible provider)
+# Media / File Storage — Backblaze B2 (S3-compatible object storage)
 # ---------------------------------------------------------------------------
+# Credentials come from B2_* env vars and are mapped onto the AWS_* settings
+# that django-storages' S3Storage reads. The conventional AWS_* names remain
+# as a fallback for real AWS S3 or other S3-compatible providers.
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
-AWS_ACCESS_KEY_ID = config("AWS_ACCESS_KEY_ID", default="")
-AWS_SECRET_ACCESS_KEY = config("AWS_SECRET_ACCESS_KEY", default="")
-AWS_STORAGE_BUCKET_NAME = config("AWS_STORAGE_BUCKET_NAME", default="")
-
-# AWS_S3_REGION_NAME / AWS_S3_ENDPOINT_URL fall back to the conventional AWS_*
-# names already used in the environment.
-AWS_S3_REGION_NAME = config("AWS_S3_REGION_NAME", default="") or config(
-    "AWS_REGION", default=""
+AWS_ACCESS_KEY_ID = config("B2_KEY_ID", default="") or config(
+    "AWS_ACCESS_KEY_ID", default=""
 )
-# Custom endpoint for S3-compatible providers (Neon, Cloudflare R2, MinIO, ...).
-# Leave blank to talk to real AWS S3.
-AWS_S3_ENDPOINT_URL = config("AWS_S3_ENDPOINT_URL", default="") or config(
-    "AWS_ENDPOINT_URL_S3", default=""
+AWS_SECRET_ACCESS_KEY = config("B2_APPLICATION_KEY", default="") or config(
+    "AWS_SECRET_ACCESS_KEY", default=""
+)
+AWS_STORAGE_BUCKET_NAME = config("B2_BUCKET_NAME", default="") or config(
+    "AWS_STORAGE_BUCKET_NAME", default=""
 )
 
-# Buckets are public-read, so serve plain public URLs instead of presigned ones.
-AWS_QUERYSTRING_AUTH = False
-# S3-compatible stores such as Neon reject ACL headers; objects are public anyway.
+# Custom S3 endpoint (Backblaze B2: B2_ENDPOINT_URL / B2_REGION). Leave blank
+# to talk to real AWS S3.
+AWS_S3_REGION_NAME = (
+    config("B2_REGION", default="")
+    or config("AWS_S3_REGION_NAME", default="")
+    or config("AWS_REGION", default="")
+)
+AWS_S3_ENDPOINT_URL = (
+    config("B2_ENDPOINT_URL", default="")
+    or config("AWS_S3_ENDPOINT_URL", default="")
+    or config("AWS_ENDPOINT_URL_S3", default="")
+)
+
+# Bucket is private, so serve expiring presigned URLs.
+AWS_QUERYSTRING_AUTH = True
+# B2 rejects ACL headers on uploads.
 AWS_DEFAULT_ACL = None
 AWS_S3_ADDRESSING_STYLE = "path"
 AWS_S3_SIGNATURE_VERSION = "s3v4"
@@ -428,10 +439,11 @@ AWS_S3_OBJECT_PARAMETERS = {
 # which makes every PutObject/UploadPart stream its body as
 # `Content-Encoding: aws-chunked` with an `X-Amz-Trailer: x-amz-checksum-crc32`
 # trailer and `X-Amz-Content-SHA256: STREAMING-UNSIGNED-PAYLOAD-TRAILER`.
-# Neon Object Storage only supports Content-Type / Content-Disposition /
-# Cache-Control / x-amz-meta-* on PutObject and rejects that payload framing,
-# so every upload fails. Opting back into "when_required" restores a plain
-# PutObject with a normal payload hash.
+# Several S3-compatible providers (Backblaze B2 included) only support
+# Content-Type / Content-Disposition / Cache-Control / x-amz-meta-* on
+# PutObject and reject that payload framing, so every upload failed. Opting
+# back into "when_required" restores a plain PutObject with a normal payload
+# hash.
 #
 # Setting AWS_S3_CLIENT_CONFIG makes django-storages ignore
 # AWS_S3_ADDRESSING_STYLE and AWS_S3_SIGNATURE_VERSION
