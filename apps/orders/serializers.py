@@ -116,23 +116,6 @@ class OrderItemCreateSerializer(serializers.ModelSerializer):
                     )
                 }
             )
-        product = variant.color_variant.product
-        if qty % product.order_in_multiples != 0:
-            raise serializers.ValidationError(
-                {
-                    "quantity": (
-                        f"Quantity must be a multiple of {product.order_in_multiples}."
-                    )
-                }
-            )
-        if qty < product.minimum_order_qty:
-            raise serializers.ValidationError(
-                {
-                    "quantity": (
-                        f"Minimum order quantity is {product.minimum_order_qty}."
-                    )
-                }
-            )
         return attrs
 
 

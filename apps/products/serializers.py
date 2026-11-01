@@ -19,9 +19,9 @@ def _generate_unique_sku(model, base_sku, exclude=()):
     """
     Return ``base_sku`` if unused, otherwise append a numeric suffix ("-2", "-3").
 
-    SKUs are derived from the product's ``sku_prefix`` + color slug, so different
-    products sharing a prefix can collide. This helper keeps the "prefix" readable
-    while guaranteeing global uniqueness under the model's ``sku`` constraint.
+    SKUs are derived from the product name, color and size, so different products
+    can collide. This helper keeps the SKU readable while guaranteeing global
+    uniqueness under the model's ``sku`` constraint.
     """
     field = model._meta.get_field("sku")
     max_length = field.max_length or 50
@@ -45,7 +45,7 @@ class CategoryListSerializer(serializers.ModelSerializer):
         fields: ClassVar = [
             "id",
             "name",
-            "image",
+            "hsn_code",
             "display_order",
             "default_commission_pct",
         ]
@@ -57,8 +57,7 @@ class CategorySerializer(serializers.ModelSerializer):
         fields: ClassVar = [
             "id",
             "name",
-            "description",
-            "image",
+            "hsn_code",
             "display_order",
             "default_commission_pct",
             "created_at",
@@ -71,8 +70,7 @@ class CategoryCreateUpdateSerializer(serializers.ModelSerializer):
         model = Category
         fields: ClassVar = [
             "name",
-            "description",
-            "image",
+            "hsn_code",
             "display_order",
             "default_commission_pct",
         ]
@@ -138,10 +136,8 @@ class ColorVariantListSerializer(serializers.ModelSerializer):
         fields: ClassVar = [
             "id",
             "color_name",
-            "color_hex",
             "image",
             "is_primary",
-            "sku",
             "total_stock",
         ]
 
@@ -159,10 +155,8 @@ class ColorVariantDetailSerializer(serializers.ModelSerializer):
         fields: ClassVar = [
             "id",
             "color_name",
-            "color_hex",
             "image",
             "is_primary",
-            "sku",
             "qr_code",
             "sizes",
             "size_chart",
@@ -178,7 +172,6 @@ class ColorVariantCreateSerializer(serializers.ModelSerializer):
         model = ColorVariant
         fields: ClassVar = [
             "color_name",
-            "color_hex",
             "image",
             "is_primary",
             "sizes",
@@ -199,17 +192,15 @@ class ColorVariantCreateSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         sizes_data = validated_data.pop("sizes", [])
         product = validated_data["product"]
+        product_slug = slugify(product.name).upper().replace("-", "")
         color_slug = slugify(validated_data["color_name"]).upper().replace("-", "")
-        validated_data["sku"] = _generate_unique_sku(
-            ColorVariant, f"{product.sku_prefix}-{color_slug}"
-        )
         try:
             variant = ColorVariant.objects.create(**validated_data)
             used_size_skus = set()
             for size_data in sizes_data:
                 size_sku = _generate_unique_sku(
                     VariantSize,
-                    f"{variant.sku}-{size_data['size']}",
+                    f"{product_slug}-{color_slug}-{size_data['size']}",
                     exclude=used_size_skus,
                 )
                 used_size_skus.add(size_sku)
@@ -238,15 +229,10 @@ class ProductListSerializer(serializers.ModelSerializer):
             "category_name",
             "name",
             "description",
-            "sku_prefix",
-            "hsn_code",
-            "gst_rate",
             "size_chart",
             "size_chart_name",
             "mrp",
             "wholesale_price",
-            "minimum_order_qty",
-            "order_in_multiples",
             "total_stock",
             "status",
             "color_variants",
@@ -270,15 +256,10 @@ class ProductDetailSerializer(serializers.ModelSerializer):
             "category_name",
             "name",
             "description",
-            "sku_prefix",
-            "hsn_code",
-            "gst_rate",
             "size_chart",
             "size_chart_name",
             "mrp",
             "wholesale_price",
-            "minimum_order_qty",
-            "order_in_multiples",
             "total_stock",
             "status",
             "color_variants",
@@ -296,14 +277,9 @@ class ProductCreateSerializer(serializers.ModelSerializer):
             "category",
             "name",
             "description",
-            "sku_prefix",
-            "hsn_code",
-            "gst_rate",
             "size_chart",
             "mrp",
             "wholesale_price",
-            "minimum_order_qty",
-            "order_in_multiples",
             "status",
             "color_variants",
         ]
@@ -327,6 +303,7 @@ class ProductCreateSerializer(serializers.ModelSerializer):
         variants_data = validated_data.pop("color_variants", [])
 
         product = Product.objects.create(**validated_data)
+        product_slug = slugify(product.name).upper().replace("-", "")
 
         total_stock = 0
 
@@ -335,13 +312,9 @@ class ProductCreateSerializer(serializers.ModelSerializer):
                 sizes_data = variant_data.pop("sizes", [])
 
                 color_slug = slugify(variant_data["color_name"]).upper().replace("-", "")
-                variant_data.pop("sku", None)
 
                 variant = ColorVariant.objects.create(
                     product=product,
-                    sku=_generate_unique_sku(
-                        ColorVariant, f"{product.sku_prefix}-{color_slug}"
-                    ),
                     **variant_data,
                 )
 
@@ -352,7 +325,7 @@ class ProductCreateSerializer(serializers.ModelSerializer):
 
                     size_sku = _generate_unique_sku(
                         VariantSize,
-                        f"{variant.sku}-{size_data['size']}",
+                        f"{product_slug}-{color_slug}-{size_data['size']}",
                         exclude=used_size_skus,
                     )
                     used_size_skus.add(size_sku)
@@ -382,13 +355,9 @@ class ProductUpdateSerializer(serializers.ModelSerializer):
             "category",
             "name",
             "description",
-            "hsn_code",
-            "gst_rate",
             "size_chart",
             "mrp",
             "wholesale_price",
-            "minimum_order_qty",
-            "order_in_multiples",
             "status",
         ]
 
@@ -457,7 +426,6 @@ class CategoryRefSerializer(serializers.Serializer):
 
 class ColorRefSerializer(serializers.Serializer):
     name = serializers.CharField()
-    hex = serializers.CharField(allow_null=True)
 
 
 class StockInfoSerializer(serializers.Serializer):
@@ -513,10 +481,7 @@ class ProductInventoryListSerializer(serializers.ModelSerializer):
 
     @extend_schema_field(ColorRefSerializer)
     def get_color(self, obj):
-        return {
-            "name": obj.color_variant.color_name,
-            "hex": obj.color_variant.color_hex,
-        }
+        return {"name": obj.color_variant.color_name}
 
     @extend_schema_field(serializers.CharField())
     def get_price_per_unit(self, obj):

@@ -1160,6 +1160,186 @@ paths:
                 items:
                   $ref: '#/components/schemas/Permission'
           description: ''
+    post:
+      operationId: admin_permissions_create
+      description: Creates a new module permission. Admin only.
+      summary: Create permission
+      tags:
+      - Permissions
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PermissionRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PermissionRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PermissionRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Permission'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetailResponse'
+          description: Bad request. Field/validation errors are flattened into a single
+            `detail` string.
+  /api/admin/permissions/{id}:
+    get:
+      operationId: admin_permissions_retrieve
+      summary: Get permission
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Permissions
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Permission'
+          description: ''
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetailResponse'
+          description: Not found. The requested resource does not exist in the current
+            company.
+    put:
+      operationId: admin_permissions_update
+      summary: Update permission
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Permissions
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PermissionRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PermissionRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PermissionRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Permission'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetailResponse'
+          description: Bad request. Field/validation errors are flattened into a single
+            `detail` string.
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetailResponse'
+          description: Not found. The requested resource does not exist in the current
+            company.
+    patch:
+      operationId: admin_permissions_partial_update
+      summary: Partially update permission
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Permissions
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedPermissionRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedPermissionRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedPermissionRequest'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Permission'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetailResponse'
+          description: Bad request. Field/validation errors are flattened into a single
+            `detail` string.
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetailResponse'
+          description: Not found. The requested resource does not exist in the current
+            company.
+    delete:
+      operationId: admin_permissions_destroy
+      summary: Delete permission
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Permissions
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetailResponse'
+          description: Not found. The requested resource does not exist in the current
+            company.
   /api/admin/role-templates:
     get:
       operationId: admin_role_templates_list
@@ -2703,16 +2883,6 @@ paths:
           type: string
         description: Search trade name, legal name, phone, GSTIN or email.
       - in: query
-        name: segment
-        schema:
-          type: string
-          enum:
-          - bronze
-          - gold
-          - platinum
-          - silver
-        description: Filter by computed segment.
-      - in: query
         name: status
         schema:
           type: string
@@ -2721,11 +2891,6 @@ paths:
           - blocked
           - inactive
         description: Filter by customer status.
-      - in: query
-        name: tag
-        schema:
-          type: string
-        description: Filter by a single tag string.
       tags:
       - Customers
       security:
@@ -2909,49 +3074,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PaginatedCustomerCommunicationLogList'
-          description: ''
-        '404':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DetailResponse'
-          description: Not found. The requested resource does not exist in the current
-            company.
-  /api/customers/{id}/compute-segment/:
-    post:
-      operationId: customers_compute_segment_create
-      description: Recomputes the customer's tier from order history.
-      summary: Recompute segment
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: string
-          format: uuid
-        description: A UUID string identifying this customer profile.
-        required: true
-      tags:
-      - Customers
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CustomerRequest'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/CustomerRequest'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/CustomerRequest'
-        required: true
-      security:
-      - jwtAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CustomerSegmentResponse'
           description: ''
         '404':
           content:
@@ -3607,8 +3729,9 @@ paths:
           enum:
           - credit_note
           - debit_note
+          - purchase_order
           - sales_invoice
-        description: Invoice type (sales_invoice, credit_note, debit_note).
+        description: Invoice type (sales_invoice, purchase_order, credit_note, debit_note).
       tags:
       - Invoices
       security:
@@ -4268,30 +4391,8 @@ paths:
   /api/outstanding/:
     get:
       operationId: outstanding_list
-      summary: List outstanding aging
-      parameters:
-      - in: query
-        name: agent_id
-        schema:
-          type: string
-          format: uuid
-        description: Only customers assigned to this agent.
-      - in: query
-        name: overdue_only
-        schema:
-          type: boolean
-        description: '`true` for customers with 90+ days overdue.'
-      - in: query
-        name: segment
-        schema:
-          type: string
-          enum:
-          - corporate_institutional
-          - walk_in
-          - wholesale_retail
-        description: Filter by customer segment.
       tags:
-      - Payments
+      - outstanding
       security:
       - jwtAuth: []
       responses:
@@ -4306,10 +4407,8 @@ paths:
   /api/outstanding/send-reminder/:
     post:
       operationId: outstanding_send_reminder_create
-      description: Queues WhatsApp/email payment reminders for a set of customers.
-      summary: Send payment reminders
       tags:
-      - Payments
+      - outstanding
       requestBody:
         content:
           application/json:
@@ -4329,23 +4428,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PaymentReminderQueued'
+                $ref: '#/components/schemas/SendPaymentReminder'
           description: ''
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DetailResponse'
-          description: Bad request. Field/validation errors are flattened into a single
-            `detail` string.
   /api/outstanding/summary/:
     get:
       operationId: outstanding_summary_retrieve
-      description: Aggregated aging buckets across the whole company for the latest
-        report date.
-      summary: Aging report summary
       tags:
-      - Payments
+      - outstanding
       security:
       - jwtAuth: []
       responses:
@@ -4353,51 +4442,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AgingReportSummary'
+                $ref: '#/components/schemas/OutstandingAging'
           description: ''
-        '404':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DetailResponse'
-          description: Not found. The requested resource does not exist in the current
-            company.
   /api/payments/:
     get:
       operationId: payments_list
-      summary: List payments
-      parameters:
-      - in: query
-        name: agent_id
-        schema:
-          type: string
-          format: uuid
-        description: Filter by collecting agent.
-      - in: query
-        name: customer_id
-        schema:
-          type: string
-          format: uuid
-        description: Filter by customer.
-      - in: query
-        name: date_from
-        schema:
-          type: string
-          format: date
-        description: Payment date from.
-      - in: query
-        name: date_to
-        schema:
-          type: string
-          format: date
-        description: Payment date to.
-      - in: query
-        name: mode
-        schema:
-          type: string
-        description: Payment mode.
       tags:
-      - Payments
+      - payments
       security:
       - jwtAuth: []
       responses:
@@ -4411,11 +4462,8 @@ paths:
           description: ''
     post:
       operationId: payments_create
-      description: Records a payment, updates the invoice paid/due amounts and the
-        customer's outstanding balance.
-      summary: Record payment
       tags:
-      - Payments
+      - payments
       requestBody:
         content:
           application/json:
@@ -4435,19 +4483,11 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PaymentDetail'
+                $ref: '#/components/schemas/PaymentCreate'
           description: ''
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DetailResponse'
-          description: Bad request. Field/validation errors are flattened into a single
-            `detail` string.
   /api/payments/{id}/:
     get:
       operationId: payments_retrieve
-      summary: Get payment
       parameters:
       - in: path
         name: id
@@ -4456,7 +4496,7 @@ paths:
           format: uuid
         required: true
       tags:
-      - Payments
+      - payments
       security:
       - jwtAuth: []
       responses:
@@ -4466,17 +4506,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/PaymentDetail'
           description: ''
-        '404':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DetailResponse'
-          description: Not found. The requested resource does not exist in the current
-            company.
     delete:
       operationId: payments_destroy
-      description: Only non-Tally payments can be deleted. Returns 204.
-      summary: Delete payment
       parameters:
       - in: path
         name: id
@@ -4485,26 +4516,12 @@ paths:
           format: uuid
         required: true
       tags:
-      - Payments
+      - payments
       security:
       - jwtAuth: []
       responses:
         '204':
           description: No response body
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DetailResponse'
-          description: Bad request. Field/validation errors are flattened into a single
-            `detail` string.
-        '404':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DetailResponse'
-          description: Not found. The requested resource does not exist in the current
-            company.
   /api/plans/:
     get:
       operationId: plans_list
@@ -6578,7 +6595,12 @@ components:
           type: string
           format: decimal
           pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        commission:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
       required:
+      - commission
       - orders_today
       - sales_today
     AgentInvitation:
@@ -7177,45 +7199,6 @@ components:
       - amount
       - bucket
       - percentage
-    AgingReportSummary:
-      type: object
-      description: Aggregated aging across all customers — for the dashboard aging
-        widget.
-      properties:
-        total_outstanding:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
-        current:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
-        days_1_30:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
-        days_31_60:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
-        days_61_90:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
-        days_90_plus:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
-        customers_overdue:
-          type: integer
-      required:
-      - current
-      - customers_overdue
-      - days_1_30
-      - days_31_60
-      - days_61_90
-      - days_90_plus
-      - total_outstanding
     AuditLogDetail:
       type: object
       description: Full detail including old/new value diff.
@@ -7457,12 +7440,10 @@ components:
         name:
           type: string
           maxLength: 100
-        description:
+        hsn_code:
           type: string
-        image:
-          type: string
-          format: uri
-          nullable: true
+          description: HSN code for GST
+          maxLength: 10
         display_order:
           type: integer
           maximum: 32767
@@ -7492,12 +7473,10 @@ components:
         name:
           type: string
           maxLength: 100
-        description:
+        hsn_code:
           type: string
-        image:
-          type: string
-          format: uri
-          nullable: true
+          description: HSN code for GST
+          maxLength: 10
         display_order:
           type: integer
           maximum: 32767
@@ -7517,12 +7496,10 @@ components:
           type: string
           minLength: 1
           maxLength: 100
-        description:
+        hsn_code:
           type: string
-        image:
-          type: string
-          format: binary
-          nullable: true
+          description: HSN code for GST
+          maxLength: 10
         display_order:
           type: integer
           maximum: 32767
@@ -7545,10 +7522,10 @@ components:
         name:
           type: string
           maxLength: 100
-        image:
+        hsn_code:
           type: string
-          format: uri
-          nullable: true
+          description: HSN code for GST
+          maxLength: 10
         display_order:
           type: integer
           maximum: 32767
@@ -7568,9 +7545,6 @@ components:
         color_name:
           type: string
           maxLength: 100
-        color_hex:
-          type: string
-          maxLength: 7
         image:
           type: string
           format: uri
@@ -7590,9 +7564,6 @@ components:
           type: string
           minLength: 1
           maxLength: 100
-        color_hex:
-          type: string
-          maxLength: 7
         image:
           type: string
           format: binary
@@ -7615,18 +7586,12 @@ components:
         color_name:
           type: string
           maxLength: 100
-        color_hex:
-          type: string
-          maxLength: 7
         image:
           type: string
           format: uri
           nullable: true
         is_primary:
           type: boolean
-        sku:
-          type: string
-          maxLength: 50
         qr_code:
           type: string
           format: uuid
@@ -7655,7 +7620,6 @@ components:
       - qr_code
       - size_chart
       - sizes
-      - sku
       - updated_at
     ColorVariantList:
       type: object
@@ -7667,25 +7631,18 @@ components:
         color_name:
           type: string
           maxLength: 100
-        color_hex:
-          type: string
-          maxLength: 7
         image:
           type: string
           format: uri
           nullable: true
         is_primary:
           type: boolean
-        sku:
-          type: string
-          maxLength: 50
         total_stock:
           type: integer
           readOnly: true
       required:
       - color_name
       - id
-      - sku
       - total_stock
     CommissionEntryDetail:
       type: object
@@ -8350,7 +8307,6 @@ components:
         pan:
           type: string
           maxLength: 10
-        tags: {}
         billing_address_line1:
           type: string
           maxLength: 255
@@ -8422,14 +8378,8 @@ components:
           format: decimal
           pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
           readOnly: true
-        segment:
-          allOf:
-          - $ref: '#/components/schemas/CustomerSegmentEnum'
-          readOnly: true
         status:
           $ref: '#/components/schemas/CustomerStatusEnum'
-        internal_notes:
-          type: string
         created_at:
           type: string
           format: date-time
@@ -8451,7 +8401,6 @@ components:
       - id
       - overdue_outstanding
       - phone
-      - segment
       - total_outstanding
       - updated_at
     CustomerCommunicationLog:
@@ -8520,7 +8469,6 @@ components:
         pan:
           type: string
           maxLength: 10
-        tags: {}
         billing_address_line1:
           type: string
           maxLength: 255
@@ -8569,8 +8517,6 @@ components:
           type: boolean
         status:
           $ref: '#/components/schemas/CustomerStatusEnum'
-        internal_notes:
-          type: string
       required:
       - phone
     CustomerDocument:
@@ -8814,8 +8760,6 @@ components:
             default: ''
           - type: string
             maxLength: 0
-        segment:
-          type: string
         status:
           type: string
         assigned_agent_id:
@@ -8857,7 +8801,6 @@ components:
       - customer_id
       - overdue_outstanding
       - phone
-      - segment
       - status
       - total_orders
       - total_outstanding
@@ -8896,7 +8839,6 @@ components:
         pan:
           type: string
           maxLength: 10
-        tags: {}
         billing_address_line1:
           type: string
           maxLength: 255
@@ -8947,29 +8889,8 @@ components:
           type: boolean
         status:
           $ref: '#/components/schemas/CustomerStatusEnum'
-        internal_notes:
-          type: string
       required:
       - phone
-    CustomerSegmentEnum:
-      enum:
-      - platinum
-      - gold
-      - silver
-      - bronze
-      type: string
-      description: |-
-        * `platinum` - Platinum
-        * `gold` - Gold
-        * `silver` - Silver
-        * `bronze` - Bronze
-    CustomerSegmentResponse:
-      type: object
-      properties:
-        segment:
-          type: string
-      required:
-      - segment
     CustomerStatusEnum:
       enum:
       - active
@@ -9473,9 +9394,6 @@ components:
           type: string
         color_name:
           type: string
-        color_hex:
-          type: string
-          default: ''
         size:
           type: string
         sku:
@@ -9840,11 +9758,13 @@ components:
     InvoiceTypeEnum:
       enum:
       - sales_invoice
+      - purchase_order
       - credit_note
       - debit_note
       type: string
       description: |-
         * `sales_invoice` - Sales Invoice
+        * `purchase_order` - Purchase Order
         * `credit_note` - Credit Note
         * `debit_note` - Debit Note
     InvoiceVoidRequest:
@@ -10849,12 +10769,10 @@ components:
           type: string
           minLength: 1
           maxLength: 100
-        description:
+        hsn_code:
           type: string
-        image:
-          type: string
-          format: binary
-          nullable: true
+          description: HSN code for GST
+          maxLength: 10
         display_order:
           type: integer
           maximum: 32767
@@ -11030,7 +10948,6 @@ components:
         pan:
           type: string
           maxLength: 10
-        tags: {}
         billing_address_line1:
           type: string
           maxLength: 255
@@ -11079,8 +10996,6 @@ components:
           type: boolean
         status:
           $ref: '#/components/schemas/CustomerStatusEnum'
-        internal_notes:
-          type: string
     PatchedDispatchUpdateRequest:
       type: object
       description: Used to update tracking / delivery info after dispatch.
@@ -11141,6 +11056,21 @@ components:
           type: string
           maxLength: 100
         is_active:
+          type: boolean
+    PatchedPermissionRequest:
+      type: object
+      properties:
+        module:
+          $ref: '#/components/schemas/ModuleEnum'
+        can_view:
+          type: boolean
+        can_add:
+          type: boolean
+        can_edit:
+          type: boolean
+        can_delete:
+          type: boolean
+        can_export:
           type: boolean
     PatchedPlanCreateUpdateRequest:
       type: object
@@ -11224,14 +11154,6 @@ components:
           maxLength: 200
         description:
           type: string
-        hsn_code:
-          type: string
-          description: HSN code for GST
-          maxLength: 10
-        gst_rate:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
         size_chart:
           type: string
           format: uuid
@@ -11245,14 +11167,6 @@ components:
           type: string
           format: decimal
           pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
-        minimum_order_qty:
-          type: integer
-          maximum: 2147483647
-          minimum: 0
-        order_in_multiples:
-          type: integer
-          maximum: 2147483647
-          minimum: 0
         status:
           $ref: '#/components/schemas/ProductStatusEnum'
     PatchedRoleTemplateUpdateRequest:
@@ -11414,6 +11328,43 @@ components:
         phone:
           type: string
           maxLength: 15
+    PaymentCreate:
+      type: object
+      properties:
+        invoice:
+          type: string
+          format: uuid
+          nullable: true
+        customer:
+          type: string
+          format: uuid
+        agent:
+          type: string
+          format: uuid
+          nullable: true
+        amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,12}(?:\.\d{0,2})?$
+        payment_date:
+          type: string
+          format: date
+        mode:
+          $ref: '#/components/schemas/PaymentModeEnum'
+        reference_no:
+          type: string
+          maxLength: 100
+        receipt_file:
+          type: string
+          format: uri
+          nullable: true
+        notes:
+          type: string
+      required:
+      - amount
+      - customer
+      - mode
+      - payment_date
     PaymentCreateRequest:
       type: object
       properties:
@@ -11626,20 +11577,6 @@ components:
         * `whatsapp` - whatsapp
         * `email` - email
         * `both` - both
-    PaymentReminderQueued:
-      type: object
-      description: Confirmation that payment reminders were queued.
-      properties:
-        detail:
-          type: string
-        channel:
-          type: string
-        customer_count:
-          type: integer
-      required:
-      - channel
-      - customer_count
-      - detail
     PendingSync:
       type: object
       properties:
@@ -11674,6 +11611,23 @@ components:
           type: boolean
       required:
       - id
+      - module
+    PermissionRequest:
+      type: object
+      properties:
+        module:
+          $ref: '#/components/schemas/ModuleEnum'
+        can_view:
+          type: boolean
+        can_add:
+          type: boolean
+        can_edit:
+          type: boolean
+        can_delete:
+          type: boolean
+        can_export:
+          type: boolean
+      required:
       - module
     PlanCreateUpdateRequest:
       type: object
@@ -11876,17 +11830,6 @@ components:
           maxLength: 200
         description:
           type: string
-        sku_prefix:
-          type: string
-          maxLength: 20
-        hsn_code:
-          type: string
-          description: HSN code for GST
-          maxLength: 10
-        gst_rate:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
         size_chart:
           type: string
           format: uuid
@@ -11900,14 +11843,6 @@ components:
           type: string
           format: decimal
           pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
-        minimum_order_qty:
-          type: integer
-          maximum: 2147483647
-          minimum: 0
-        order_in_multiples:
-          type: integer
-          maximum: 2147483647
-          minimum: 0
         status:
           $ref: '#/components/schemas/ProductStatusEnum'
         color_variants:
@@ -11929,17 +11864,6 @@ components:
           maxLength: 200
         description:
           type: string
-        sku_prefix:
-          type: string
-          maxLength: 20
-        hsn_code:
-          type: string
-          description: HSN code for GST
-          maxLength: 10
-        gst_rate:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
         size_chart:
           type: string
           format: uuid
@@ -11953,14 +11877,6 @@ components:
           type: string
           format: decimal
           pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
-        minimum_order_qty:
-          type: integer
-          maximum: 2147483647
-          minimum: 0
-        order_in_multiples:
-          type: integer
-          maximum: 2147483647
-          minimum: 0
         status:
           $ref: '#/components/schemas/ProductStatusEnum'
         color_variants:
@@ -11988,17 +11904,6 @@ components:
           maxLength: 200
         description:
           type: string
-        sku_prefix:
-          type: string
-          maxLength: 20
-        hsn_code:
-          type: string
-          description: HSN code for GST
-          maxLength: 10
-        gst_rate:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
         size_chart:
           type: string
           format: uuid
@@ -12015,14 +11920,6 @@ components:
           type: string
           format: decimal
           pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
-        minimum_order_qty:
-          type: integer
-          maximum: 2147483647
-          minimum: 0
-        order_in_multiples:
-          type: integer
-          maximum: 2147483647
-          minimum: 0
         total_stock:
           type: integer
           maximum: 2147483647
@@ -12069,17 +11966,6 @@ components:
           maxLength: 200
         description:
           type: string
-        sku_prefix:
-          type: string
-          maxLength: 20
-        hsn_code:
-          type: string
-          description: HSN code for GST
-          maxLength: 10
-        gst_rate:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
         size_chart:
           type: string
           format: uuid
@@ -12096,14 +11982,6 @@ components:
           type: string
           format: decimal
           pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
-        minimum_order_qty:
-          type: integer
-          maximum: 2147483647
-          minimum: 0
-        order_in_multiples:
-          type: integer
-          maximum: 2147483647
-          minimum: 0
         total_stock:
           type: integer
           maximum: 2147483647
@@ -12153,14 +12031,6 @@ components:
           maxLength: 200
         description:
           type: string
-        hsn_code:
-          type: string
-          description: HSN code for GST
-          maxLength: 10
-        gst_rate:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
         size_chart:
           type: string
           format: uuid
@@ -12174,14 +12044,6 @@ components:
           type: string
           format: decimal
           pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
-        minimum_order_qty:
-          type: integer
-          maximum: 2147483647
-          minimum: 0
-        order_in_multiples:
-          type: integer
-          maximum: 2147483647
-          minimum: 0
         status:
           $ref: '#/components/schemas/ProductStatusEnum'
       required:
@@ -12483,6 +12345,24 @@ components:
       required:
       - created
       - detail
+    SendPaymentReminder:
+      type: object
+      properties:
+        customer_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          minItems: 1
+        channel:
+          allOf:
+          - $ref: '#/components/schemas/PaymentReminderChannelEnum'
+          default: whatsapp
+        message:
+          type: string
+          description: Custom message; leave blank to use the default template.
+      required:
+      - customer_ids
     SendPaymentReminderRequest:
       type: object
       properties:
@@ -13690,9 +13570,6 @@ components:
         size:
           type: string
           maxLength: 20
-        sku:
-          type: string
-          maxLength: 60
         price_override:
           type: string
           format: decimal
@@ -13708,7 +13585,6 @@ components:
           minimum: 0
       required:
       - size
-      - sku
     VariantSizeCreateRequest:
       type: object
       properties:
@@ -13718,7 +13594,7 @@ components:
           maxLength: 20
         sku:
           type: string
-          minLength: 1
+          writeOnly: true
           maxLength: 60
         price_override:
           type: string
@@ -13735,7 +13611,6 @@ components:
           minimum: 0
       required:
       - size
-      - sku
   securitySchemes:
     jwtAuth:
       type: http

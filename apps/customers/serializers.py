@@ -37,7 +37,6 @@ class CustomerSerializer(serializers.ModelSerializer):
             "gstin_type",
             "gstin_verified_at",
             "pan",
-            "tags",
             "billing_address_line1",
             "billing_address_line2",
             "billing_city",
@@ -59,9 +58,7 @@ class CustomerSerializer(serializers.ModelSerializer):
             "auto_block_on_exceed",
             "total_outstanding",
             "overdue_outstanding",
-            "segment",
             "status",
-            "internal_notes",
             "created_at",
             "updated_at",
         ]
@@ -76,7 +73,6 @@ class CustomerSerializer(serializers.ModelSerializer):
             "credit_utilization_pct",
             "total_outstanding",
             "overdue_outstanding",
-            "segment",
             "created_at",
             "updated_at",
         ]
@@ -130,7 +126,6 @@ class CustomerCreateSerializer(serializers.ModelSerializer):
             "whatsapp_number",
             "gstin",
             "pan",
-            "tags",
             "billing_address_line1",
             "billing_address_line2",
             "billing_city",
@@ -147,13 +142,7 @@ class CustomerCreateSerializer(serializers.ModelSerializer):
             "payment_terms_days",
             "auto_block_on_exceed",
             "status",
-            "internal_notes",
         ]
-
-    def validate_tags(self, value):
-        if not isinstance(value, list):
-            raise serializers.ValidationError("Tags must be a list of strings.")
-        return value
 
 
 class CustomerUpdateSerializer(serializers.ModelSerializer):
@@ -175,7 +164,6 @@ class CustomerUpdateSerializer(serializers.ModelSerializer):
             "whatsapp_number",
             "gstin",
             "pan",
-            "tags",
             "billing_address_line1",
             "billing_address_line2",
             "billing_city",
@@ -192,13 +180,7 @@ class CustomerUpdateSerializer(serializers.ModelSerializer):
             "payment_terms_days",
             "auto_block_on_exceed",
             "status",
-            "internal_notes",
         ]
-
-    def validate_tags(self, value):
-        if not isinstance(value, list):
-            raise serializers.ValidationError("Tags must be a list of strings.")
-        return value
 
 
 class CustomerImportRowSerializer(serializers.Serializer):
@@ -246,10 +228,6 @@ class GstinVerifyResponseSerializer(serializers.Serializer):
     status = serializers.CharField()
     type = serializers.CharField()
     message = serializers.CharField()
-
-
-class CustomerSegmentResponseSerializer(serializers.Serializer):
-    segment = serializers.CharField()
 
 
 class CreditActivityResponseSerializer(serializers.Serializer):

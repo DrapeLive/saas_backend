@@ -1,7 +1,7 @@
 from decimal import Decimal
 
-from django.db.models import DecimalField, Q, Sum, TextField, Value
-from django.db.models.functions import Cast, Coalesce
+from django.db.models import DecimalField, Q, Sum, Value
+from django.db.models.functions import Coalesce
 from drf_spectacular.utils import (
     OpenApiParameter,
     OpenApiTypes,
@@ -41,12 +41,11 @@ from apps.customers.serializers import (
     CustomerImportPreviewResponseSerializer,
     CustomerOverviewSerializer,
     CustomerPageSerializer,
-    CustomerSegmentResponseSerializer,
     CustomerSerializer,
     CustomerUpdateSerializer,
     GstinVerifyResponseSerializer,
 )
-from apps.customers.services import compute_segment, verify_gstin
+from apps.customers.services import verify_gstin
 from apps.invoices.models import Invoice, InvoiceStatus, InvoiceType
 from apps.sub_admin.services import scope_customer_queryset
 
@@ -89,23 +88,10 @@ class IsAdminOrSubAdmin(IsCompanyStaff):
                 description="Filter by customer status.",
             ),
             OpenApiParameter(
-                "segment",
-                OpenApiTypes.STR,
-                OpenApiParameter.QUERY,
-                enum=["bronze", "silver", "gold", "platinum"],
-                description="Filter by computed segment.",
-            ),
-            OpenApiParameter(
                 "assigned_agent",
                 OpenApiTypes.UUID,
                 OpenApiParameter.QUERY,
                 description="Filter by assigned agent id.",
-            ),
-            OpenApiParameter(
-                "tag",
-                OpenApiTypes.STR,
-                OpenApiParameter.QUERY,
-                description="Filter by a single tag string.",
             ),
             OpenApiParameter(
                 "ordering",
@@ -171,12 +157,6 @@ class IsAdminOrSubAdmin(IsCompanyStaff):
             400: RESPONSE_400,
             404: RESPONSE_404,
         },
-    ),
-    compute_segment=extend_schema(
-        tags=["Customers"],
-        summary="Recompute segment",
-        description="Recomputes the customer's tier from order history.",
-        responses={200: CustomerSegmentResponseSerializer, 404: RESPONSE_404},
     ),
     credit_block=extend_schema(
         tags=["Customers"],
@@ -266,7 +246,6 @@ class CustomerViewSet(GenericViewSet):
             "import_preview",
             "import_confirm",
             "verify_gstin",
-            "compute_segment",
             "credit_block",
             "credit_unblock",
         ):
@@ -312,19 +291,9 @@ class CustomerViewSet(GenericViewSet):
         if status_filter:
             customers = customers.filter(status=status_filter)
 
-        segment_filter = request.query_params.get("segment")
-        if segment_filter:
-            customers = customers.filter(segment=segment_filter)
-
         assigned_agent = request.query_params.get("assigned_agent")
         if assigned_agent:
             customers = customers.filter(assigned_agent_id=assigned_agent)
-
-        tag = request.query_params.get("tag")
-        if tag:
-            customers = customers.annotate(
-                tags_text=Cast("tags", output_field=TextField()),
-            ).filter(tags_text__icontains=f'"{tag}"')
 
         ordering = request.query_params.get("ordering", "-created_at")
         descending = ordering.startswith("-")
@@ -506,14 +475,6 @@ class CustomerViewSet(GenericViewSet):
                 ]
             )
         return Response(result)
-
-    @action(detail=True, methods=["post"], url_path="compute-segment")
-    def compute_segment(self, request, *args, **kwargs):
-        customer = self.get_object()
-        segment = compute_segment(customer)
-        customer.segment = segment
-        customer.save(update_fields=["segment"])
-        return Response({"segment": segment})
 
     @action(detail=True, methods=["post"], url_path="credit-block")
     def credit_block(self, request, *args, **kwargs):

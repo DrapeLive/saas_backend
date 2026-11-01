@@ -17,12 +17,6 @@ class CustomerProfile(CompanyScopeModel):
         BLOCKED = "blocked", "Blocked"
         PROSPECTS = "prospect", "Prospect"
 
-    class CustomerSegment(models.TextChoices):
-        PLATINUM = "platinum", "Platinum"
-        GOLD = "gold", "Gold"
-        SILVER = "silver", "Silver"
-        BRONZE = "bronze", "Bronze"
-
     user = models.OneToOneField(
         "accounts.User",
         null=True,
@@ -51,9 +45,6 @@ class CustomerProfile(CompanyScopeModel):
     gstin_verified_at = models.DateTimeField(null=True, blank=True)
 
     pan = models.CharField(max_length=10, blank=True)
-
-    # Tags
-    tags = models.JSONField(default=list, blank=True)
 
     # Address
     billing_address_line1 = models.CharField(max_length=255, blank=True)
@@ -89,15 +80,9 @@ class CustomerProfile(CompanyScopeModel):
         max_digits=14, decimal_places=2, default=0
     )
 
-    # Segmentation (can be auto-computed)
-    segment = models.CharField(
-        max_length=15, choices=CustomerSegment.choices, default=CustomerSegment.BRONZE
-    )
     status = models.CharField(
         max_length=15, choices=CustomerStatus.choices, default=CustomerStatus.ACTIVE
     )
-
-    internal_notes = models.TextField(blank=True)
 
     class Meta:
         db_table = "customers_profile"

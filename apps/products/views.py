@@ -234,12 +234,11 @@ class ProductViewSet(GenericViewSet):
         )
         qs = scope_product_queryset(request.user, qs)
 
-        # Search: product name, SKU prefix, color name, category name
+        # Search: product name, color name, category name
         search = request.query_params.get("search")
         if search:
             qs = qs.filter(
                 Q(name__icontains=search)
-                | Q(sku_prefix__icontains=search)
                 | Q(category__name__icontains=search)
                 | Q(color_variants__color_name__icontains=search)
             )

@@ -94,9 +94,9 @@ class OrderViewSet(GenericViewSet):
         line_items = []
 
         for item in items_data:
-            variant = VariantSize.objects.select_related("color_variant__product").get(
-                id=item["variant_size"].id
-            )
+            variant = VariantSize.objects.select_related(
+                "color_variant__product__category"
+            ).get(id=item["variant_size"].id)
             product = variant.color_variant.product
             unit_price = variant.price_override or product.wholesale_price
             qty = item["quantity"]
@@ -111,13 +111,13 @@ class OrderViewSet(GenericViewSet):
                     "color_name": variant.color_variant.color_name,
                     "size": variant.size,
                     "sku": variant.sku,
-                    "hsn_code": product.hsn_code,
+                    "hsn_code": product.category.hsn_code,
                     "unit_price": unit_price,
                     "quantity": qty,
                     "discount_pct": item_disc,
                     "line_total": line_total,
-                    "gst_rate": product.gst_rate,
-                    "gst_amount": line_total * product.gst_rate / 100,
+                    "gst_rate": company.default_gst_rate,
+                    "gst_amount": line_total * company.default_gst_rate / 100,
                 }
             )
 

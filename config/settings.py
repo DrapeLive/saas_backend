@@ -276,7 +276,6 @@ SPECTACULAR_SETTINGS = {
         "CompanyStatusEnum": "apps.companies.models.CompanyStatus",
         # Customers
         "CustomerStatusEnum": "apps.customers.models.CustomerProfile.CustomerStatus",
-        "CustomerSegmentEnum": "apps.customers.models.CustomerProfile.CustomerSegment",
         "GstinStatusEnum": "apps.customers.models.GstStatus",
         "DocTypeEnum": "apps.customers.models.CustomerDocument.DocType",
         "CommunicationChannelEnum": "apps.customers.models.CustomerCommunicationLog.ChannelType",

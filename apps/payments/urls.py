@@ -37,7 +37,7 @@ urlpatterns = [
     # OUTSTANDING AGING
     # ─────────────────────────────────────────────────────────────
     # GET    /api/outstanding/                    Aging per customer
-    #          ?agent_id=   ?overdue_only=true   ?segment=
+    #          ?agent_id=   ?overdue_only=true
     # GET    /api/outstanding/summary/            Aggregated aging dashboard widget
     # POST   /api/outstanding/send-reminder/      Bulk WhatsApp / email reminder
     path(

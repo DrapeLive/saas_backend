@@ -268,12 +268,9 @@ class CustomerReportViewSet(ReportsViewSet):
         if date_to:
             qs = qs.filter(created_at__date__lte=date_to)
 
-        segment = request.query_params.get("segment")
         status_f = request.query_params.get("status")
         agent_id = request.query_params.get("agent_id")
         search = request.query_params.get("search")
-        if segment:
-            qs = qs.filter(segment=segment)
         if status_f:
             qs = qs.filter(status=status_f)
         if agent_id:
@@ -327,7 +324,6 @@ class CustomerReportViewSet(ReportsViewSet):
                     "trade_name": c.trade_name or c.legal_name or c.phone,
                     "phone": c.phone,
                     "email": c.email,
-                    "segment": c.segment,
                     "status": c.status,
                     "assigned_agent_id": c.assigned_agent_id,
                     "assigned_agent_name": (
@@ -363,11 +359,6 @@ class CustomerReportViewSet(ReportsViewSet):
             overdue_outstanding=Coalesce(
                 Sum("overdue_outstanding"), Value(0), output_field=_MONEY
             ),
-        )
-        agg["segment_breakdown"] = dict(
-            qs.values_list("segment")
-            .annotate(count=Count("id"))
-            .values_list("segment", "count")
         )
         return Response(agg)
 
@@ -588,7 +579,6 @@ class InventoryReportViewSet(ReportsViewSet):
             qs = qs.filter(
                 Q(color_variant__product__name__icontains=search)
                 | Q(sku__icontains=search)
-                | Q(color_variant__product__sku_prefix__icontains=search)
             )
         return qs
 
@@ -602,11 +592,10 @@ class InventoryReportViewSet(ReportsViewSet):
             "product_id": product.id,
             "product_name": product.name,
             "color_name": vs.color_variant.color_name,
-            "color_hex": vs.color_variant.color_hex,
             "size": vs.size,
             "sku": vs.sku,
             "category_name": product.category.name if product.category_id else None,
-            "hsn_code": product.hsn_code,
+            "hsn_code": product.category.hsn_code if product.category_id else "",
             "stock_quantity": vs.stock_quantity,
             "reserved_qty": vs.reserved_qty,
             "available_qty": available,

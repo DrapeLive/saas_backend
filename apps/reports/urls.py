@@ -49,8 +49,8 @@ urlpatterns = [
     # ─────────────────────────────────────────────────────────────
     # CUSTOMER REPORT
     # GET /api/reports/customers/            Customer aggregates (paginated)
-    #   ?segment=  ?status=  ?agent_id=  ?search=  ?date_from=  ?date_to=
-    # GET /api/reports/customers/summary/    Status + segment counts, outstanding
+    #   ?status=  ?agent_id=  ?search=  ?date_from=  ?date_to=
+    # GET /api/reports/customers/summary/    Status counts, outstanding
     # ─────────────────────────────────────────────────────────────
     path(
         "reports/customers/",

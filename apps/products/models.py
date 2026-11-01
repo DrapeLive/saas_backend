@@ -20,8 +20,7 @@ class Category(CompanyScopeModel, SoftDeleteModel):
     """
 
     name = models.CharField(max_length=100)
-    description = models.TextField(blank=True)
-    image = models.ImageField(upload_to="categories/", null=True, blank=True)
+    hsn_code = models.CharField(max_length=10, blank=True, help_text="HSN code for GST")
     display_order = models.PositiveSmallIntegerField(default=0)
     default_commission_pct = models.DecimalField(
         max_digits=5,
@@ -61,18 +60,12 @@ class Product(CompanyScopeModel, SoftDeleteModel):
     )
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True)
-    sku_prefix = models.CharField(max_length=20, blank=True)
-    hsn_code = models.CharField(max_length=10, blank=True, help_text="HSN code for GST")
-    gst_rate = models.DecimalField(max_digits=5, decimal_places=2, default=5.00)
     size_chart = models.ForeignKey(
         SizeChart, null=True, blank=True, on_delete=models.SET_NULL
     )
 
     mrp = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     wholesale_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-
-    minimum_order_qty = models.PositiveIntegerField(default=1)
-    order_in_multiples = models.PositiveIntegerField(default=1)
 
     status = models.CharField(
         max_length=20, choices=ProductStatus.choices, default=ProductStatus.ACTIVE
@@ -96,12 +89,10 @@ class ColorVariant(UUIDModel, TimeStampedModel):
         Product, on_delete=models.CASCADE, related_name="color_variants"
     )
     color_name = models.CharField(max_length=100)
-    color_hex = models.CharField(max_length=7, blank=True)
     image = models.ImageField(
         upload_to="variants/", null=True, blank=True
     )
     is_primary = models.BooleanField(default=False)
-    sku = models.CharField(max_length=50, unique=True)
     qr_code = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
 
     class Meta:

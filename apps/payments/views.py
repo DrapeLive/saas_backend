@@ -163,14 +163,11 @@ class OutstandingAgingViewSet(GenericViewSet):
 
         agent_f = request.query_params.get("agent_id")
         overdue_f = request.query_params.get("overdue_only")
-        segment_f = request.query_params.get("segment")
 
         if agent_f:
             qs = qs.filter(customer__assigned_agent_id=agent_f)
         if overdue_f:
             qs = qs.filter(days_90_plus__gt=0)
-        if segment_f:
-            qs = qs.filter(customer__segment=segment_f)
 
         return Response(OutstandingAgingSerializer(qs, many=True).data)
 
