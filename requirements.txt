@@ -17,4 +17,4 @@ boto3
 botocore
 daphne
 channels
-rest_framework_simplejwt
+djangorestframework-simplejwt==5.5.1
