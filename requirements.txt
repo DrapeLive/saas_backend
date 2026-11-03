@@ -19,3 +19,4 @@ daphne
 channels
 djangorestframework-simplejwt==5.5.1
 django-cors-headers==4.9.0
+drf-spectacular==0.29.0
