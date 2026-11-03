@@ -1,3 +1,4 @@
+import uuid
 from typing import ClassVar
 
 from django.db import models
@@ -6,6 +7,7 @@ from apps.core.models import CompanyScopeModel, TimeStampedModel, UUIDModel
 
 
 class OrderStatus(models.TextChoices):
+    DRAFT = "draft", "Draft"
     SUBMITTED = "submitted", "Submitted"
     CONFIRMED = "confirmed", "Confirmed"
     PROCESSING = "processing", "Processing"
@@ -22,7 +24,7 @@ class PackingStatus(models.TextChoices):
 
 
 class Order(CompanyScopeModel):
-    order_number = models.CharField(max_length=30, unique=True, blank=True)
+    order_number = models.CharField(max_length=30, blank=True)
 
     customer = models.ForeignKey(
         "customers.CustomerProfile",
@@ -42,6 +44,10 @@ class Order(CompanyScopeModel):
         choices=OrderStatus.choices,
         default=OrderStatus.SUBMITTED,
     )
+
+    # Draft lifecycle: a DRAFT order is deleted (and its stock reservations
+    # released) once this timestamp passes. Refreshed on every activity.
+    draft_expires_at = models.DateTimeField(null=True, blank=True, db_index=True)
 
     subtotal = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     discount_pct = models.DecimalField(max_digits=5, decimal_places=2, default=0)
@@ -101,6 +107,13 @@ class Order(CompanyScopeModel):
             models.Index(fields=["company", "status"]),
             models.Index(fields=["customer", "status"]),
             models.Index(fields=["agent", "submitted_at"]),
+            models.Index(fields=["status", "draft_expires_at"]),
+        ]
+        constraints: ClassVar = [
+            models.UniqueConstraint(
+                fields=["company", "order_number"],
+                name="uniq_order_number_per_company",
+            ),
         ]
 
     def __str__(self):
@@ -130,6 +143,14 @@ class OrderItem(UUIDModel, TimeStampedModel):
         on_delete=models.PROTECT,
         related_name="order_items",
     )
+
+    # Every scan/add operation creates one group. A size range such as
+    # "20-24" produces one OrderItem per size, all sharing the same group_id
+    # so the whole scan can be removed with a single delete.
+    group_id = models.UUIDField(default=uuid.uuid4, editable=False, db_index=True)
+    size_range = models.CharField(max_length=50, blank=True)
+    # Optional client idempotency key, unique per order.
+    client_ref = models.CharField(max_length=100, blank=True, db_index=True)
 
     product_name = models.CharField(max_length=200)
     color_name = models.CharField(max_length=100)
@@ -166,6 +187,30 @@ class OrderItem(UUIDModel, TimeStampedModel):
         if self.packed_quantity < self.quantity:
             return PackingStatus.PARTIALLY_PACKED
         return PackingStatus.PACKED
+
+
+class OrderSequence(CompanyScopeModel):
+    """Per-company, per-year monotonic counter used to generate order numbers.
+
+    Draft orders are deleted frequently, so deriving the next number from
+    ``Order.objects.count()`` is unsafe (it reuses numbers and races under
+    concurrency). This row is locked while allocating the next number.
+    """
+
+    year = models.PositiveSmallIntegerField()
+    last_number = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        db_table = "orders_sequence"
+        constraints: ClassVar = [
+            models.UniqueConstraint(
+                fields=["company", "year"],
+                name="uniq_order_sequence_per_company_year",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.company_id} / {self.year}: {self.last_number}"
 
 
 class OrderStatusHistory(UUIDModel):

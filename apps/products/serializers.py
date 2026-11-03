@@ -220,6 +220,15 @@ class ProductListSerializer(serializers.ModelSerializer):
         source="size_chart.name", read_only=True, default=None
     )
     color_variants = ColorVariantDetailSerializer(many=True, read_only=True)
+    available_stock = serializers.SerializerMethodField()
+
+    @extend_schema_field(serializers.IntegerField())
+    def get_available_stock(self, obj):
+        return sum(
+            size.available_qty
+            for variant in obj.color_variants.all()
+            for size in variant.sizes.all()
+        )
 
     class Meta:
         model = Product
@@ -234,6 +243,7 @@ class ProductListSerializer(serializers.ModelSerializer):
             "mrp",
             "wholesale_price",
             "total_stock",
+            "available_stock",
             "status",
             "color_variants",
             "created_at",
@@ -247,6 +257,15 @@ class ProductDetailSerializer(serializers.ModelSerializer):
         source="size_chart.name", read_only=True, default=None
     )
     color_variants = ColorVariantDetailSerializer(many=True, read_only=True)
+    available_stock = serializers.SerializerMethodField()
+
+    @extend_schema_field(serializers.IntegerField())
+    def get_available_stock(self, obj):
+        return sum(
+            size.available_qty
+            for variant in obj.color_variants.all()
+            for size in variant.sizes.all()
+        )
 
     class Meta:
         model = Product
@@ -261,6 +280,7 @@ class ProductDetailSerializer(serializers.ModelSerializer):
             "mrp",
             "wholesale_price",
             "total_stock",
+            "available_stock",
             "status",
             "color_variants",
             "created_at",

@@ -7,9 +7,8 @@ to multiple companies, so every endpoint reads ``request.company`` rather than
 ``request.user.company``.
 """
 
-from datetime import timedelta
 
-from django.db.models import DecimalField, Q, Sum, Value
+from django.db.models import DecimalField, Sum, Value
 from django.db.models.functions import Coalesce
 from django.utils.timesince import timesince
 from django.utils.timezone import now
@@ -42,6 +41,7 @@ from apps.orders.models import Order, OrderStatus
 
 CANCELLED_LIKE = (
     OrderStatus.CANCELLED,
+    OrderStatus.DRAFT,
 )
 
 QUICK_ACTIONS = [

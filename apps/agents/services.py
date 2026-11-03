@@ -63,7 +63,7 @@ def recompute_agent_metrics(agent_profile, company=None):
     Call after order creation/cancellation.
     """
     orders = Order.objects.filter(agent=agent_profile).exclude(
-        status=OrderStatus.CANCELLED
+        status__in=[OrderStatus.CANCELLED, OrderStatus.DRAFT]
     )
     total_sales = (
         orders.aggregate(
@@ -101,7 +101,7 @@ def _agent_leaderboard_rank(agent_id, company):
     sales (cancellations excluded), or None if the agent has no orders."""
     ranking = (
         Order.objects.filter(company=company, agent__isnull=False)
-        .exclude(status=OrderStatus.CANCELLED)
+        .exclude(status__in=[OrderStatus.CANCELLED, OrderStatus.DRAFT])
         .values("agent_id")
         .annotate(
             total=Coalesce(

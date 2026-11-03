@@ -4255,6 +4255,7 @@ paths:
           description: No response body
     post:
       operationId: orders_create
+      description: Create an empty DRAFT order after the agent selects a customer.
       tags:
       - orders
       security:
@@ -4278,6 +4279,40 @@ paths:
       - jwtAuth: []
       responses:
         '200':
+          description: No response body
+    patch:
+      operationId: orders_partial_update
+      description: PATCH /api/orders/<pk>/ — update draft delivery/notes/discount.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - orders
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+    delete:
+      operationId: orders_destroy
+      description: DELETE /api/orders/<pk>/ — discard a draft and release stock.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - orders
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
           description: No response body
   /api/orders/{id}/approve/:
     post:
@@ -4312,6 +4347,71 @@ paths:
       - jwtAuth: []
       responses:
         '200':
+          description: No response body
+  /api/orders/{id}/items/:
+    post:
+      operationId: orders_items_create
+      description: POST /api/orders/<pk>/items/ — add a scanned size range to a draft.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - orders
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/orders/{id}/items/{item_id}/:
+    patch:
+      operationId: orders_items_partial_update
+      description: PATCH /api/orders/<pk>/items/<item_id>/ — change group quantity.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: item_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - orders
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+    delete:
+      operationId: orders_items_destroy
+      description: DELETE /api/orders/<pk>/items/<item_id>/ — remove a scan group.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: item_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - orders
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
           description: No response body
   /api/orders/{id}/pack-items/:
     post:
@@ -4357,6 +4457,35 @@ paths:
           type: string
           format: uuid
         required: true
+      tags:
+      - orders
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/orders/{id}/submit/:
+    post:
+      operationId: orders_submit_create
+      description: POST /api/orders/<pk>/submit/ — convert a DRAFT into a real order.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - orders
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/orders/drafts/:
+    get:
+      operationId: orders_drafts_retrieve
+      description: GET /api/orders/drafts/ — current agent's resumable drafts.
       tags:
       - orders
       security:
@@ -11924,6 +12053,9 @@ components:
           type: integer
           maximum: 2147483647
           minimum: 0
+        available_stock:
+          type: integer
+          readOnly: true
         status:
           $ref: '#/components/schemas/ProductStatusEnum'
         color_variants:
@@ -11940,6 +12072,7 @@ components:
           format: date-time
           readOnly: true
       required:
+      - available_stock
       - category
       - category_name
       - color_variants
@@ -11986,6 +12119,9 @@ components:
           type: integer
           maximum: 2147483647
           minimum: 0
+        available_stock:
+          type: integer
+          readOnly: true
         status:
           $ref: '#/components/schemas/ProductStatusEnum'
         color_variants:
@@ -12002,6 +12138,7 @@ components:
           format: date-time
           readOnly: true
       required:
+      - available_stock
       - category
       - category_name
       - color_variants

@@ -12,7 +12,6 @@ from django.db.models import (
     DecimalField,
     F,
     IntegerField,
-    OuterRef,
     Prefetch,
     Q,
     Subquery,
@@ -26,9 +25,9 @@ from rest_framework.viewsets import GenericViewSet
 
 from apps.accounts.authentication import CustomJWTAuthentication
 from apps.accounts.permissions import CompanyApproved, IsAdminOrSubAdmin
-from apps.core.pagination import DefaultPageNumberPagination
-from apps.commissions.models import CommissionEntry
 from apps.agents.models import AgentCompanyMembership, AgentProfile, AgentVisitLog
+from apps.commissions.models import CommissionEntry
+from apps.core.pagination import DefaultPageNumberPagination
 from apps.customers.models import CustomerProfile
 from apps.invoices.models import Invoice
 from apps.orders.models import Order
@@ -166,6 +165,8 @@ class OrderReportViewSet(ReportsViewSet):
         date_from, date_to = get_date_range(request, "date")
 
         qs = Order.objects.filter(company=company)
+        if request.query_params.get("include_drafts") not in ("1", "true", "True"):
+            qs = qs.exclude(status="draft")
         if date_from:
             qs = qs.filter(created_at__date__gte=date_from)
         if date_to:

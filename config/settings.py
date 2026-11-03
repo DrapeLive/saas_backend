@@ -14,6 +14,8 @@ DEBUG = config("DEBUG")
 ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="*").split(",")
 
 INSTALLED_APPS = [
+    "daphne",
+    "channels",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -75,6 +77,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "config.wsgi.application"
+ASGI_APPLICATION = "config.asgi.application"
 
 AUTH_USER_MODEL = "accounts.User"
 
@@ -361,17 +364,46 @@ CORS_ALLOW_HEADERS = [
     "authorization",
     "content-type",
     "x-requested-with",
+    "x-company-id",
 ]
 
 # ---------------------------------------------------------------------------
 # Celery
 # ---------------------------------------------------------------------------
-CELERY_BROKER_URL = config("CELERY_BROKER_URL", default="redis://localhost:6379/0")
-CELERY_RESULT_BACKEND = config("CELERY_BROKER_URL", default="redis://localhost:6379/0")
+REDIS_URL = config("REDIS_URL", default="redis://localhost:6379/0")
+CELERY_BROKER_URL = config("CELERY_BROKER_URL", default=REDIS_URL)
+CELERY_RESULT_BACKEND = config("CELERY_RESULT_BACKEND", default=CELERY_BROKER_URL)
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = "UTC"
+CELERY_BEAT_SCHEDULE = {
+    "expire-draft-orders": {
+        "task": "apps.orders.tasks.expire_drafts_task",
+        "schedule": 60.0,
+    },
+}
+
+# ---------------------------------------------------------------------------
+# Django Channels / WebSockets
+# ---------------------------------------------------------------------------
+if TESTING:
+    CHANNEL_LAYERS = {
+        "default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}
+    }
+else:
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels_redis.core.RedisChannelLayer",
+            "CONFIG": {"hosts": [REDIS_URL]},
+        }
+    }
+
+# Draft order lifecycle (seconds).
+ORDER_DRAFT_TTL_SECONDS = config("ORDER_DRAFT_TTL_SECONDS", default=600, cast=int)
+ORDER_EMPTY_DRAFT_TTL_SECONDS = config(
+    "ORDER_EMPTY_DRAFT_TTL_SECONDS", default=120, cast=int
+)
 
 if TESTING:
     CELERY_TASK_ALWAYS_EAGER = True

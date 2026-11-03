@@ -12,3 +12,6 @@ psycopg2-binary==2.9.12
 python-decouple==3.8
 sqlparse==0.5.5
 typing_extensions==4.15.0
+channels==4.3.2
+channels-redis==4.3.0
+daphne==4.2.3

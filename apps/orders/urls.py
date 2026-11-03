@@ -2,7 +2,7 @@
 
 from django.urls import path
 
-from apps.accounts.permissions import IsAgent, IsAdminOrSubAdmin
+from apps.accounts.permissions import IsAdminOrSubAdmin, IsAgent
 from apps.orders.views import OrderViewSet
 
 app_name = "orders"
@@ -27,6 +27,37 @@ urlpatterns = [
         OrderViewSet.as_view({"get": "list", "post": "create"}),
         name="order-list-create",
     ),  # ✅
+    # GET    /api/orders/drafts/         Agent's resumable DRAFT orders
+    path(
+        "orders/drafts/",
+        OrderViewSet.as_view({"get": "drafts"}),
+        name="order-drafts",
+    ),
+    # ─────────────────────────────────────────────────────────────
+    # DRAFT ORDER FLOW (Agent only)
+    # ─────────────────────────────────────────────────────────────
+    # POST   /api/orders/<pk>/items/           Add a scanned size range
+    # GET    /api/orders/<pk>/items/           (not supported, use order detail)
+    # PATCH  /api/orders/<pk>/items/<item_id>/ Change a scan group quantity
+    # DELETE /api/orders/<pk>/items/<item_id>/ Remove a scan group
+    path(
+        "orders/<uuid:pk>/items/",
+        OrderViewSet.as_view({"post": "add_item"}),
+        name="order-add-item",
+    ),
+    path(
+        "orders/<uuid:pk>/items/<uuid:item_id>/",
+        OrderViewSet.as_view(
+            {"patch": "update_item", "delete": "remove_item"}
+        ),
+        name="order-item-detail",
+    ),
+    # POST   /api/orders/<pk>/submit/   Submit a DRAFT
+    path(
+        "orders/<uuid:pk>/submit/",
+        OrderViewSet.as_view({"post": "submit"}),
+        name="order-submit",
+    ),
     # ─────────────────────────────────────────────────────────────
     # COLLECTION-LEVEL ACTIONS
     # ─────────────────────────────────────────────────────────────
@@ -46,9 +77,13 @@ urlpatterns = [
     # SINGLE RESOURCE
     # ─────────────────────────────────────────────────────────────
     # GET    /api/orders/<pk>/           Full detail (items + status history + signature)
+    # PATCH  /api/orders/<pk>/           Update a DRAFT's delivery/notes/discount
+    # DELETE /api/orders/<pk>/           Discard a DRAFT and release its stock
     path(
         "orders/<uuid:pk>/",
-        OrderViewSet.as_view({"get": "retrieve"}),
+        OrderViewSet.as_view(
+            {"get": "retrieve", "patch": "partial_update", "delete": "discard"}
+        ),
         name="order-detail",
     ),
     # ─────────────────────────────────────────────────────────────

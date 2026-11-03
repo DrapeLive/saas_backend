@@ -26,7 +26,6 @@ from apps.accounts.authentication import CustomJWTAuthentication
 from apps.accounts.permissions import (
     CanManageUsers,
     CompanyApproved,
-    IsAdmin,
     IsAdminOrSubAdmin,
     IsAgent,
 )
@@ -38,7 +37,7 @@ from apps.agents.detail_serializers import (
     AgentPayoutSerializer,
     AgentTransactionSerializer,
 )
-from apps.agents.models import AgentCompanyMembership, AgentProfile
+from apps.agents.models import AgentCompanyMembership
 from apps.agents.serializers import (
     AgentCompanySerializer,
     AgentLeaderboardSerializer,
@@ -751,7 +750,7 @@ class AgentMembershipViewSet(GenericViewSet):
         # The denormalized AgentProfile columns are not maintained, so compute
         # these on the fly (cancellations excluded).
         orders = Order.objects.filter(agent=agent_profile).exclude(
-            status=OrderStatus.CANCELLED
+            status__in=[OrderStatus.CANCELLED, OrderStatus.DRAFT]
         )
         total_sales = (
             orders.aggregate(
@@ -773,7 +772,7 @@ class AgentMembershipViewSet(GenericViewSet):
         if company is not None:
             ranking = (
                 Order.objects.filter(company=company, agent__isnull=False)
-                .exclude(status=OrderStatus.CANCELLED)
+                .exclude(status__in=[OrderStatus.CANCELLED, OrderStatus.DRAFT])
                 .values("agent_id")
                 .annotate(
                     total=Coalesce(
@@ -889,7 +888,6 @@ class AgentMembershipViewSet(GenericViewSet):
         ).first()
 
         monthly_target = membership.monthly_target if membership else None
-        leaderboard_rank = agent_profile.leaderboard_rank
 
         mtd_sales_by_agent = (
             Order.objects.filter(

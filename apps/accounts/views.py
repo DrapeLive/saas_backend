@@ -78,11 +78,11 @@ from apps.customers.models import CustomerProfile
 from apps.invoices.models import Invoice, InvoiceStatus, InvoiceType
 from apps.orders.models import Order, OrderItem, OrderStatus
 from apps.products.models import VariantSize
-from apps.subscriptions.models import Subscription, SubscriptionEvent
 from apps.sub_admin.services import (
     get_effective_permission_map,
     get_subadmin_restrictions,
 )
+from apps.subscriptions.models import Subscription, SubscriptionEvent
 from apps.tally_integrations.models import TallySyncLog
 
 
@@ -583,7 +583,7 @@ class AdminDashboardViewSet(GenericViewSet):
         today_date = today.date()
 
         base_orders = Order.objects.filter(company=company).exclude(
-            status=OrderStatus.CANCELLED
+            status__in=[OrderStatus.CANCELLED, OrderStatus.DRAFT]
         )
 
         orders_pending = base_orders.filter(
@@ -682,7 +682,11 @@ class AdminDashboardViewSet(GenericViewSet):
     @action(detail=False, methods=["get"], url_path="recent-orders")
     def recent_orders(self, request, *args, **kwargs):
         company = request.user.company
-        orders = Order.objects.filter(company=company).order_by("-created_at")[:3]
+        orders = (
+            Order.objects.filter(company=company)
+            .exclude(status=OrderStatus.DRAFT)
+            .order_by("-created_at")[:3]
+        )
         data = []
         for o in orders:
             data.append(

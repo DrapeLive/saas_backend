@@ -69,6 +69,8 @@ class OrderItemSerializer(serializers.ModelSerializer):
         model = OrderItem
         fields: ClassVar = [
             "id",
+            "group_id",
+            "size_range",
             "variant_size",
             "variant_details",
             "size_chart",
@@ -130,7 +132,21 @@ class PackingStatusMixin(serializers.Serializer):
     )
 
 
-class OrderListSerializer(PackingStatusMixin, serializers.ModelSerializer):
+class DraftExpiryMixin(serializers.Serializer):
+    seconds_until_expiry = serializers.SerializerMethodField()
+
+    @extend_schema_field(serializers.IntegerField(allow_null=True))
+    def get_seconds_until_expiry(self, obj):
+        from django.utils.timezone import now
+
+        if not obj.draft_expires_at:
+            return None
+        return max(0, int((obj.draft_expires_at - now()).total_seconds()))
+
+
+class OrderListSerializer(
+    DraftExpiryMixin, PackingStatusMixin, serializers.ModelSerializer
+):
     customer_name = serializers.CharField(source="customer.legal_name", read_only=True)
     agent_name = serializers.CharField(
         source="agent.user.full_name", read_only=True, default=None
@@ -155,6 +171,8 @@ class OrderListSerializer(PackingStatusMixin, serializers.ModelSerializer):
             "is_offline_order",
             "sync_status",
             "requires_approval",
+            "draft_expires_at",
+            "seconds_until_expiry",
             "submitted_at",
             "created_at",
         ]
@@ -167,7 +185,9 @@ class OrderListSerializer(PackingStatusMixin, serializers.ModelSerializer):
         return list(obj.invoices.values("id", "invoice_type"))
 
 
-class OrderDetailSerializer(PackingStatusMixin, serializers.ModelSerializer):
+class OrderDetailSerializer(
+    DraftExpiryMixin, PackingStatusMixin, serializers.ModelSerializer
+):
     customer_details = CustomerSerializer(source="customer", read_only=True)
 
     agent_details = AgentUserSerializer(source="agent.user", read_only=True)
@@ -193,6 +213,8 @@ class OrderDetailSerializer(PackingStatusMixin, serializers.ModelSerializer):
             "agent_details",
             "status",
             "packing_status",
+            "draft_expires_at",
+            "seconds_until_expiry",
             # Pricing breakdown
             "subtotal",
             "discount_pct",
@@ -392,3 +414,106 @@ class OfflineSyncFailedEntrySerializer(serializers.Serializer):
 class OfflineSyncResponseSerializer(serializers.Serializer):
     synced = serializers.ListField(child=serializers.CharField())
     failed = OfflineSyncFailedEntrySerializer(many=True)
+
+
+class OrderDraftCreateSerializer(serializers.Serializer):
+    customer = serializers.UUIDField(
+        help_text="Customer selected by the agent before scanning items."
+    )
+    delivery_address_line1 = serializers.CharField(
+        max_length=255, required=False, allow_blank=True
+    )
+    delivery_address_line2 = serializers.CharField(
+        max_length=255, required=False, allow_blank=True
+    )
+    delivery_city = serializers.CharField(
+        max_length=100, required=False, allow_blank=True
+    )
+    delivery_state = serializers.CharField(
+        max_length=100, required=False, allow_blank=True
+    )
+    delivery_pincode = serializers.CharField(
+        max_length=10, required=False, allow_blank=True
+    )
+    expected_delivery_date = serializers.DateField(required=False, allow_null=True)
+    order_notes = serializers.CharField(required=False, allow_blank=True)
+    discount_pct = serializers.DecimalField(
+        max_digits=5, decimal_places=2, default=0, min_value=0, max_value=100
+    )
+    is_offline_order = serializers.BooleanField(default=False)
+    offline_created_at = serializers.DateTimeField(required=False, allow_null=True)
+
+
+class OrderAddItemSerializer(serializers.Serializer):
+    qr_code = serializers.UUIDField(required=False, allow_null=True)
+    color_variant = serializers.UUIDField(required=False, allow_null=True)
+    variant_size = serializers.UUIDField(
+        required=False,
+        allow_null=True,
+        help_text="Use for a single-size item. Requires no size_range.",
+    )
+    size_range = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        help_text="Key from the product size chart's order_creation map.",
+    )
+    quantity = serializers.IntegerField(min_value=1)
+    discount_pct = serializers.DecimalField(
+        max_digits=5, decimal_places=2, default=0, min_value=0, max_value=100
+    )
+    client_ref = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        max_length=100,
+        help_text="Optional idempotency key to prevent duplicate scans.",
+    )
+
+    def validate(self, attrs):
+        if not attrs.get("qr_code") and not attrs.get("color_variant") and not attrs.get("variant_size"):
+            raise serializers.ValidationError(
+                {
+                    "qr_code": (
+                        "Provide qr_code, color_variant or variant_size."
+                    )
+                }
+            )
+        if (
+            not attrs.get("variant_size")
+            and (attrs.get("qr_code") or attrs.get("color_variant"))
+            and not attrs.get("size_range")
+        ):
+            raise serializers.ValidationError(
+                {"size_range": "Select a size range before adding this item."}
+            )
+        return attrs
+
+
+class OrderUpdateItemSerializer(serializers.Serializer):
+    quantity = serializers.IntegerField(min_value=1)
+
+
+class OrderDraftUpdateSerializer(serializers.Serializer):
+    delivery_address_line1 = serializers.CharField(
+        max_length=255, required=False, allow_blank=True
+    )
+    delivery_address_line2 = serializers.CharField(
+        max_length=255, required=False, allow_blank=True
+    )
+    delivery_city = serializers.CharField(
+        max_length=100, required=False, allow_blank=True
+    )
+    delivery_state = serializers.CharField(
+        max_length=100, required=False, allow_blank=True
+    )
+    delivery_pincode = serializers.CharField(
+        max_length=10, required=False, allow_blank=True
+    )
+    expected_delivery_date = serializers.DateField(required=False, allow_null=True)
+    order_notes = serializers.CharField(required=False, allow_blank=True)
+    discount_pct = serializers.DecimalField(
+        max_digits=5, decimal_places=2, required=False, min_value=0, max_value=100
+    )
+
+
+class OrderSubmitSerializer(OrderDraftUpdateSerializer):
+    pass
