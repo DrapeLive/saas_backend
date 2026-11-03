@@ -2,6 +2,7 @@
 .env
 __pycache__/
 *.pyc
+*.pyo
 venv/
 .venv/
 node_modules/
@@ -9,3 +10,5 @@ certbot/
 staticfiles/
 media/
 *.sqlite3
+.pytest_cache/
+.mypy_cache/
