@@ -6,19 +6,29 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+# Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        build-essential libpq-dev curl \
+    build-essential \
+    libpq-dev \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt /app/requirements.txt
-RUN pip install -r requirements.txt \
-    && pip install gunicorn "psycopg2-binary" "celery[redis]" redis dj-database-url whitenoise
+# Install Python dependencies
+COPY requirements.txt .
 
-COPY . /app
+RUN pip install --upgrade pip && \
+    pip install -r requirements.txt && \
+    pip install gunicorn psycopg2-binary celery[redis] redis \
+                dj-database-url whitenoise
 
-RUN mkdir -p /app/staticfiles /app/media \
-    && useradd -m appuser \
-    && chown -R appuser:appuser /app
+# Copy project
+COPY . .
+
+# Create directories and application user
+RUN mkdir -p /app/staticfiles /app/media && \
+    useradd --create-home appuser && \
+    chown -R appuser:appuser /app
+
 USER appuser
 
 EXPOSE 8000
