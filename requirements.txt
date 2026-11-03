@@ -17,3 +17,4 @@ boto3
 botocore
 daphne
 channels
+rest_framework_simplejwt
