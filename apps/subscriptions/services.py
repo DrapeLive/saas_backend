@@ -1,4 +1,5 @@
 from datetime import date, timedelta
+from decimal import Decimal
 
 from django.db import transaction
 
@@ -106,8 +107,12 @@ def calculate_price(subscription: Subscription) -> None:
         base_price = subscription.plan.yearly_price
     else:
         base_price = subscription.plan.monthly_price
+    # Keep the entire calculation in Decimal; values can arrive as floats when
+    # plans are seeded or a subscription is constructed before model refresh.
+    base_price = Decimal(str(base_price))
+    discount_pct = Decimal(str(subscription.discount_pct or 0))
     subscription.price_paid = base_price * (
-        1 - subscription.discount_pct / 100
+        Decimal(1) - discount_pct / Decimal(100)
     )
 
 
