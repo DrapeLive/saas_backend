@@ -18,7 +18,8 @@ from rest_framework.viewsets import GenericViewSet
 
 from apps.accounts.authentication import CustomJWTAuthentication
 from apps.accounts.permissions import IsAdmin, IsSuperAdmin
-from apps.core.openapi import RESPONSE_400, RESPONSE_401, RESPONSE_404
+from apps.companies.models import Company
+from apps.core.openapi import RESPONSE_400, RESPONSE_404
 from apps.subscriptions.models import (
     BillingCycle,
     Plan,
@@ -38,8 +39,17 @@ from apps.subscriptions.serializers import (
     SubscriptionEventSerializer,
     SubscriptionExtendSerializer,
     SubscriptionListSerializer,
+    SubscriptionPaymentCreateSerializer,
+    SubscriptionPaymentDetailSerializer,
+    SubscriptionPaymentListSerializer,
+    SubscriptionPaymentStatusSerializer,
     SubscriptionUpgradeSerializer,
     UsageSnapshotSerializer,
+)
+from apps.subscriptions.services import (
+    calculate_price,
+    renew_from_payment,
+    sync_company_from_subscription,
 )
 
 # ─────────────────────────────────────────────────────────────────
@@ -385,6 +395,12 @@ class SubscriptionViewSet(GenericViewSet):
         serializer.is_valid(raise_exception=True)
 
         company = serializer.context["company"]
+        company = Company.objects.select_for_update().get(pk=company.pk)
+        if company.subscription_id:
+            return Response(
+                {"detail": "This company already has a subscription."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         plan = serializer.context["plan"]
         billing_cycle = serializer.validated_data["billing_cycle"]
 
@@ -399,15 +415,14 @@ class SubscriptionViewSet(GenericViewSet):
             billing_cycle=billing_cycle,
             status=status_val,
         )
+        calculate_price(subscription)
         subscription.setup_periods()
         subscription.save()
 
         company.subscription = subscription
         company.save(update_fields=["subscription"])
 
-        from apps.companies.services import apply_plan_to_company
-
-        apply_plan_to_company(company, plan)
+        sync_company_from_subscription(subscription)
 
         SubscriptionEvent.objects.create(
             subscription=subscription,
@@ -459,29 +474,18 @@ class SubscriptionViewSet(GenericViewSet):
                 status=status.HTTP_404_NOT_FOUND,
             )
         billing_cycle = data["billing_cycle"]
-        discount_pct = data.get("discount_pct", Decimal("0"))
+        discount_pct = data.get("discount_pct", Decimal(0))
 
-        base_price = (
-            new_plan.yearly_price
-            if billing_cycle == BillingCycle.YEARLY
-            else new_plan.monthly_price
-        )
-        price_paid = base_price * (Decimal("1") - discount_pct / Decimal("100"))
         is_upgrade = new_plan.monthly_price >= old_plan.monthly_price
 
         today = now().date()
         subscription.plan = new_plan
         subscription.billing_cycle = billing_cycle
         subscription.discount_pct = discount_pct
-        subscription.price_paid = price_paid
+        calculate_price(subscription)
         subscription.status = SubscriptionStatus.ACTIVE
-
         subscription.setup_periods(today)
         subscription.save()
-
-        from apps.companies.services import apply_plan_to_company
-
-        apply_plan_to_company(subscription.company, new_plan)
 
         SubscriptionEvent.objects.create(
             subscription=subscription,
@@ -497,17 +501,11 @@ class SubscriptionViewSet(GenericViewSet):
             metadata={
                 "billing_cycle": billing_cycle,
                 "discount_pct": str(discount_pct),
-                "price_paid": str(price_paid),
+                "price_paid": str(subscription.price_paid),
             },
         )
 
-        try:
-            from apps.companies.models import CompanyStatus
-
-            subscription.company.status = CompanyStatus.ACTIVE
-            subscription.company.save(update_fields=["status"])
-        except Exception:
-            pass
+        sync_company_from_subscription(subscription)
 
         return Response(SubscriptionDetailSerializer(subscription).data)
 
@@ -531,17 +529,33 @@ class SubscriptionViewSet(GenericViewSet):
         extend_days = serializer.validated_data["extend_days"]
         notes = serializer.validated_data.get("notes", "")
 
-        base_date = subscription.current_period_end or now().date()
+        base_date = max(
+            subscription.current_period_end or now().date(),
+            now().date(),
+        )
         subscription.current_period_end = base_date + timedelta(days=extend_days)
 
-        if subscription.status in [
+        if subscription.status == SubscriptionStatus.TRIAL:
+            subscription.trial_end = subscription.current_period_end
+        elif subscription.status in [
             SubscriptionStatus.EXPIRED,
             SubscriptionStatus.GRACE,
             SubscriptionStatus.SUSPENDED,
         ]:
             subscription.status = SubscriptionStatus.ACTIVE
+            subscription.current_period_start = now().date()
+            subscription.grace_period_end = None
 
-        subscription.save(update_fields=["current_period_end", "status"])
+        subscription.save(
+            update_fields=[
+                "current_period_end",
+                "status",
+                "trial_end",
+                "current_period_start",
+                "grace_period_end",
+            ]
+        )
+        sync_company_from_subscription(subscription)
 
         SubscriptionEvent.objects.create(
             subscription=subscription,
@@ -598,14 +612,7 @@ class SubscriptionViewSet(GenericViewSet):
             notes=request.data.get("notes", ""),
         )
 
-        # Bug #4 fix: same hasattr-always-True issue; use try/except
-        try:
-            from apps.companies.models import CompanyStatus
-
-            subscription.company.status = CompanyStatus.EXPIRED
-            subscription.company.save(update_fields=["status"])
-        except Exception:
-            pass
+        sync_company_from_subscription(subscription)
 
         return Response(SubscriptionDetailSerializer(subscription).data)
 
@@ -659,18 +666,7 @@ class SubscriptionViewSet(GenericViewSet):
             notes=request.data.get("notes", ""),
         )
 
-        from apps.companies.services import apply_plan_to_company
-
-        apply_plan_to_company(subscription.company, subscription.plan)
-
-        # Bug #4 fix: use try/except instead of hasattr (always True for reverse OneToOne)
-        try:
-            from apps.companies.models import CompanyStatus
-
-            subscription.company.status = CompanyStatus.ACTIVE
-            subscription.company.save(update_fields=["status"])
-        except Exception:
-            pass
+        sync_company_from_subscription(subscription)
 
         return Response(SubscriptionDetailSerializer(subscription).data)
 
@@ -707,6 +703,139 @@ class SubscriptionViewSet(GenericViewSet):
         )
 
         return Response(UsageSnapshotSerializer(snapshots, many=True).data)
+
+
+class SubscriptionPaymentViewSet(GenericViewSet):
+    authentication_classes = (CustomJWTAuthentication,)
+    permission_classes = (IsSuperAdmin,)
+
+    def get_serializer_class(self):
+        if self.action == "create":
+            return SubscriptionPaymentCreateSerializer
+        if self.action in ("confirm", "fail", "refund"):
+            return SubscriptionPaymentStatusSerializer
+        if self.action == "list":
+            return SubscriptionPaymentListSerializer
+        return SubscriptionPaymentDetailSerializer
+
+    def _get_payment(self, pk):
+        from apps.subscriptions.models import SubscriptionPayment
+
+        try:
+            return SubscriptionPayment.objects.select_related(
+                "subscription__company", "subscription__plan", "recorded_by"
+            ).get(pk=pk)
+        except SubscriptionPayment.DoesNotExist:
+            return None
+
+    def list(self, request):
+        from apps.subscriptions.models import SubscriptionPayment
+
+        qs = SubscriptionPayment.objects.select_related(
+            "subscription__company", "recorded_by"
+        )
+        status_filter = request.query_params.get("status")
+        subscription_id = request.query_params.get("subscription_id")
+        if status_filter:
+            qs = qs.filter(status=status_filter)
+        if subscription_id:
+            qs = qs.filter(subscription_id=subscription_id)
+        return Response(SubscriptionPaymentListSerializer(qs, many=True).data)
+
+    @transaction.atomic
+    def create(self, request):
+        serializer = SubscriptionPaymentCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        payment = serializer.save(recorded_by=request.user)
+        return Response(
+            SubscriptionPaymentDetailSerializer(payment).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    def retrieve(self, request, pk=None):
+        payment = self._get_payment(pk)
+        if not payment:
+            return Response(
+                {"detail": "Payment not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+        return Response(SubscriptionPaymentDetailSerializer(payment).data)
+
+    @action(detail=True, methods=["post"], url_path="confirm")
+    @transaction.atomic
+    def confirm(self, request, pk=None):
+        from django.utils.timezone import now
+
+        from apps.subscriptions.models import SubscriptionPaymentStatus
+
+        payment = self._get_payment(pk)
+        if not payment:
+            return Response(
+                {"detail": "Payment not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+        if payment.status == SubscriptionPaymentStatus.SUCCEEDED:
+            return Response(SubscriptionPaymentDetailSerializer(payment).data)
+        if payment.status in (
+            SubscriptionPaymentStatus.REFUNDED,
+            SubscriptionPaymentStatus.FAILED,
+        ):
+            return Response(
+                {"detail": "Only pending payments can be confirmed."},
+                status=status.HTTP_409_CONFLICT,
+            )
+        payment.status = SubscriptionPaymentStatus.SUCCEEDED
+        payment.paid_at = now()
+        payment.notes = request.data.get("notes", payment.notes)
+        payment.save(update_fields=["status", "paid_at", "notes", "updated_at"])
+        renew_from_payment(payment.subscription, payment)
+        from apps.subscriptions.models import SubscriptionEvent
+
+        SubscriptionEvent.objects.create(
+            subscription=payment.subscription,
+            event_type=SubscriptionEvent.EventType.RENEWED,
+            performed_by=request.user,
+            notes=payment.notes,
+            metadata={"payment_id": str(payment.id), "amount": str(payment.amount)},
+        )
+        return Response(SubscriptionPaymentDetailSerializer(payment).data)
+
+    @action(detail=True, methods=["post"], url_path="fail")
+    @transaction.atomic
+    def fail(self, request, pk=None):
+        return self._set_terminal_status(
+            request, pk, "failed", "Only pending payments can be failed."
+        )
+
+    @action(detail=True, methods=["post"], url_path="refund")
+    @transaction.atomic
+    def refund(self, request, pk=None):
+        return self._set_terminal_status(
+            request, pk, "Only succeeded payments can be refunded.", "refunded"
+        )
+
+    def _set_terminal_status(
+        self, request, pk, default_message, target_status=None
+    ):
+        from apps.subscriptions.models import SubscriptionPaymentStatus
+
+        payment = self._get_payment(pk)
+        if not payment:
+            return Response(
+                {"detail": "Payment not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+        target_status = target_status or "failed"
+        allowed = (
+            SubscriptionPaymentStatus.PENDING
+            if target_status == "failed"
+            else SubscriptionPaymentStatus.SUCCEEDED
+        )
+        if payment.status != allowed:
+            return Response(
+                {"detail": default_message}, status=status.HTTP_409_CONFLICT
+            )
+        payment.status = target_status
+        payment.notes = request.data.get("notes", payment.notes)
+        payment.save(update_fields=["status", "notes", "updated_at"])
+        return Response(SubscriptionPaymentDetailSerializer(payment).data)
 
 
 # ─────────────────────────────────────────────────────────────────
@@ -749,12 +878,9 @@ class MySubscriptionViewSet(GenericViewSet):
 
     def _get_subscription(self, request):
         company = getattr(request.user, "company", None)
-        if not company:
+        if not company or not company.subscription_id:
             return None
-        try:
-            return company.subscription
-        except Exception:
-            return None
+        return company.subscription
 
     # GET /api/my-subscription/
     def list(self, request):

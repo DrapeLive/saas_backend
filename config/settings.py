@@ -382,6 +382,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.orders.tasks.expire_drafts_task",
         "schedule": 60.0,
     },
+    "transition-expired-subscriptions": {
+        "task": "apps.subscriptions.tasks.transition_expired_subscriptions",
+        "schedule": 3600.0,
+    },
 }
 
 # ---------------------------------------------------------------------------

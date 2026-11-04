@@ -1,5 +1,6 @@
 from datetime import timedelta
 
+from django.db import transaction
 from django.utils.timezone import now
 from rest_framework import status
 from rest_framework.decorators import action
@@ -11,7 +12,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from apps.accounts.authentication import CustomJWTAuthentication
 from apps.accounts.permissions import CompanyApproved, IsAdmin, IsSuperAdmin
 from apps.audits.models import AuditLog
-from apps.companies.models import Company, CompanySettings
+from apps.companies.models import Company, CompanySettings, CompanyStatus
 from apps.companies.serializers import (
     CompanyListSerializer,
     CompanySerializer,
@@ -21,7 +22,8 @@ from apps.companies.serializers import (
     CompanyUpdateSerializer,
     ExtendTrialSerializer,
 )
-from apps.subscriptions.models import SubscriptionEvent
+from apps.subscriptions.models import SubscriptionEvent, SubscriptionStatus
+from apps.subscriptions.services import set_subscription_status
 
 
 class SuperAdminCompanyViewSet(GenericViewSet):
@@ -75,6 +77,7 @@ class SuperAdminCompanyViewSet(GenericViewSet):
         return Response(CompanySerializer(company).data)
 
     @action(detail=True, methods=["post"], url_path="status")
+    @transaction.atomic
     def update_status(self, request, pk=None, *args, **kwargs):
         try:
             company = Company.objects.get(pk=pk)
@@ -88,8 +91,39 @@ class SuperAdminCompanyViewSet(GenericViewSet):
         serializer.is_valid(raise_exception=True)
 
         old_status = company.status
-        company.status = serializer.validated_data["status"]
-        company.save(update_fields=["status"])
+        new_status = serializer.validated_data["status"]
+        subscription_status = {
+            CompanyStatus.TRIAL: SubscriptionStatus.TRIAL,
+            CompanyStatus.ACTIVE: SubscriptionStatus.ACTIVE,
+            CompanyStatus.GRACE: SubscriptionStatus.GRACE,
+            CompanyStatus.EXPIRED: SubscriptionStatus.EXPIRED,
+            CompanyStatus.SUSPENDED: SubscriptionStatus.SUSPENDED,
+        }.get(new_status)
+        if company.subscription_id and subscription_status:
+            set_subscription_status(
+                company.subscription,
+                subscription_status,
+                today=now().date(),
+                reset_period=new_status == CompanyStatus.ACTIVE,
+            )
+        else:
+            company.status = new_status
+            company.save(update_fields=["status"])
+
+        if company.subscription_id and new_status in (
+            CompanyStatus.SUSPENDED,
+            CompanyStatus.ACTIVE,
+        ):
+            SubscriptionEvent.objects.create(
+                subscription=company.subscription,
+                event_type=(
+                    SubscriptionEvent.EventType.SUSPENDED
+                    if new_status == CompanyStatus.SUSPENDED
+                    else SubscriptionEvent.EventType.REACTIVATED
+                ),
+                performed_by=request.user,
+                notes=serializer.validated_data.get("reason", ""),
+            )
 
         return Response(
             {
@@ -119,6 +153,7 @@ class SuperAdminCompanyViewSet(GenericViewSet):
             return None
 
     @action(detail=True, methods=["post"], url_path="suspend")
+    @transaction.atomic
     def suspend(self, request, pk=None):
         company = self._get_company(pk, request)
         if company is None:
@@ -132,8 +167,15 @@ class SuperAdminCompanyViewSet(GenericViewSet):
             )
 
         old = company.status
-        company.status = "suspended"
-        company.save(update_fields=["status"])
+        if company.subscription_id:
+            set_subscription_status(
+                company.subscription,
+                SubscriptionStatus.SUSPENDED,
+                today=now().date(),
+            )
+        else:
+            company.status = CompanyStatus.SUSPENDED
+            company.save(update_fields=["status"])
 
         SubscriptionEvent.objects.create(
             subscription=company.subscription,
@@ -157,6 +199,7 @@ class SuperAdminCompanyViewSet(GenericViewSet):
         )
 
     @action(detail=True, methods=["post"], url_path="activate")
+    @transaction.atomic
     def activate(self, request, pk=None):
         company = self._get_company(pk, request)
         if company is None:
@@ -169,8 +212,16 @@ class SuperAdminCompanyViewSet(GenericViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        company.status = "active"
-        company.save(update_fields=["status"])
+        if company.subscription_id:
+            set_subscription_status(
+                company.subscription,
+                SubscriptionStatus.ACTIVE,
+                today=now().date(),
+                reset_period=True,
+            )
+        else:
+            company.status = CompanyStatus.ACTIVE
+            company.save(update_fields=["status"])
 
         SubscriptionEvent.objects.create(
             subscription=company.subscription,
@@ -194,6 +245,7 @@ class SuperAdminCompanyViewSet(GenericViewSet):
         )
 
     @action(detail=True, methods=["post"], url_path="extend-trial")
+    @transaction.atomic
     def extend_trial(self, request, pk=None):
         company = self._get_company(pk, request)
         if company is None:
@@ -223,7 +275,8 @@ class SuperAdminCompanyViewSet(GenericViewSet):
         from datetime import timedelta as td
 
         sub.trial_end = (sub.trial_end or now().date()) + td(days=days)
-        sub.save(update_fields=["trial_end"])
+        sub.current_period_end = sub.trial_end
+        sub.save(update_fields=["trial_end", "current_period_end"])
 
         SubscriptionEvent.objects.create(
             subscription=sub,

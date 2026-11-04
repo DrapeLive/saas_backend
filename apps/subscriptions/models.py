@@ -275,6 +275,43 @@ class SubscriptionEvent(UUIDModel):
         ordering: ClassVar = ["-created_at"]
 
 
+class SubscriptionPaymentStatus(models.TextChoices):
+    PENDING = "pending", "Pending"
+    SUCCEEDED = "succeeded", "Succeeded"
+    FAILED = "failed", "Failed"
+    REFUNDED = "refunded", "Refunded"
+
+
+class SubscriptionPayment(UUIDModel, TimeStampedModel):
+    subscription = models.ForeignKey(
+        Subscription, on_delete=models.PROTECT, related_name="payments"
+    )
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    currency = models.CharField(max_length=3, default="INR")
+    status = models.CharField(
+        max_length=10,
+        choices=SubscriptionPaymentStatus.choices,
+        default=SubscriptionPaymentStatus.PENDING,
+    )
+    payment_method = models.CharField(max_length=30)
+    provider = models.CharField(max_length=50, blank=True)
+    provider_payment_id = models.CharField(max_length=150, blank=True)
+    idempotency_key = models.CharField(max_length=100, unique=True)
+    paid_at = models.DateTimeField(null=True, blank=True)
+    notes = models.TextField(blank=True)
+    recorded_by = models.ForeignKey(
+        "accounts.User", null=True, on_delete=models.SET_NULL, related_name="+"
+    )
+
+    class Meta:
+        db_table = "subscriptions_payment"
+        ordering: ClassVar[list[str]] = ["-created_at"]
+        indexes: ClassVar = [
+            models.Index(fields=["subscription", "status"]),
+            models.Index(fields=["provider_payment_id"]),
+        ]
+
+
 class UsageSnapshot(UUIDModel):
     """
     Monthly usage snapshot per company for limit enforcement and analytics.
