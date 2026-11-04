@@ -347,7 +347,7 @@ SIMPLE_JWT = {
 # ---------------------------------------------------------------------------
 CORS_ALLOWED_ORIGINS = config(
     "CORS_ALLOWED_ORIGINS",
-    default="http://localhost:3000,http://localhost:5173",
+    default="https://lable.drapelive.in,http://localhost:3000,http://localhost:5173",
     cast=lambda v: [x.strip() for x in v.split(",")],
 )
 CORS_ALLOW_CREDENTIALS = True
@@ -392,9 +392,7 @@ CELERY_BEAT_SCHEDULE = {
 # Django Channels / WebSockets
 # ---------------------------------------------------------------------------
 if TESTING:
-    CHANNEL_LAYERS = {
-        "default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}
-    }
+    CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}
 else:
     CHANNEL_LAYERS = {
         "default": {
@@ -491,9 +489,7 @@ AWS_S3_CLIENT_CONFIG = Config(
     retries={"max_attempts": 3, "mode": "standard"},
 )
 
-USE_S3 = bool(
-    AWS_STORAGE_BUCKET_NAME and AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY
-)
+USE_S3 = bool(AWS_STORAGE_BUCKET_NAME and AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY)
 
 if USE_S3:
     STORAGES = {
