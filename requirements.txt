@@ -17,6 +17,7 @@ boto3
 botocore
 daphne
 channels
+channels-redis
 djangorestframework-simplejwt==5.5.1
 django-cors-headers==4.9.0
 drf-spectacular==0.29.0
