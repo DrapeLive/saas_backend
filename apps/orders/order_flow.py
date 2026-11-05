@@ -143,7 +143,7 @@ def get_agent_order(order_id, company, agent):
 def _lock_order(order):
     """Reload and lock an order so concurrent mutations serialize."""
     return (
-        Order.objects.select_for_update()
+        Order.objects.select_for_update(of=("self",))
         .select_related("company", "customer", "agent__user")
         .get(pk=order.pk)
     )
@@ -832,7 +832,7 @@ def _requires_approval(order, user):
 @transaction.atomic
 def submit_draft(order, user, payload=None):
     payload = payload or {}
-    order = Order.objects.select_for_update().select_related(
+    order = Order.objects.select_for_update(of=("self",)).select_related(
         "customer", "agent__user", "company"
     ).get(pk=order.pk)
     _require_draft(order)
