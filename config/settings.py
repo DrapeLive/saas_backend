@@ -402,9 +402,9 @@ else:
     }
 
 # Draft order lifecycle (seconds).
-ORDER_DRAFT_TTL_SECONDS = config("ORDER_DRAFT_TTL_SECONDS", default=600, cast=int)
+ORDER_DRAFT_TTL_SECONDS = config("ORDER_DRAFT_TTL_SECONDS", default=2700, cast=int)
 ORDER_EMPTY_DRAFT_TTL_SECONDS = config(
-    "ORDER_EMPTY_DRAFT_TTL_SECONDS", default=120, cast=int
+    "ORDER_EMPTY_DRAFT_TTL_SECONDS", default=2700, cast=int
 )
 
 if TESTING:

@@ -27,8 +27,8 @@ from apps.orders.models import (
 )
 from apps.products.models import ColorVariant, StockMovement, VariantSize
 
-DRAFT_TTL_SECONDS = getattr(settings, "ORDER_DRAFT_TTL_SECONDS", 600)
-EMPTY_DRAFT_TTL_SECONDS = getattr(settings, "ORDER_EMPTY_DRAFT_TTL_SECONDS", 120)
+DRAFT_TTL_SECONDS = getattr(settings, "ORDER_DRAFT_TTL_SECONDS", 2700)
+EMPTY_DRAFT_TTL_SECONDS = getattr(settings, "ORDER_EMPTY_DRAFT_TTL_SECONDS", 2700)
 
 ZERO = Decimal("0.00")
 
@@ -156,6 +156,18 @@ def _require_draft(order):
             code="ORDER_NOT_DRAFT",
             fields={"status": order.status},
         )
+    if order.draft_expires_at and order.draft_expires_at <= now():
+        raise OrderFlowError(
+            "This draft order has expired.",
+            code="DRAFT_EXPIRED",
+            fields={"draft_expires_at": "The draft expiration time has passed."},
+            status_code=409,
+        )
+
+
+def assert_draft_available(order):
+    """Validate that a draft can still be opened or mutated."""
+    _require_draft(order)
 
 
 # ---------------------------------------------------------------------------
@@ -640,6 +652,14 @@ def remove_item_from_draft(order, user, item_id, scope="group"):
     OrderItem.objects.filter(pk__in=[entry.pk for entry in items]).delete()
 
     recalculate_order_totals(order)
+    if not order.items.exists():
+        order_pk = order.pk
+        order.delete()
+        # Keep a lightweight deleted snapshot usable by callers that broadcast
+        # the update or serialize the final empty state.
+        order.pk = order_pk
+        return order, stock_updates
+
     _set_draft_expiry(order)
     order.save(update_fields=["draft_expires_at", "updated_at"])
     return order, stock_updates

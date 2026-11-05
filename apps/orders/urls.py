@@ -46,17 +46,32 @@ urlpatterns = [
         name="order-add-item",
     ),
     path(
+        "orders/<uuid:pk>/add-item/",
+        OrderViewSet.as_view({"post": "add_item"}),
+        name="order-add-item-explicit",
+    ),
+    path(
         "orders/<uuid:pk>/items/<uuid:item_id>/",
         OrderViewSet.as_view(
             {"patch": "update_item", "delete": "remove_item"}
         ),
         name="order-item-detail",
     ),
+    path(
+        "orders/<uuid:pk>/remove-item/<uuid:item_id>/",
+        OrderViewSet.as_view({"delete": "remove_item"}),
+        name="order-remove-item-explicit",
+    ),
     # POST   /api/orders/<pk>/submit/   Submit a DRAFT
     path(
         "orders/<uuid:pk>/submit/",
         OrderViewSet.as_view({"post": "submit"}),
         name="order-submit",
+    ),
+    path(
+        "orders/<uuid:pk>/continue/",
+        OrderViewSet.as_view({"get": "continue_order"}),
+        name="order-continue",
     ),
     # ─────────────────────────────────────────────────────────────
     # COLLECTION-LEVEL ACTIONS

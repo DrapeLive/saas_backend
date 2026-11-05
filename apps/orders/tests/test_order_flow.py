@@ -123,7 +123,7 @@ class DraftLifecycleTests(OrderFlowTestBase):
         self.assertEqual(order.items.count(), 0)
         self.assertIsNotNone(order.draft_expires_at)
         self.assertLessEqual(
-            order.draft_expires_at, now() + timedelta(seconds=121)
+            order.draft_expires_at, now() + timedelta(seconds=2701)
         )
 
     def test_order_numbers_are_not_reused_after_draft_deletion(self):

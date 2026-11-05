@@ -289,6 +289,16 @@ class OrderViewSet(GenericViewSet):
         except OrderFlowError as exc:
             return self._flow_error(exc)
 
+        if not Order.objects.filter(pk=order.pk, company=company).exists():
+            broadcast_order_updated(order)
+            broadcast_stock_updates(company.id, stock_updates)
+            return Response(
+                {
+                    "order": OrderDetailSerializer(order).data,
+                    "stock_updates": stock_updates,
+                },
+                status=status.HTTP_200_OK,
+            )
         order = self._reload_order(order.pk, company)
         broadcast_order_updated(order)
         broadcast_stock_updates(company.id, stock_updates)
@@ -298,6 +308,18 @@ class OrderViewSet(GenericViewSet):
                 "stock_updates": stock_updates,
             }
         )
+
+    def continue_order(self, request, pk=None):
+        """GET /api/orders/<pk>/continue/ — resume an unexpired draft."""
+        company = self._get_company(request)
+        agent = self._get_agent(request)
+        order = order_flow.get_agent_order(pk, company, agent)
+        try:
+            order_flow.assert_draft_available(order)
+        except OrderFlowError as exc:
+            return self._flow_error(exc)
+        order = self._reload_order(order.pk, company)
+        return Response(OrderDetailSerializer(order).data)
 
     @transaction.atomic
     def update_item(self, request, pk=None, item_id=None):
