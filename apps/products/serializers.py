@@ -209,9 +209,21 @@ class ColorVariantCreateSerializer(serializers.ModelSerializer):
                 )
         except IntegrityError as exc:
             raise serializers.ValidationError(
-                f"Could not create color variant: {exc}"
+                "A color variant with these details already exists."
             ) from exc
         return variant
+
+
+class ColorVariantUpdateSerializer(serializers.ModelSerializer):
+    """PATCH support for an existing color variant.
+
+    Sizes are managed through stock adjustments; this endpoint updates the
+    variant's identity and image without deleting/recreating the variant.
+    """
+
+    class Meta:
+        model = ColorVariant
+        fields: ClassVar = ["color_name", "image", "is_primary"]
 
 
 class ProductListSerializer(serializers.ModelSerializer):
@@ -359,7 +371,7 @@ class ProductCreateSerializer(serializers.ModelSerializer):
                     total_stock += stock
         except IntegrityError as exc:
             raise serializers.ValidationError(
-                f"Could not save product variants: {exc}"
+                "Could not save product variants. Please check the colors and sizes."
             ) from exc
 
         product.total_stock = total_stock
@@ -380,6 +392,22 @@ class ProductUpdateSerializer(serializers.ModelSerializer):
             "wholesale_price",
             "status",
         ]
+
+    def validate_wholesale_price(self, value):
+        if value < 0:
+            raise serializers.ValidationError("Wholesale price cannot be negative.")
+        return value
+
+    def validate(self, attrs):
+        wholesale = attrs.get(
+            "wholesale_price", getattr(self.instance, "wholesale_price", None)
+        )
+        mrp = attrs.get("mrp", getattr(self.instance, "mrp", None))
+        if wholesale is not None and mrp is not None and wholesale > mrp:
+            raise serializers.ValidationError(
+                {"wholesale_price": "Wholesale price cannot exceed MRP."}
+            )
+        return attrs
 
 
 class StockMovementSerializer(serializers.ModelSerializer):
@@ -418,10 +446,8 @@ class StockAdjustmentSerializer(serializers.Serializer):
     quantity = serializers.IntegerField()  # positive = add, negative = remove
     reason = serializers.CharField(max_length=500)
 
-    def validate_variant_size_id(self, value):
-        if not VariantSize.objects.filter(id=value).exists():
-            raise serializers.ValidationError("Variant size not found.")
-        return value
+    # Existence is validated in the tenant-scoped view so a user can never
+    # discover or modify a variant that belongs to another company.
 
     def validate_quantity(self, value):
         if value == 0:

@@ -1,7 +1,7 @@
 from django.db import transaction
 from django.db.models import F, Q
 from django.utils.timezone import now
-from rest_framework import status
+from rest_framework import parsers, status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -10,6 +10,7 @@ from rest_framework.viewsets import GenericViewSet
 from apps.accounts.authentication import CustomJWTAuthentication
 from apps.accounts.permissions import CompanyApproved, IsAdminOrSubAdmin, IsCompanyStaff
 from apps.core.pagination import DefaultPageNumberPagination
+from apps.core.parsers import NestedMultiPartParser
 from apps.products.models import (
     Category,
     ColorVariant,
@@ -25,6 +26,7 @@ from apps.products.serializers import (
     ColorVariantCreateSerializer,
     ColorVariantDetailSerializer,
     ColorVariantListSerializer,
+    ColorVariantUpdateSerializer,
     ProductCreateSerializer,
     ProductDetailSerializer,
     ProductListSerializer,
@@ -196,6 +198,11 @@ class SizeChartViewSet(GenericViewSet):
 class ProductViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
     pagination_class = DefaultPageNumberPagination
+    parser_classes = (
+        parsers.JSONParser,
+        parsers.FormParser,
+        NestedMultiPartParser,
+    )
 
     def get_serializer_class(self):
         if self.action == "list":
@@ -316,14 +323,16 @@ class ProductViewSet(GenericViewSet):
     # GET /api/products/<pk>/
     def retrieve(self, request, pk=None):
         company = self._get_company(request)
-        product = self._get_product(pk, company)
+        product = (
+            Product.objects.filter(pk=pk, company=company, is_deleted=False)
+            .select_related("category", "size_chart")
+            .prefetch_related("color_variants__sizes")
+            .first()
+        )
         if not product:
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
-        product_qs = Product.objects.prefetch_related("color_variants__sizes").get(
-            pk=pk
-        )
         return Response(
-            ProductDetailSerializer(product_qs, context={"request": request}).data
+            ProductDetailSerializer(product, context={"request": request}).data
         )
 
     # POST /api/products/
@@ -396,6 +405,11 @@ class ProductViewSet(GenericViewSet):
 
 class ColorVariantViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
+    parser_classes = (
+        parsers.JSONParser,
+        parsers.FormParser,
+        NestedMultiPartParser,
+    )
 
     def get_permissions(self):
         if self.action == "list":
@@ -412,6 +426,8 @@ class ColorVariantViewSet(GenericViewSet):
     def get_serializer_class(self):
         if self.action == "create":
             return ColorVariantCreateSerializer
+        if self.action == "partial_update":
+            return ColorVariantUpdateSerializer
         if self.action == "retrieve":
             return ColorVariantDetailSerializer
         return ColorVariantListSerializer
@@ -450,7 +466,11 @@ class ColorVariantViewSet(GenericViewSet):
             )
         except ColorVariant.DoesNotExist:
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
-        return Response(ColorVariantDetailSerializer(variant).data)
+        return Response(
+            ColorVariantDetailSerializer(
+                variant, context={"request": request}
+            ).data
+        )
 
     # POST /api/products/<product_pk>/variants/
     @transaction.atomic
@@ -464,8 +484,38 @@ class ColorVariantViewSet(GenericViewSet):
         serializer = ColorVariantCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         variant = serializer.save(product=product)
+        self._refresh_product_stock(product)
         return Response(
-            ColorVariantDetailSerializer(variant).data, status=status.HTTP_201_CREATED
+            ColorVariantDetailSerializer(
+                variant, context={"request": request}
+            ).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    # PATCH /api/products/<product_pk>/variants/<pk>/
+    @transaction.atomic
+    def partial_update(self, request, product_pk=None, pk=None):
+        company = self._get_company(request)
+        product = self._get_product(product_pk, company)
+        if not product:
+            return Response(
+                {"detail": "Product not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+        try:
+            variant = ColorVariant.objects.prefetch_related("sizes").get(
+                pk=pk, product=product
+            )
+        except ColorVariant.DoesNotExist:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+        serializer = ColorVariantUpdateSerializer(
+            variant, data=request.data, partial=True
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(
+            ColorVariantDetailSerializer(
+                serializer.instance, context={"request": request}
+            ).data
         )
 
     # DELETE /api/products/<product_pk>/variants/<pk>/
@@ -481,7 +531,17 @@ class ColorVariantViewSet(GenericViewSet):
         except ColorVariant.DoesNotExist:
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
         variant.delete()
+        self._refresh_product_stock(product)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @staticmethod
+    def _refresh_product_stock(product):
+        from django.db.models import Sum as DSum
+
+        total = VariantSize.objects.filter(color_variant__product=product).aggregate(
+            total=DSum("stock_quantity")
+        )
+        Product.objects.filter(pk=product.pk).update(total_stock=total["total"] or 0)
 
 
 class StockViewSet(GenericViewSet):
@@ -526,13 +586,27 @@ class StockViewSet(GenericViewSet):
     @action(detail=False, methods=["post"])
     @transaction.atomic
     def adjust(self, request):
+        company = self._get_company(request)
         serializer = StockAdjustmentSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
-        variant = VariantSize.objects.select_for_update().get(
-            id=data["variant_size_id"]
-        )
+        try:
+            variant = (
+                VariantSize.objects.select_for_update()
+                .select_related("color_variant__product")
+                .get(
+                    id=data["variant_size_id"],
+                    color_variant__product__company=company,
+                    color_variant__product__is_deleted=False,
+                )
+            )
+        except VariantSize.DoesNotExist:
+            return Response(
+                {"detail": "Variant size not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
         qty = data["quantity"]
 
         if qty < 0 and variant.available_qty < abs(qty):
