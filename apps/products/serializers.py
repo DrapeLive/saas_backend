@@ -75,6 +75,18 @@ class CategoryCreateUpdateSerializer(serializers.ModelSerializer):
             "default_commission_pct",
         ]
 
+    def validate_name(self, value):
+        company = self.context.get("company")
+        if company is not None:
+            qs = Category.objects.filter(company=company, name__iexact=value)
+            if self.instance is not None:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise serializers.ValidationError(
+                    "A category with this name already exists."
+                )
+        return value
+
 
 class SizeChartSerializer(serializers.ModelSerializer):
     class Meta:
@@ -88,8 +100,12 @@ class SizeChartSerializer(serializers.ModelSerializer):
         ]
 
     def validate_sizes(self, value):
+        if isinstance(value, dict):
+            value = [value]
         if not isinstance(value, list) or len(value) == 0:
-            raise serializers.ValidationError("Sizes must be a non-empty list.")
+            raise serializers.ValidationError("Sizes must be a non-empty list or mapping.")
+        if not all(isinstance(item, (str, dict)) for item in value):
+            raise serializers.ValidationError("Each size must be a string or mapping.")
         return value
 
 
@@ -126,6 +142,16 @@ class VariantSizeCreateSerializer(serializers.ModelSerializer):
             "stock_quantity",
             "reorder_level",
         ]
+
+    def validate_stock_quantity(self, value):
+        if value < 0:
+            raise serializers.ValidationError("Stock quantity cannot be negative.")
+        return value
+
+    def validate_reorder_level(self, value):
+        if value < 0:
+            raise serializers.ValidationError("Reorder level cannot be negative.")
+        return value
 
 
 class ColorVariantListSerializer(serializers.ModelSerializer):
@@ -181,14 +207,17 @@ class ColorVariantCreateSerializer(serializers.ModelSerializer):
         if not isinstance(value, list) or len(value) == 0:
             raise serializers.ValidationError("Sizes must be a non-empty list.")
         seen = set()
-        deduped = []
         for item in value:
             size = item.get("size")
             if size not in seen:
                 seen.add(size)
-                deduped.append(item)
-        return deduped
+            else:
+                raise serializers.ValidationError(
+                    "Each color variant may contain a size only once."
+                )
+        return value
 
+    @transaction.atomic
     def create(self, validated_data):
         sizes_data = validated_data.pop("sizes", [])
         product = validated_data["product"]
@@ -198,9 +227,11 @@ class ColorVariantCreateSerializer(serializers.ModelSerializer):
             variant = ColorVariant.objects.create(**validated_data)
             used_size_skus = set()
             for size_data in sizes_data:
+                requested_sku = size_data.pop("sku", "").strip()
                 size_sku = _generate_unique_sku(
                     VariantSize,
-                    f"{product_slug}-{color_slug}-{size_data['size']}",
+                    requested_sku
+                    or f"{product_slug}-{color_slug}-{size_data['size']}",
                     exclude=used_size_skus,
                 )
                 used_size_skus.add(size_sku)
@@ -328,18 +359,24 @@ class ProductCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {"wholesale_price": "Wholesale price cannot exceed MRP."}
             )
+        company = self.context.get("company")
+        if company is not None:
+            for field in ("category", "size_chart"):
+                related = attrs.get(field)
+                if related is not None and related.company_id != company.pk:
+                    raise serializers.ValidationError(
+                        {field: "This value does not belong to your company."}
+                    )
         return attrs
 
     @transaction.atomic
     def create(self, validated_data):
         variants_data = validated_data.pop("color_variants", [])
 
-        product = Product.objects.create(**validated_data)
-        product_slug = slugify(product.name).upper().replace("-", "")
-
-        total_stock = 0
-
         try:
+            product = Product.objects.create(**validated_data)
+            product_slug = slugify(product.name).upper().replace("-", "")
+            total_stock = 0
             for variant_data in variants_data:
                 sizes_data = variant_data.pop("sizes", [])
 
@@ -352,12 +389,13 @@ class ProductCreateSerializer(serializers.ModelSerializer):
 
                 used_size_skus = set()
                 for size_data in sizes_data:
-                    size_data.pop("sku", None)
+                    requested_sku = size_data.pop("sku", "").strip()
                     stock = size_data.get("stock_quantity", 0)
 
                     size_sku = _generate_unique_sku(
                         VariantSize,
-                        f"{product_slug}-{color_slug}-{size_data['size']}",
+                        requested_sku
+                        or f"{product_slug}-{color_slug}-{size_data['size']}",
                         exclude=used_size_skus,
                     )
                     used_size_skus.add(size_sku)
@@ -407,6 +445,14 @@ class ProductUpdateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {"wholesale_price": "Wholesale price cannot exceed MRP."}
             )
+        company = self.context.get("company")
+        if company is not None:
+            for field in ("category", "size_chart"):
+                related = attrs.get(field)
+                if related is not None and related.company_id != company.pk:
+                    raise serializers.ValidationError(
+                        {field: "This value does not belong to your company."}
+                    )
         return attrs
 
 

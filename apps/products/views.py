@@ -1,4 +1,4 @@
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import F, Q
 from django.utils.timezone import now
 from rest_framework import parsers, status
@@ -55,7 +55,11 @@ class CategoryViewSet(GenericViewSet):
         else:
             permission_classes = [IsAdminOrSubAdmin]
 
-        return [permission() for permission in permission_classes]
+        return [
+            IsAuthenticated(),
+            CompanyApproved(),
+            *[permission() for permission in permission_classes],
+        ]
 
     def get_serializer_class(self):
         if self.action == "list":
@@ -93,10 +97,16 @@ class CategoryViewSet(GenericViewSet):
     def create(self, request):
         company = self._get_company(request)
         serializer = CategoryCreateUpdateSerializer(
-            data=request.data, context={"request": request}
+            data=request.data, context={"request": request, "company": company}
         )
         serializer.is_valid(raise_exception=True)
-        category = serializer.save(company=company)
+        try:
+            category = serializer.save(company=company)
+        except IntegrityError:
+            return Response(
+                {"detail": "A category with this name already exists."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         return Response(
             CategorySerializer(category).data, status=status.HTTP_201_CREATED
         )
@@ -109,10 +119,19 @@ class CategoryViewSet(GenericViewSet):
         if not obj:
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
         serializer = CategoryCreateUpdateSerializer(
-            obj, data=request.data, partial=True, context={"request": request}
+            obj,
+            data=request.data,
+            partial=True,
+            context={"request": request, "company": company},
         )
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        try:
+            serializer.save()
+        except IntegrityError:
+            return Response(
+                {"detail": "A category with this name already exists."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         return Response(CategorySerializer(serializer.instance).data)
 
     # DELETE /api/categories/<pk>/
@@ -146,7 +165,11 @@ class SizeChartViewSet(GenericViewSet):
         else:
             permission_classes = [IsAdminOrSubAdmin]
 
-        return [permission() for permission in permission_classes]
+        return [
+            IsAuthenticated(),
+            CompanyApproved(),
+            *[permission() for permission in permission_classes],
+        ]
 
     def _get_company(self, request):
         return request.company or request.user.company
@@ -339,7 +362,9 @@ class ProductViewSet(GenericViewSet):
     @transaction.atomic
     def create(self, request):
         company = self._get_company(request)
-        serializer = ProductCreateSerializer(data=request.data)
+        serializer = ProductCreateSerializer(
+            data=request.data, context={"request": request, "company": company}
+        )
         serializer.is_valid(raise_exception=True)
         product = serializer.save(company=company)
         return Response(
@@ -354,7 +379,12 @@ class ProductViewSet(GenericViewSet):
         product = self._get_product(pk, company)
         if not product:
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
-        serializer = ProductUpdateSerializer(product, data=request.data, partial=True)
+        serializer = ProductUpdateSerializer(
+            product,
+            data=request.data,
+            partial=True,
+            context={"request": request, "company": company},
+        )
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(
@@ -421,7 +451,11 @@ class ColorVariantViewSet(GenericViewSet):
         else:
             permission_classes = [IsAdminOrSubAdmin]
 
-        return [permission() for permission in permission_classes]
+        return [
+            IsAuthenticated(),
+            CompanyApproved(),
+            *[permission() for permission in permission_classes],
+        ]
 
     def get_serializer_class(self):
         if self.action == "create":
@@ -557,7 +591,11 @@ class StockViewSet(GenericViewSet):
         else:
             permission_classes = [IsAdminOrSubAdmin]
 
-        return [permission() for permission in permission_classes]
+        return [
+            IsAuthenticated(),
+            CompanyApproved(),
+            *[permission() for permission in permission_classes],
+        ]
 
     def get_serializer_class(self):
         if self.action == "adjust":

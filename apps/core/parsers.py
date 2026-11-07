@@ -91,7 +91,9 @@ class NestedMultiPartParser(parsers.MultiPartParser):
     """Multipart parser that understands bracket/dot nested field names."""
 
     def parse(self, stream, media_type=None, parser_context=None):
-        data, files = super().parse(stream, media_type, parser_context)
+        parsed = super().parse(stream, media_type, parser_context)
+        data = parsed.data
+        files = parsed.files
         nested: dict[str, Any] = {}
 
         # Text fields. ``lists()`` preserves repeated keys.
@@ -104,4 +106,4 @@ class NestedMultiPartParser(parsers.MultiPartParser):
             for value in values:
                 _set_value(nested, _tokenize(key), value)
 
-        return _normalise(nested), MultiValueDict()
+        return parsers.DataAndFiles(_normalise(nested), MultiValueDict())
