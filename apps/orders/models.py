@@ -9,7 +9,6 @@ from apps.core.models import CompanyScopeModel, TimeStampedModel, UUIDModel
 class OrderStatus(models.TextChoices):
     DRAFT = "draft", "Draft"
     SUBMITTED = "submitted", "Submitted"
-    CONFIRMED = "confirmed", "Confirmed"
     PROCESSING = "processing", "Processing"
     PACKED = "packed", "Packed"
     DISPATCHED = "dispatched", "Dispatched"
@@ -95,7 +94,6 @@ class Order(CompanyScopeModel):
 
     # Timestamps
     submitted_at = models.DateTimeField(null=True, blank=True)
-    confirmed_at = models.DateTimeField(null=True, blank=True)
     dispatched_at = models.DateTimeField(null=True, blank=True)
     delivered_at = models.DateTimeField(null=True, blank=True)
     cancelled_at = models.DateTimeField(null=True, blank=True)

@@ -13,7 +13,9 @@ app_name = "companies"
 urlpatterns = [
     path(
         "admin/company",
-        CompanyDetailViewSet.as_view({"patch": "update"}),
+        CompanyDetailViewSet.as_view(
+            {"get": "retrieve", "patch": "update", "put": "update"}
+        ),
         name="admin-company-update",
     ),  # ✅
     path(

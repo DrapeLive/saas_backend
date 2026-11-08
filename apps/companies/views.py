@@ -351,7 +351,20 @@ class SuperAdminCompanyViewSet(GenericViewSet):
 class CompanyDetailViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
     permission_classes = (IsAuthenticated, CompanyApproved, IsAdmin)
-    serializer_class = CompanyUpdateSerializer
+
+    def get_serializer_class(self):
+        if self.action == "update":
+            return CompanyUpdateSerializer
+        return CompanySerializer
+
+    def retrieve(self, request, *args, **kwargs):
+        company = request.company
+        if company is None:
+            return Response(
+                {"detail": "Company not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response(CompanySerializer(company).data)
 
     def update(self, request, *args, **kwargs):
         company = request.company

@@ -589,7 +589,6 @@ class AdminDashboardViewSet(GenericViewSet):
         orders_pending = base_orders.filter(
             status__in=[
                 OrderStatus.SUBMITTED,
-                OrderStatus.CONFIRMED,
                 OrderStatus.PROCESSING,
                 OrderStatus.PACKED,
             ]

@@ -444,7 +444,6 @@ class OrderViewSet(GenericViewSet):
         order.status = new_status
 
         timestamp_map = {
-            OrderStatus.CONFIRMED: "confirmed_at",
             OrderStatus.DISPATCHED: "dispatched_at",
             OrderStatus.DELIVERED: "delivered_at",
             OrderStatus.CANCELLED: "cancelled_at",
@@ -476,8 +475,6 @@ class OrderViewSet(GenericViewSet):
                     performed_by=request.user,
                 )
             event = "order_cancelled"
-        elif new_status == OrderStatus.CONFIRMED:
-            event = "order_confirmed"
         elif new_status == OrderStatus.DISPATCHED:
             event = "order_dispatched"
             # Direct status update bypasses the dispatch app: generate the
@@ -529,15 +526,14 @@ class OrderViewSet(GenericViewSet):
 
         if action_val == "approve":
             old_status = order.status
-            order.status = OrderStatus.CONFIRMED
+            order.status = OrderStatus.PROCESSING
             order.approved_by = request.user
             order.approved_at = now()
-            order.confirmed_at = now()
             order.save(
-                update_fields=["status", "approved_by", "approved_at", "confirmed_at"]
+                update_fields=["status", "approved_by", "approved_at"]
             )
             self._log_status_change(
-                order, old_status, OrderStatus.CONFIRMED, request.user, "Approved"
+                order, old_status, OrderStatus.PROCESSING, request.user, "Approved"
             )
         else:
             old_status = order.status
@@ -713,17 +709,17 @@ class OrderViewSet(GenericViewSet):
         # PROGRESS_STATUS_TRANSITIONS:
         #   - PARTIALLY_PACKED -> PROCESSING (order moved to the packing stage)
         #   - PACKED          -> PACKED (final pre-dispatch state; sticky once set)
-        # The order only advances forward from CONFIRMED/PROCESSING; once PACKED
+        # The order only advances forward from SUBMITTED/PROCESSING; once PACKED
         # it is never downgraded even if packed quantities are later reduced.
-        if order.status in (OrderStatus.CONFIRMED, OrderStatus.PROCESSING):
+        if order.status in (OrderStatus.SUBMITTED, OrderStatus.PROCESSING):
             if (
-                order.status == OrderStatus.CONFIRMED
+                order.status == OrderStatus.SUBMITTED
                 and new_packing_status == PackingStatus.PARTIALLY_PACKED
             ):
                 self._advance_status(order, OrderStatus.PROCESSING, request.user, notes)
                 order.refresh_from_db()
             if (
-                order.status in (OrderStatus.CONFIRMED, OrderStatus.PROCESSING)
+                order.status in (OrderStatus.SUBMITTED, OrderStatus.PROCESSING)
                 and new_packing_status == PackingStatus.PACKED
             ):
                 self._advance_status(order, OrderStatus.PACKED, request.user, notes)
@@ -749,7 +745,6 @@ class OrderViewSet(GenericViewSet):
         result = {}
         kanban_statuses = [
             OrderStatus.SUBMITTED,
-            OrderStatus.CONFIRMED,
             OrderStatus.PROCESSING,
             OrderStatus.PACKED,
         ]

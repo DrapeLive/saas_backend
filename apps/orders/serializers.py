@@ -249,7 +249,6 @@ class OrderDetailSerializer(
             "tally_synced_at",
             # Timestamps
             "submitted_at",
-            "confirmed_at",
             "dispatched_at",
             "delivered_at",
             "cancelled_at",

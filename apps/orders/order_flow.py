@@ -885,26 +885,17 @@ def submit_draft(order, user, payload=None):
 
     requires_approval = _requires_approval(order, user)
     settings_obj = _company_settings(order.company)
-    if (
-        settings_obj
-        and getattr(settings_obj, "order_auto_confirm", False)
-        and not requires_approval
-    ):
-        new_status = OrderStatus.CONFIRMED
-    else:
-        new_status = OrderStatus.SUBMITTED
-
-    order.status = new_status
+    # CONFIRMED status has been removed. Submitted orders always move to
+    # SUBMITTED; approval (when required) advances them to PROCESSING.
+    order.status = OrderStatus.SUBMITTED
     order.requires_approval = requires_approval
     order.submitted_at = now()
-    order.confirmed_at = now() if new_status == OrderStatus.CONFIRMED else None
     order.draft_expires_at = None
     order.save(
         update_fields=[
             "status",
             "requires_approval",
             "submitted_at",
-            "confirmed_at",
             "draft_expires_at",
             "subtotal",
             "discount_pct",
@@ -925,7 +916,7 @@ def submit_draft(order, user, payload=None):
             "updated_at",
         ]
     )
-    _log_status(order, OrderStatus.DRAFT, new_status, user, "Draft submitted")
+    _log_status(order, OrderStatus.DRAFT, OrderStatus.SUBMITTED, user, "Draft submitted")
 
     from apps.orders.services import (
         create_commission_entry,
@@ -940,11 +931,7 @@ def submit_draft(order, user, payload=None):
 
         recompute_agent_metrics(order.agent, company=order.company)
     if order.customer.user:
-        event = (
-            "order_confirmed"
-            if new_status == OrderStatus.CONFIRMED
-            else "order_submitted"
-        )
+        event = "order_submitted"
         send_order_notification(order.company, order, event, order.customer.user)
 
     return order

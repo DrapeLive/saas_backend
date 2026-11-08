@@ -15,7 +15,6 @@ UNPAID_STATUSES = (
 # Order statuses that represent a real, counted sale / active pipeline entry.
 OPEN_ORDER_STATUSES = (
     OrderStatus.SUBMITTED,
-    OrderStatus.CONFIRMED,
     OrderStatus.PROCESSING,
     OrderStatus.PACKED,
     OrderStatus.DISPATCHED,
