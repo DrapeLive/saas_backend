@@ -1147,18 +1147,21 @@ class AgentMembershipViewSet(GenericViewSet):
         notes = data.get("notes", "")
 
         # Payable entries: not yet paid, for this agent + month.
+        # Include entries with null settlement_month (legacy records) so they
+        # can be paid and assigned to the requested month.
         entries = CommissionEntry.objects.filter(
             company=company,
             agent=agent,
-            settlement_month=month,
             status=CommissionEntry.EntryStatus.NOT_PAID,
+        ).filter(
+            Q(settlement_month=month) | Q(settlement_month__isnull=True)
         )
         total = entries.aggregate(total=Sum("commission_amount"))["total"] or 0
 
         if total <= 0:
             return Response(
                 {
-                    "detail": "No approved commission entries found for this agent "
+                    "detail": "No not-paid commission entries found for this agent "
                     "and settlement month."
                 },
                 status=status.HTTP_400_BAD_REQUEST,
@@ -1167,7 +1170,7 @@ class AgentMembershipViewSet(GenericViewSet):
         if amount > total:
             return Response(
                 {
-                    "detail": f"Amount {amount} exceeds approved commission total "
+                    "detail": f"Amount {amount} exceeds commission total "
                     f"{total} for this settlement month."
                 },
                 status=status.HTTP_400_BAD_REQUEST,
