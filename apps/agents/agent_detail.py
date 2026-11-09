@@ -86,7 +86,7 @@ def agent_transactions(agent, company, type=None, month=None, status=None, limit
                 "date": (p.paid_at.date() if p.paid_at else p.settlement_month),
                 "amount": p.amount,
                 "status": "paid",
-                "reference": p.settlement_month.isoformat(),
+                "reference": p.settlement_month.isoformat() if p.settlement_month else None,
                 "settlement_month": p.settlement_month,
             }
         )
@@ -140,5 +140,12 @@ def agent_payouts(agent, company):
 
 
 def agent_adjustments(agent, company):
-    # No ADJUSTED status exists; return empty queryset.
-    return CommissionEntry.objects.none()
+    """Return commission entries that have adjustment notes (i.e. adjusted entries)."""
+    return (
+        CommissionEntry.objects.filter(
+            agent=agent, company=company, adjustment_notes__isnull=False
+        )
+        .exclude(adjustment_notes="")
+        .select_related("order")
+        .order_by("-created_at")
+    )

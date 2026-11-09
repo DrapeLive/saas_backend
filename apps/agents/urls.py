@@ -131,17 +131,17 @@ urlpatterns = [
         name="admin-agents-detail-transactions",
     ),
     path(
-        "admin/agents/<uuid:pk>/commission",
+        "admin/agents/<uuid:pk>/commission/",
         AgentMembershipViewSet.as_view({"get": "agent_commission"}),
         name="admin-agents-detail-commission",
     ),
     path(
-        "admin/agents/<uuid:pk>/payouts",
+        "admin/agents/<uuid:pk>/payouts/",
         AgentMembershipViewSet.as_view({"get": "agent_payouts"}),
         name="admin-agents-detail-payouts",
     ),
     path(
-        "admin/agents/<uuid:pk>/adjustments",
+        "admin/agents/<uuid:pk>/adjustments/",
         AgentMembershipViewSet.as_view({"get": "agent_adjustments"}),
         name="admin-agents-detail-adjustments",
     ),
