@@ -93,8 +93,6 @@ class CommissionEntryViewSet(GenericViewSet):
         old_month = entry.settlement_month
 
         entry.status = data["status"]
-        if data.get("dispute_reason"):
-            entry.dispute_reason = data["dispute_reason"]
         if data.get("adjustment_notes"):
             entry.adjustment_notes = data["adjustment_notes"]
         if data["status"] == CommissionEntry.EntryStatus.PAID:

@@ -1146,12 +1146,12 @@ class AgentMembershipViewSet(GenericViewSet):
         month = data["settlement_month"]
         notes = data.get("notes", "")
 
-        # Payable entries: approved, not yet paid, for this agent + month.
+        # Payable entries: not yet paid, for this agent + month.
         entries = CommissionEntry.objects.filter(
             company=company,
             agent=agent,
             settlement_month=month,
-            status=CommissionEntry.EntryStatus.APPROVED,
+            status=CommissionEntry.EntryStatus.NOT_PAID,
         )
         total = entries.aggregate(total=Sum("commission_amount"))["total"] or 0
 
