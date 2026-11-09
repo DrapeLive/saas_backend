@@ -665,6 +665,42 @@ class AdminDashboardViewSet(GenericViewSet):
             ).data
         )
 
+    def low_stock_items(self, request, *args, **kwargs):
+        company = getattr(request, "company", None) or request.user.company
+        sizes = (
+            VariantSize.objects.filter(
+                color_variant__product__company=company,
+                color_variant__product__is_deleted=False,
+                is_active=True,
+                stock_quantity__lte=F("reserved_qty") + F("reorder_level"),
+            )
+            .select_related("color_variant__product")
+            .order_by("color_variant__product__name", "color_variant__color_name")
+        )
+
+        items = []
+        for size in sizes:
+            variant = size.color_variant
+            product = variant.product
+            image = variant.image
+            image_url = request.build_absolute_uri(image.url) if image else None
+            items.append(
+                {
+                    # Keep the existing size-level fields for other consumers.
+                    "name": product.name,
+                    "units": size.available_qty,
+                    "minimum_stock": size.reorder_level,
+                    "product_id": str(product.id),
+                    "color_variant_id": str(variant.id),
+                    "color_name": variant.color_name,
+                    "image": image_url,
+                }
+            )
+
+        return Response(
+            {"total_low_stock_items": len(items), "items": items}
+        )
+
 
 class AdminAnalyticsViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)

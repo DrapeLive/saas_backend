@@ -2,7 +2,7 @@
 
 from django.urls import path
 
-from apps.dispatch.views import DispatchViewSet
+from apps.dispatch.views import DispatchViewSet, TransportViewSet
 
 app_name = "dispatch"
 
@@ -40,5 +40,30 @@ urlpatterns = [
         "dispatches/<uuid:pk>/mark-delivered/",
         DispatchViewSet.as_view({"post": "mark_delivered"}),
         name="dispatch-mark-delivered",
+    ),
+    # ─────────────────────────────────────────────────────────────
+    # TRANSPORTS
+    # ─────────────────────────────────────────────────────────────
+    # GET    /api/transports/                      List transports
+    #          ?active=true|false
+    # POST   /api/transports/                      Create transport
+    # GET    /api/transports/<pk>/                 Transport detail
+    # PATCH  /api/transports/<pk>/                 Update transport
+    # DELETE /api/transports/<pk>/                 Delete or deactivate if referenced
+    path(
+        "transports/",
+        TransportViewSet.as_view({"get": "list", "post": "create"}),
+        name="transport-list-create",
+    ),
+    path(
+        "transports/<uuid:pk>/",
+        TransportViewSet.as_view(
+            {
+                "get": "retrieve",
+                "patch": "partial_update",
+                "delete": "destroy",
+            }
+        ),
+        name="transport-detail",
     ),
 ]

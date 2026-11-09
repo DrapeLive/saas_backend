@@ -13,6 +13,11 @@ http:
     type: bearer
     token: "{{access_admin}}"
 
+runtime:
+  variables:
+    - name: BASE_URL
+      value: https://beta.xlapparals.in/api
+
 settings:
   encodeUrl: true
   timeout: 0

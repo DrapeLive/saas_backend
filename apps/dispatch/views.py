@@ -1,4 +1,5 @@
-from django.db import transaction
+from django.db import IntegrityError, transaction
+from django.db.models.functions import Lower
 from django.utils.timezone import now
 from rest_framework import status
 from rest_framework.decorators import action
@@ -6,14 +7,15 @@ from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 
 from apps.accounts.authentication import CustomJWTAuthentication
-from apps.accounts.permissions import IsAdminOrSubAdmin
-from apps.dispatch.models import Dispatch
+from apps.accounts.permissions import IsAdmin, IsAdminOrSubAdmin
+from apps.dispatch.models import Dispatch, Transport
 from apps.dispatch.serializers import (
     DispatchCreateSerializer,
     DispatchDetailSerializer,
     DispatchListSerializer,
     DispatchUpdateSerializer,
     MarkDeliveredSerializer,
+    TransportSerializer,
 )
 from apps.orders.models import OrderStatus, OrderStatusHistory
 
@@ -28,7 +30,7 @@ class DispatchViewSet(GenericViewSet):
     def _get_dispatch(self, pk, company):
         try:
             return Dispatch.objects.select_related(
-                "order__customer", "dispatched_by"
+                "order__customer", "dispatched_by", "transport"
             ).get(pk=pk, company=company)
         except Dispatch.DoesNotExist:
             return None
@@ -74,7 +76,9 @@ class DispatchViewSet(GenericViewSet):
     @transaction.atomic
     def create(self, request):
         company = self._get_company(request)
-        serializer = DispatchCreateSerializer(data=request.data)
+        serializer = DispatchCreateSerializer(
+            data=request.data, context={"request": request}
+        )
         serializer.is_valid(raise_exception=True)
 
         order = serializer.validated_data["order"]
@@ -170,3 +174,93 @@ class DispatchViewSet(GenericViewSet):
         )
 
         return Response(DispatchDetailSerializer(dispatch).data)
+
+
+DUPLICATE_TRANSPORT_NAME = "A transport with this name already exists."
+
+
+class TransportViewSet(GenericViewSet):
+    authentication_classes = (CustomJWTAuthentication,)
+    permission_classes = (IsAdminOrSubAdmin,)
+
+    def get_permissions(self):
+        if self.action in ("create", "partial_update", "destroy"):
+            return [IsAdmin()]
+        return [IsAdminOrSubAdmin()]
+
+    def _get_company(self, request):
+        return request.user.company
+
+    def _get_transport(self, pk, company):
+        try:
+            return Transport.objects.get(pk=pk, company=company)
+        except Transport.DoesNotExist:
+            return None
+
+    # GET /api/transports/   ?active=true|false
+    def list(self, request):
+        company = self._get_company(request)
+        qs = Transport.objects.filter(company=company).order_by(Lower("name"))
+        active = request.query_params.get("active")
+        if active in ("true", "1"):
+            qs = qs.filter(is_active=True)
+        elif active in ("false", "0"):
+            qs = qs.filter(is_active=False)
+        return Response(TransportSerializer(qs, many=True).data)
+
+    # POST /api/transports/
+    def create(self, request):
+        company = self._get_company(request)
+        serializer = TransportSerializer(
+            data=request.data, context={"request": request}
+        )
+        serializer.is_valid(raise_exception=True)
+        try:
+            with transaction.atomic():
+                transport = serializer.save(company=company)
+        except IntegrityError:
+            return Response(
+                {"detail": DUPLICATE_TRANSPORT_NAME},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response(
+            TransportSerializer(transport).data, status=status.HTTP_201_CREATED
+        )
+
+    # GET /api/transports/<pk>/
+    def retrieve(self, request, pk=None):
+        transport = self._get_transport(pk, self._get_company(request))
+        if not transport:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+        return Response(TransportSerializer(transport).data)
+
+    # PATCH /api/transports/<pk>/
+    def partial_update(self, request, pk=None):
+        transport = self._get_transport(pk, self._get_company(request))
+        if not transport:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+        serializer = TransportSerializer(
+            transport, data=request.data, partial=True, context={"request": request}
+        )
+        serializer.is_valid(raise_exception=True)
+        try:
+            with transaction.atomic():
+                serializer.save()
+        except IntegrityError:
+            return Response(
+                {"detail": DUPLICATE_TRANSPORT_NAME},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response(TransportSerializer(transport).data)
+
+    # DELETE /api/transports/<pk>/
+    def destroy(self, request, pk=None):
+        transport = self._get_transport(pk, self._get_company(request))
+        if not transport:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+        if transport.dispatches.exists():
+            transport.is_active = False
+            transport.save(update_fields=["is_active", "updated_at"])
+        else:
+            transport.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)

@@ -62,7 +62,7 @@ urlpatterns = [
     # ─────────────────────────────────────────────────────────────
     # PRODUCTS
     # ─────────────────────────────────────────────────────────────
-    # GET    /api/products/                         List (?category= ?status= ?search= ?featured= ?low_stock=)
+    # GET    /api/products/                         List (?category= ?search= ?featured= ?low_stock=)
     # POST   /api/products/                         Create product (with nested color_variants)
     # GET    /api/products/<pk>/                    Full detail (images + variants + sizes)
     # PATCH  /api/products/<pk>/                    Update product fields

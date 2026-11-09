@@ -17,6 +17,11 @@ http:
       }
   auth: inherit
 
+runtime:
+  variables:
+    - name: BASE_URL
+      value: https://beta.xlapparals.in/api
+
 settings:
   encodeUrl: true
   timeout: 0

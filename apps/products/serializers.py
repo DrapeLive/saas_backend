@@ -221,7 +221,6 @@ class ProductListSerializer(serializers.ModelSerializer):
             "wholesale_price",
             "minimum_order_qty",
             "total_stock",
-            "status",
             "primary_image",
             "variant_count",
             "created_at",
@@ -266,7 +265,6 @@ class ProductDetailSerializer(serializers.ModelSerializer):
             "minimum_order_qty",
             "order_in_multiples",
             "total_stock",
-            "status",
             "color_variants",
             "created_at",
             "updated_at",
@@ -290,9 +288,14 @@ class ProductCreateSerializer(serializers.ModelSerializer):
             "wholesale_price",
             "minimum_order_qty",
             "order_in_multiples",
-            "status",
             "color_variants",
         ]
+
+    def to_internal_value(self, data):
+        # Older mobile clients still send status; ignore it during rollout.
+        data = data.copy()
+        data.pop("status", None)
+        return super().to_internal_value(data)
 
     def validate_wholesale_price(self, value):
         if value < 0:
@@ -358,8 +361,13 @@ class ProductUpdateSerializer(serializers.ModelSerializer):
             "wholesale_price",
             "minimum_order_qty",
             "order_in_multiples",
-            "status",
         ]
+
+    def to_internal_value(self, data):
+        # Older mobile clients still send status; ignore it during rollout.
+        data = data.copy()
+        data.pop("status", None)
+        return super().to_internal_value(data)
 
 
 class StockMovementSerializer(serializers.ModelSerializer):

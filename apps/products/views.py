@@ -200,15 +200,12 @@ class ProductViewSet(GenericViewSet):
         )
 
         category_f = request.query_params.get("category")
-        status_f = request.query_params.get("status")
         search = request.query_params.get("search")
         featured = request.query_params.get("featured")
         low_stock = request.query_params.get("low_stock")
 
         if category_f:
             qs = qs.filter(category_id=category_f)
-        if status_f:
-            qs = qs.filter(status=status_f)
         if featured:
             qs = qs.filter(is_featured=True)
         if low_stock:

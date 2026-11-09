@@ -78,6 +78,11 @@ urlpatterns = [
         name="admin-dashboard",
     ),  # ✅
     path(
+        "admin/dashboard/low-stock-items",
+        AdminDashboardViewSet.as_view({"get": "low_stock_items"}),
+        name="admin-dashboard-low-stock-items",
+    ),
+    path(
         "admin/analytics",
         AdminAnalyticsViewSet.as_view({"get": "list"}),
         name="admin-analytics",
