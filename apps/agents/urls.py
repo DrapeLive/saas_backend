@@ -145,4 +145,9 @@ urlpatterns = [
         AgentMembershipViewSet.as_view({"get": "agent_adjustments"}),
         name="admin-agents-detail-adjustments",
     ),
+    path(
+        "admin/agents/<uuid:pk>/pay-commission",
+        AgentMembershipViewSet.as_view({"post": "pay_commission"}),
+        name="admin-agents-detail-pay-commission",
+    ),
 ]
