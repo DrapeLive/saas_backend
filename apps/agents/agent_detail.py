@@ -11,12 +11,26 @@ from apps.payments.models import Payment
 
 
 def _paid_ytd(agent, company, today):
-    return (
+    """
+    Total amount paid to the agent YTD. This sums both:
+    - Payment model records (cash payments received from customers)
+    - CommissionEntry records with status='paid' (commissions paid out to agent)
+    """
+    payments_total = (
         Payment.objects.filter(
             agent=agent, company=company, payment_date__year=today.year
         ).aggregate(total=Sum("amount"))["total"]
         or Decimal("0.00")
     )
+    commissions_paid_total = (
+        CommissionEntry.objects.filter(
+            agent=agent,
+            company=company,
+            status=CommissionEntry.EntryStatus.PAID,
+        ).aggregate(total=Sum("commission_amount"))["total"]
+        or Decimal("0.00")
+    )
+    return payments_total + commissions_paid_total
 
 
 def _agent_order_ids(agent, company):

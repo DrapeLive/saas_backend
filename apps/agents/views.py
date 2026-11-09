@@ -890,8 +890,10 @@ class AgentMembershipViewSet(GenericViewSet):
             CommissionEntry.objects.filter(
                 agent=agent_profile,
                 order__company=company,
-                settlement_month__gte=month_start,
                 status__in=["approved", "paid"],
+            ).filter(
+                Q(settlement_month__gte=month_start)
+                | Q(settlement_month__isnull=True)
             ).aggregate(total=Sum("commission_amount"))["total"]
             or 0
         )
