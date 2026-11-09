@@ -101,8 +101,6 @@ def agent_transactions(agent, company, type=None, month=None, status=None, limit
 
     for c in commissions:
         txn_type = "order_commission"
-        if c.status == CommissionEntry.EntryStatus.ADJUSTED:
-            txn_type = "adjustment"
         if type and type != txn_type:
             continue
         entries.append(
@@ -142,12 +140,5 @@ def agent_payouts(agent, company):
 
 
 def agent_adjustments(agent, company):
-    return (
-        CommissionEntry.objects.filter(
-            agent=agent,
-            company=company,
-            status=CommissionEntry.EntryStatus.ADJUSTED,
-        )
-        .select_related("order")
-        .order_by("-created_at")
-    )
+    # No ADJUSTED status exists; return empty queryset.
+    return CommissionEntry.objects.none()

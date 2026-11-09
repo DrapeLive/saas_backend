@@ -134,12 +134,15 @@ class CommissionEntryViewSet(GenericViewSet):
             company=company,
             agent_id=data["agent_id"],
             settlement_month=data["settlement_month"],
-            status=CommissionEntry.EntryStatus.APPROVED,
+            status=CommissionEntry.EntryStatus.NOT_PAID,
         )
         count = entries.count()
         if count == 0:
             return Response(
-                {"detail": "No approved entries found for the given agent and month."},
+                {
+                    "detail": "No not-paid entries found for the given agent and "
+                    "settlement month."
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -193,19 +196,14 @@ class CommissionEntryViewSet(GenericViewSet):
                 {
                     "agent_id": str(agent.id),
                     "agent_name": agent.user.full_name,
-                    "pending_amount": agent_qs.filter(status="pending").aggregate(
-                        t=Sum("commission_amount")
-                    )["t"]
+                    "pending_amount": agent_qs.filter(
+                        status=CommissionEntry.EntryStatus.NOT_PAID
+                    ).aggregate(t=Sum("commission_amount"))["t"]
                     or 0,
-                    "approved_amount": agent_qs.filter(status="approved").aggregate(
-                        t=Sum("commission_amount")
-                    )["t"]
+                    "paid_amount": agent_qs.filter(
+                        status=CommissionEntry.EntryStatus.PAID
+                    ).aggregate(t=Sum("commission_amount"))["t"]
                     or 0,
-                    "paid_amount": agent_qs.filter(status="paid").aggregate(
-                        t=Sum("commission_amount")
-                    )["t"]
-                    or 0,
-                    "disputed_count": agent_qs.filter(status="disputed").count(),
                     "period": month,
                 }
             )
