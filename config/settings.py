@@ -283,7 +283,6 @@ SPECTACULAR_SETTINGS = {
         "DocTypeEnum": "apps.customers.models.CustomerDocument.DocType",
         "CommunicationChannelEnum": "apps.customers.models.CustomerCommunicationLog.ChannelType",
         # Products
-        "ProductStatusEnum": "apps.products.models.Product.ProductStatus",
         "StockMovementTypeEnum": "apps.products.models.StockMovement.MovementType",
         # Orders
         "OrderStatusEnum": "apps.orders.models.OrderStatus",

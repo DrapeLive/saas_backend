@@ -64,9 +64,6 @@ class Product(CompanyScopeModel, SoftDeleteModel):
 
     minimum_order_qty = models.PositiveIntegerField(default=1)
     order_in_multiples = models.PositiveIntegerField(default=1)
-    status = models.CharField(
-        max_length=20, choices=ProductStatus.choices, default=ProductStatus.ACTIVE
-    )
 
     total_stock = models.PositiveIntegerField(default=0)
 
