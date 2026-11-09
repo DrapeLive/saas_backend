@@ -1,0 +1,84 @@
+info:
+  name: Settle commissions
+  type: http
+  seq: 4
+  tags:
+    - Commissions
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/commission-entries/settle/"
+  body:
+    type: json
+    data: |-
+      {
+        "agent_id": "",
+        "settlement_month": "",
+        "notes": ""
+      }
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    request:
+      url: "{{baseUrl}}/api/commission-entries/settle/"
+      method: POST
+      body:
+        type: json
+        data: |-
+          {
+            "agent_id": "",
+            "settlement_month": "",
+            "notes": ""
+          }
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "detail": "",
+            "total_paid": "",
+            "agent_id": "",
+            "settlement_month": ""
+          }
+  - name: 400 Response
+    description: Bad request. Field/validation errors are flattened into a single `detail` string.
+    request:
+      url: "{{baseUrl}}/api/commission-entries/settle/"
+      method: POST
+      body:
+        type: json
+        data: |-
+          {
+            "agent_id": "",
+            "settlement_month": "",
+            "notes": ""
+          }
+    response:
+      status: 400
+      statusText: Bad Request
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "detail": ""
+          }
+
+docs: Bulk-settles all approved entries for an agent + month as paid (admin only).

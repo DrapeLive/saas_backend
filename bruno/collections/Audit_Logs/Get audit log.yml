@@ -1,0 +1,81 @@
+info:
+  name: Get audit log
+  type: http
+  seq: 2
+  tags:
+    - Audit_Logs
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/audit-logs/:id/"
+  params:
+    - name: id
+      value: ""
+      type: path
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    request:
+      url: "{{baseUrl}}/api/audit-logs/:id/"
+      method: GET
+      params:
+        - name: id
+          value: ""
+          type: path
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "id": "",
+            "company": "",
+            "company_name": "",
+            "user": "",
+            "user_name": "",
+            "user_email": "",
+            "user_role": "",
+            "action": "",
+            "entity_type": "",
+            "entity_id": "",
+            "old_value": "",
+            "new_value": "",
+            "ip_address": "",
+            "user_agent": "",
+            "created_at": ""
+          }
+  - name: 404 Response
+    description: Not found. The requested resource does not exist in the current company.
+    request:
+      url: "{{baseUrl}}/api/audit-logs/:id/"
+      method: GET
+      params:
+        - name: id
+          value: ""
+          type: path
+    response:
+      status: 404
+      statusText: Not Found
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "detail": ""
+          }

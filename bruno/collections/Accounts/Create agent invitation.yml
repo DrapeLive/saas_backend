@@ -1,0 +1,92 @@
+info:
+  name: Create agent invitation
+  type: http
+  seq: 2
+  tags:
+    - Accounts
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/admin/invitations"
+  body:
+    type: json
+    data: |-
+      {
+        "email": "",
+        "phone": "",
+        "max_uses": 0
+      }
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 201 Response
+    request:
+      url: "{{baseUrl}}/api/admin/invitations"
+      method: POST
+      body:
+        type: json
+        data: |-
+          {
+            "email": "",
+            "phone": "",
+            "max_uses": 0
+          }
+    response:
+      status: 201
+      statusText: Created
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "id": "",
+            "email": "",
+            "phone": "",
+            "token": "",
+            "status": "pending",
+            "max_uses": 0,
+            "used_count": 0,
+            "expires_at": "",
+            "created_at": ""
+          }
+  - name: 400 Response
+    description: Bad request. Field/validation errors are flattened into a single `detail` string.
+    request:
+      url: "{{baseUrl}}/api/admin/invitations"
+      method: POST
+      body:
+        type: json
+        data: |-
+          {
+            "email": "",
+            "phone": "",
+            "max_uses": 0
+          }
+    response:
+      status: 400
+      statusText: Bad Request
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "detail": ""
+          }
+
+docs: |-
+  Creates a redeemable agent invitation link/code for the company. Generate the invite URL as `/api/auth/agents/join` with `invite_code`, or give the returned `token` directly to the agent.
+
+  Either `email` or `phone` must be provided. Tokens expire after 7 days.

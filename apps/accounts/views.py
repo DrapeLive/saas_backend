@@ -1,5 +1,4 @@
 from datetime import timedelta
-from decimal import Decimal
 
 from django.contrib.auth.tokens import default_token_generator
 from django.db.models import (
@@ -7,18 +6,18 @@ from django.db.models import (
     Case,
     Count,
     DecimalField,
-    ExpressionWrapper,
     F,
-    FloatField,
     Q,
     Sum,
     Value,
     When,
 )
-from django.db.models.functions import Coalesce, Extract, TruncMonth
+from django.db.models.functions import Coalesce, TruncMonth
+from django.urls.resolvers import string
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.utils.timezone import now
+from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.exceptions import AuthenticationFailed
@@ -26,30 +25,36 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.viewsets import GenericViewSet
+from rest_framework_simplejwt import token_blacklist  # noqa: F401
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
+from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenViewBase
 
 from apps.accounts.authentication import CustomJWTAuthentication
-from apps.accounts.models import RoleType, User
+from apps.accounts.models import Permission, RoleType, User
 from apps.accounts.permissions import (
     CanManageUsers,
     CompanyApproved,
     IsAdmin,
     IsAgent,
-    IsCompanyAdminOrAbove,
     IsSuperAdmin,
 )
 from apps.accounts.serializers import (
     AdminAnalyticsSerializer,
     AdminDashboardSerializer,
+    AgentInvitationCreateSerializer,
+    AgentInvitationSerializer,
     AgentJoinSerializer,
     AgentRegisterSerializer,
-    CreateSubAdminSerializer,
+    BusinessStatsSerializer,
     LoginSerializer,
+    LoginUserSerializer,
+    LogoutSerializer,
     PasswordChangeSerializer,
     PasswordResetConfirmSerializer,
     PasswordResetSerializer,
+    PermissionSerializer,
     SetupBankSerializer,
     SetupInvoiceSerializer,
     SetupNotificationSerializer,
@@ -65,15 +70,20 @@ from apps.agents.models import (
     AgentCompanyMembership,
     AgentInvitation,
     AgentProfile,
+    AgentVisitLog,
 )
-from apps.commissions.models import CommissionEntry
 from apps.companies.models import Company, CompanySettings
+from apps.core.openapi import RESPONSE_400, RESPONSE_404
 from apps.customers.models import CustomerProfile
-from apps.dispatch.models import Dispatch
-from apps.invoices.models import Invoice
-from apps.orders.models import Order, OrderItem
-from apps.products.models import Product, VariantSize
+from apps.invoices.models import Invoice, InvoiceStatus, InvoiceType
+from apps.orders.models import Order, OrderItem, OrderStatus
+from apps.products.models import VariantSize
+from apps.sub_admin.services import (
+    get_effective_permission_map,
+    get_subadmin_restrictions,
+)
 from apps.subscriptions.models import Subscription, SubscriptionEvent
+from apps.tally_integrations.models import TallySyncLog
 
 
 def custom_exception_handler(exc, context):
@@ -93,6 +103,11 @@ def custom_exception_handler(exc, context):
     return response
 
 
+class TokenRefreshApiView(TokenViewBase):
+    permission_classes = (AllowAny,)
+    serializer_class = TokenRefreshSerializer
+
+
 class LoginView(TokenViewBase):
     permission_classes = (AllowAny,)
     throttle_scope = "login"
@@ -107,7 +122,9 @@ class LoginView(TokenViewBase):
         password = serializer.validated_data["password"]
 
         try:
-            user = User.objects.get(email=email)
+            user = User.objects.select_related(
+                "company", "subadmin_profile"
+            ).get(email=email)
         except User.DoesNotExist:
             raise AuthenticationFailed("No active account found with this email.")
 
@@ -125,17 +142,20 @@ class LoginView(TokenViewBase):
         ip = request.META.get("REMOTE_ADDR", "")
         device = request.META.get("HTTP_USER_AGENT", "")[:200]
         User.objects.filter(pk=user.pk).update(
+            last_login=now(),
             last_login_ip=ip,
             last_login_device=device,
         )
 
-        return Response(
-            {
-                "access": str(refresh.access_token),
-                "refresh": str(refresh),
-                "user": UserProfileSerializer(user).data,
-            }
-        )
+        data = {
+            "access": str(refresh.access_token),
+            "refresh": str(refresh),
+            "user": LoginUserSerializer(user).data,
+        }
+        if user.is_sub_admin:
+            data["permissions"] = get_effective_permission_map(user)
+            data["restrictions"] = get_subadmin_restrictions(user)
+        return Response(data)
 
 
 class SignupView(GenericViewSet):
@@ -204,7 +224,7 @@ class AuthViewSet(GenericViewSet):
         if self.action == "password_reset_confirm":
             return PasswordResetConfirmSerializer
         if self.action == "logout":
-            return None
+            return LogoutSerializer
         if self.action == "join_company":
             return AgentJoinSerializer
         return UserProfileSerializer
@@ -359,36 +379,12 @@ class AdminUserViewSet(GenericViewSet):
     permission_classes = (IsAuthenticated, CompanyApproved, CanManageUsers)
 
     def get_serializer_class(self):
-        if self.action == "create_sub_admin":
-            return CreateSubAdminSerializer
         return UserAdminSerializer
 
     def list(self, request, *args, **kwargs):
-        if request.user.role == RoleType.SUPER_ADMIN:
-            users = User.objects.all()
-        else:
-            users = User.objects.filter(company=request.user.company)
+        users = User.objects.filter(company=request.user.company)
         serializer = UserAdminSerializer(users, many=True)
         return Response(serializer.data)
-
-    def create_sub_admin(self, request, *args, **kwargs):
-        company = request.user.company
-        if request.user.role == RoleType.SUPER_ADMIN:
-            company_id = request.data.get("company")
-            try:
-                company = Company.objects.get(pk=company_id)
-            except Company.DoesNotExist:
-                return Response(
-                    {"detail": "Company not found."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-        serializer = CreateSubAdminSerializer(
-            data=request.data, context={"company": company}
-        )
-        serializer.is_valid(raise_exception=True)
-        user = serializer.save()
-        return Response(UserAdminSerializer(user).data, status=status.HTTP_201_CREATED)
 
     def update(self, request, pk=None, *args, **kwargs):
         try:
@@ -399,12 +395,11 @@ class AdminUserViewSet(GenericViewSet):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        if request.user.role != RoleType.SUPER_ADMIN:
-            if user.company_id != request.user.company_id:
-                return Response(
-                    {"detail": "You can only manage users in your company."},
-                    status=status.HTTP_403_FORBIDDEN,
-                )
+        if user.company_id != request.user.company_id:
+            return Response(
+                {"detail": "You can only manage users in your company."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
         serializer = UserAdminSerializer(user, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
@@ -420,12 +415,11 @@ class AdminUserViewSet(GenericViewSet):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        if request.user.role != RoleType.SUPER_ADMIN:
-            if user.company_id != request.user.company_id:
-                return Response(
-                    {"detail": "You can only manage users in your company."},
-                    status=status.HTTP_403_FORBIDDEN,
-                )
+        if user.company_id != request.user.company_id:
+            return Response(
+                {"detail": "You can only manage users in your company."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
         user.is_active = False
         user.save(update_fields=["is_active"])
@@ -435,9 +429,12 @@ class AdminUserViewSet(GenericViewSet):
 class InvitationViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
     permission_classes = (IsAuthenticated, CompanyApproved, IsAdmin)
+    serializer_class = AgentInvitationSerializer
 
     def get_serializer_class(self):
-        return None
+        if self.action == "create":
+            return AgentInvitationCreateSerializer
+        return AgentInvitationSerializer
 
     def list(self, request, *args, **kwargs):
         invitations = (
@@ -477,7 +474,7 @@ class InvitationViewSet(GenericViewSet):
             )
 
         expires_at = timezone.now() + timezone.timedelta(days=7)
-        token = secrets.token_urlsafe(32)
+        token = "".join(secrets.choice(string.ascii_uppercase) for _ in range(6))
 
         invitation = AgentInvitation.objects.create(
             company=request.user.company,
@@ -577,90 +574,271 @@ class SuperAdminDashboardViewSet(GenericViewSet):
 
 class AdminDashboardViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
-    permission_classes = (IsAuthenticated, CompanyApproved, IsCompanyAdminOrAbove)
+    permission_classes = (IsAuthenticated, CompanyApproved, IsAdmin)
     serializer_class = AdminDashboardSerializer
 
     def list(self, request, *args, **kwargs):
         company = request.company
         today = now()
         today_date = today.date()
-        month_start = today_date.replace(day=1)
-        thirty_days_ago = today_date - timedelta(days=30)
 
-        base_orders = Order.objects.filter(company=company)
-
-        orders_today = base_orders.filter(submitted_at__date=today_date).count()
-
-        sales_today = (
-            base_orders.filter(
-                Q(status="confirmed") | Q(status="dispatched") | Q(status="delivered"),
-                submitted_at__date=today_date,
-            ).aggregate(total=Sum("total_amount"))["total"]
-            or 0
+        base_orders = Order.objects.filter(company=company).exclude(
+            status__in=[OrderStatus.CANCELLED, OrderStatus.DRAFT]
         )
 
-        invoices = Invoice.objects.filter(company=company)
+        orders_pending = base_orders.filter(
+            status__in=[
+                OrderStatus.SUBMITTED,
+                OrderStatus.PROCESSING,
+                OrderStatus.PACKED,
+            ]
+        ).count()
+
+        sales_total = (
+            base_orders.aggregate(total=Sum("total_amount"))["total"] or 0
+        )
+
+        invoices = (
+            Invoice.objects.filter(company=company)
+            .exclude(invoice_type=InvoiceType.PURCHASE_ORDER)
+            .filter(
+                status__in=[InvoiceStatus.ISSUED, InvoiceStatus.PARTIAL],
+            )
+        )
         outstanding_total = (
-            invoices.filter(status__in=["issued", "partial", "overdue"]).aggregate(
+            invoices.aggregate(total=Sum("amount_due"))["total"] or 0
+        )
+
+        overdue_total = (
+            invoices.filter(due_date__lt=today_date).aggregate(
                 total=Sum("amount_due")
             )["total"]
             or 0
         )
 
-        overdue_total = (
+        ageing_0_30 = (
             invoices.filter(
-                due_date__lt=today_date,
-                status__in=["issued", "partial", "overdue"],
+                due_date__gte=today_date - timedelta(days=30),
+                due_date__lte=today_date,
             ).aggregate(total=Sum("amount_due"))["total"]
             or 0
         )
 
-        avg_order_value = (
-            base_orders.filter(
-                submitted_at__date__gte=thirty_days_ago,
-            ).aggregate(avg=Avg("total_amount"))["avg"]
+        ageing_31_60 = (
+            invoices.filter(
+                due_date__gte=today_date - timedelta(days=60),
+                due_date__lt=today_date - timedelta(days=30),
+            ).aggregate(total=Sum("amount_due"))["total"]
             or 0
         )
 
-        response_times = (
-            base_orders.filter(
-                confirmed_at__isnull=False,
-                submitted_at__isnull=False,
-            )
-            .annotate(
-                response_seconds=ExpressionWrapper(
-                    Extract("confirmed_at", "epoch") - Extract("submitted_at", "epoch"),
-                    output_field=FloatField(),
-                ),
-            )
-            .aggregate(avg_seconds=Avg("response_seconds"))
+        ageing_60_plus = (
+            invoices.filter(
+                due_date__lt=today_date - timedelta(days=60),
+            ).aggregate(total=Sum("amount_due"))["total"]
+            or 0
         )
-        agent_response_time = (response_times["avg_seconds"] or 0) / 3600
 
-        submitted_count = base_orders.filter(
-            submitted_at__date__gte=month_start,
-        ).count()
-        confirmed_count = base_orders.filter(
-            confirmed_at__isnull=False,
-            confirmed_at__date__gte=month_start,
-        ).count()
-        order_conversion_rate = confirmed_count / max(submitted_count, 1)
-
-        if isinstance(avg_order_value, Decimal):
-            avg_order_value = float(avg_order_value)
-        if isinstance(avg_order_value, float):
-            avg_order_value = round(avg_order_value, 2)
+        tally_logs = TallySyncLog.objects.filter(company=company)
+        latest = tally_logs.order_by("-synced_at").first()
+        has_failed = tally_logs.filter(
+            status=TallySyncLog.SyncStatus.FAILED
+        ).exists()
+        has_pending = tally_logs.filter(
+            status__in=[
+                TallySyncLog.SyncStatus.PENDING,
+                TallySyncLog.SyncStatus.RETRY,
+            ]
+        ).exists()
+        if has_failed:
+            tally_status = "failed"
+        elif has_pending:
+            tally_status = "pending"
+        else:
+            tally_status = "synced"
+        tally_sync = {
+            "status": tally_status,
+            "last_synced_at": latest.synced_at if latest else None,
+        }
 
         return Response(
             AdminDashboardSerializer(
                 {
-                    "orders_today": orders_today,
-                    "sales_today": sales_today,
+                    "sales_total": sales_total,
+                    "orders_pending": orders_pending,
                     "outstanding_total": outstanding_total,
                     "overdue_total": overdue_total,
-                    "avg_order_value": avg_order_value,
-                    "agent_response_time": round(agent_response_time, 1),
-                    "order_conversion_rate": round(float(order_conversion_rate), 4),
+                    "receivables_ageing": {
+                        "0_30": ageing_0_30,
+                        "31_60": ageing_31_60,
+                        "60_plus": ageing_60_plus,
+                    },
+                    "tally_sync": tally_sync,
+                }
+            ).data
+        )
+
+    @action(detail=False, methods=["get"], url_path="recent-orders")
+    def recent_orders(self, request, *args, **kwargs):
+        company = request.user.company
+        orders = (
+            Order.objects.filter(company=company)
+            .exclude(status=OrderStatus.DRAFT)
+            .order_by("-created_at")[:3]
+        )
+        data = []
+        for o in orders:
+            data.append(
+                {
+                    "order_name": o.order_number,
+                    "customer_name": o.customer.trade_name
+                    if getattr(o, "customer", None)
+                    else None,
+                    "payment": o.total_amount,
+                    "status": o.status,
+                }
+            )
+        return Response(data)
+
+    @action(detail=False, methods=["get"], url_path="low-stock-items")
+    def low_stock_items(self, request, *args, **kwargs):
+        company = request.user.company
+        items = VariantSize.objects.filter(
+            color_variant__product__company=company,
+            stock_quantity__lte=F("reorder_level") + F("reserved_qty"),
+        )
+        data = []
+        for item in items:
+            name = f"{item.color_variant.product.name} - {item.color_variant.color_name} - {item.size}"
+            data.append(
+                {
+                    "name": name,
+                    "units": item.available_qty,
+                    "minimum_stock": item.reorder_level,
+                }
+            )
+        return Response({"total_low_stock_items": items.count(), "items": data})
+
+    @action(detail=False, methods=["get"], url_path="top-agents")
+    def top_agents(self, request, *args, **kwargs):
+        company = request.user.company
+        today = now().date()
+
+        # Get orders submitted today by agents
+        agent_stats = (
+            Order.objects.filter(
+                company=company, agent__isnull=False, submitted_at__date=today
+            )
+            .values("agent_id")
+            .annotate(orders_today=Count("id"), payment_today=Sum("total_amount"))
+            .order_by("-payment_today")[:2]
+        )
+
+        data = []
+        for stat in agent_stats:
+            try:
+                agent = AgentProfile.objects.get(id=stat["agent_id"])
+                name = agent.user.full_name
+                # Agent Profile doesn't have an image field, returning null
+                image = None
+            except AgentProfile.DoesNotExist:
+                continue
+
+            data.append(
+                {
+                    "image": image,
+                    "name": name,
+                    "number_of_orders_today": stat["orders_today"],
+                    "total_order_payment_today": stat["payment_today"],
+                }
+            )
+        return Response(data)
+
+
+class BusinessStatsViewSet(GenericViewSet):
+    """
+    Business home-page metrics:
+    customers (total/overdue), agents (total/active today) and
+    receivables (outstanding/overdue amount + overdue invoice count).
+    """
+
+    authentication_classes = (CustomJWTAuthentication,)
+    permission_classes = (IsAuthenticated, CompanyApproved, IsAdmin)
+    serializer_class = BusinessStatsSerializer
+
+    def list(self, request, *args, **kwargs):
+        company = request.company
+        current = now()
+        today_date = current.date()
+        today_start = current.replace(hour=0, minute=0, second=0, microsecond=0)
+
+        unpaid_statuses = [
+            InvoiceStatus.ISSUED,
+            InvoiceStatus.PARTIAL,
+        ]
+        invoices = Invoice.objects.filter(company=company).exclude(
+            invoice_type=InvoiceType.PURCHASE_ORDER
+        )
+        overdue_qs = invoices.filter(
+            due_date__lt=today_date,
+            status__in=unpaid_statuses,
+        )
+
+        outstanding_total = (
+            invoices.filter(status__in=unpaid_statuses).aggregate(
+                total=Sum("amount_due")
+            )["total"]
+            or 0
+        )
+        overdue_total = overdue_qs.aggregate(total=Sum("amount_due"))["total"] or 0
+        overdue_invoices = overdue_qs.count()
+        overdue_customers = overdue_qs.values("customer").distinct().count()
+
+        total_customers = CustomerProfile.objects.filter(
+            company=company,
+            status=CustomerProfile.CustomerStatus.ACTIVE,
+        ).count()
+
+        active_memberships = AgentCompanyMembership.objects.filter(
+            company=company,
+            status=AgentCompanyMembership.MembershipStatus.ACTIVE,
+        )
+        total_agents = active_memberships.count()
+
+        # "Active today" = logged in OR logged a visit OR placed an order today
+        logged_in_ids = set(
+            User.objects.filter(
+                role=RoleType.AGENT,
+                agent_profile__memberships__company=company,
+                agent_profile__memberships__status="active",
+                last_login__gte=today_start,
+            ).values_list("agent_profile", flat=True)
+        )
+        visited_ids = set(
+            AgentVisitLog.objects.filter(
+                company=company,
+                visit_date=today_date,
+            ).values_list("agent_id", flat=True)
+        )
+        ordered_ids = set(
+            Order.objects.filter(
+                company=company,
+                agent__isnull=False,
+                created_at__gte=today_start,
+            ).values_list("agent_id", flat=True)
+        )
+        active_agents_today = len(logged_in_ids | visited_ids | ordered_ids)
+
+        return Response(
+            BusinessStatsSerializer(
+                {
+                    "total_customers": total_customers,
+                    "overdue_customers": overdue_customers,
+                    "overdue_invoices": overdue_invoices,
+                    "total_agents": total_agents,
+                    "active_agents_today": active_agents_today,
+                    "outstanding_total": outstanding_total,
+                    "overdue_total": overdue_total,
                 }
             ).data
         )
@@ -704,7 +882,7 @@ class AdminDashboardViewSet(GenericViewSet):
 
 class AdminAnalyticsViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
-    permission_classes = (IsAuthenticated, CompanyApproved, IsCompanyAdminOrAbove)
+    permission_classes = (IsAuthenticated, CompanyApproved, IsAdmin)
     serializer_class = AdminAnalyticsSerializer
 
     def list(self, request, *args, **kwargs):
@@ -747,8 +925,8 @@ class AdminAnalyticsViewSet(GenericViewSet):
 
         invoices = Invoice.objects.filter(
             company=company,
-            status__in=["issued", "partial", "overdue"],
-        )
+            status__in=["issued", "partial"],
+        ).exclude(invoice_type=InvoiceType.PURCHASE_ORDER)
         aging = invoices.aggregate(
             current=Sum(
                 "amount_due",
@@ -804,6 +982,16 @@ class AdminAnalyticsViewSet(GenericViewSet):
 class CompanySetupViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
     permission_classes = (IsAuthenticated, CompanyApproved, IsAdmin)
+    serializer_class = SetupProfileSerializer
+
+    def get_serializer_class(self):
+        return {
+            "update_profile": SetupProfileSerializer,
+            "update_bank": SetupBankSerializer,
+            "update_invoice": SetupInvoiceSerializer,
+            "update_tax": SetupTaxSettingsSerializer,
+            "update_notifications": SetupNotificationSerializer,
+        }.get(self.action, SetupProfileSerializer)
 
     def _get_settings(self, company):
         settings, _ = CompanySettings.objects.get_or_create(company=company)
@@ -857,3 +1045,83 @@ class CompanySetupViewSet(GenericViewSet):
         request.company.setup_completed = True
         request.company.save(update_fields=["setup_completed"])
         return Response(serializer.data)
+
+
+@extend_schema_view(
+    list=extend_schema(
+        tags=["Permissions"],
+        summary="List permissions",
+        description="Lists all available module permissions. Read-only.",
+        responses={200: PermissionSerializer(many=True)},
+    ),
+)
+@extend_schema_view(
+    list=extend_schema(
+        tags=["Permissions"],
+        summary="List permissions",
+        description="Lists all module permissions. Admin only.",
+        responses={200: PermissionSerializer(many=True)},
+    ),
+    create=extend_schema(
+        tags=["Permissions"],
+        summary="Create permission",
+        description="Creates a new module permission. Admin only.",
+        responses={201: PermissionSerializer, 400: RESPONSE_400},
+    ),
+    retrieve=extend_schema(
+        tags=["Permissions"],
+        summary="Get permission",
+        responses={200: PermissionSerializer, 404: RESPONSE_404},
+    ),
+    update=extend_schema(
+        tags=["Permissions"],
+        summary="Update permission",
+        responses={200: PermissionSerializer, 400: RESPONSE_400, 404: RESPONSE_404},
+    ),
+    partial_update=extend_schema(
+        tags=["Permissions"],
+        summary="Partially update permission",
+        responses={200: PermissionSerializer, 400: RESPONSE_400, 404: RESPONSE_404},
+    ),
+    destroy=extend_schema(
+        tags=["Permissions"],
+        summary="Delete permission",
+        responses={204: None, 404: RESPONSE_404},
+    ),
+)
+class PermissionViewSet(GenericViewSet):
+    authentication_classes = (CustomJWTAuthentication,)
+    permission_classes = (IsAuthenticated, CompanyApproved, IsAdmin)
+    serializer_class = PermissionSerializer
+    queryset = Permission.objects.all().order_by("module")
+
+    def list(self, request, *args, **kwargs):
+        return Response(PermissionSerializer(self.get_queryset(), many=True).data)
+
+    def create(self, request, *args, **kwargs):
+        serializer = PermissionSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    def retrieve(self, request, pk=None, *args, **kwargs):
+        permission = self.get_object()
+        return Response(PermissionSerializer(permission).data)
+
+    def update(self, request, pk=None, *args, **kwargs):
+        partial = kwargs.pop("partial", False)
+        permission = self.get_object()
+        serializer = PermissionSerializer(
+            permission, data=request.data, partial=partial
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+    def partial_update(self, request, *args, **kwargs):
+        kwargs["partial"] = True
+        return self.update(request, *args, **kwargs)
+
+    def destroy(self, request, pk=None, *args, **kwargs):
+        self.get_object().delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)

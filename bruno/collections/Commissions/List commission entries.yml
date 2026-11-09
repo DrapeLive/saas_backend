@@ -1,0 +1,113 @@
+info:
+  name: List commission entries
+  type: http
+  seq: 1
+  tags:
+    - Commissions
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/commission-entries/"
+  params:
+    - name: agent_id
+      value: ""
+      type: query
+      description: Filter by agent.
+      disabled: true
+    - name: month
+      value: ""
+      type: query
+      description: Settlement month (YYYY-MM-01).
+      disabled: true
+    - name: status
+      value: approved
+      type: query
+      description: Filter by entry status.
+      disabled: true
+    - name: status
+      value: disputed
+      type: query
+      description: Filter by entry status.
+      disabled: true
+    - name: status
+      value: paid
+      type: query
+      description: Filter by entry status.
+      disabled: true
+    - name: status
+      value: pending
+      type: query
+      description: Filter by entry status.
+      disabled: true
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    request:
+      url: "{{baseUrl}}/api/commission-entries/"
+      method: GET
+      params:
+        - name: agent_id
+          value: ""
+          type: query
+          description: Filter by agent.
+          disabled: true
+        - name: month
+          value: ""
+          type: query
+          description: Settlement month (YYYY-MM-01).
+          disabled: true
+        - name: status
+          value: approved
+          type: query
+          description: Filter by entry status.
+          disabled: true
+        - name: status
+          value: disputed
+          type: query
+          description: Filter by entry status.
+          disabled: true
+        - name: status
+          value: paid
+          type: query
+          description: Filter by entry status.
+          disabled: true
+        - name: status
+          value: pending
+          type: query
+          description: Filter by entry status.
+          disabled: true
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          [
+            {
+              "id": "",
+              "agent": "",
+              "agent_name": "",
+              "order": "",
+              "order_number": "",
+              "plan_name": "",
+              "order_value": "",
+              "commission_pct": "",
+              "commission_amount": "",
+              "status": "pending",
+              "settlement_month": "",
+              "paid_at": ""
+            }
+          ]

@@ -1,0 +1,45 @@
+info:
+  name: Low stock items
+  type: http
+  seq: 3
+  tags:
+    - Admin
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/admin/dashboard/low-stock-items"
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    request:
+      url: "{{baseUrl}}/api/admin/dashboard/low-stock-items"
+      method: GET
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "total_low_stock_items": 0,
+            "items": [
+              {
+                "name": "",
+                "units": 0,
+                "minimum_stock": 0
+              }
+            ]
+          }

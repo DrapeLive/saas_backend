@@ -1,0 +1,77 @@
+info:
+  name: Setup wizard — company profile
+  type: http
+  seq: 9
+  tags:
+    - Admin
+
+http:
+  method: PATCH
+  url: "{{baseUrl}}/api/admin/setup/profile"
+  body:
+    type: json
+    data: |-
+      {
+        "name": "",
+        "logo": "",
+        "tagline": "",
+        "gstin": "",
+        "address_line1": "",
+        "address_line2": "",
+        "city": "",
+        "state": "",
+        "pincode": "",
+        "country": ""
+      }
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    request:
+      url: "{{baseUrl}}/api/admin/setup/profile"
+      method: PATCH
+      body:
+        type: json
+        data: |-
+          {
+            "name": "",
+            "logo": "",
+            "tagline": "",
+            "gstin": "",
+            "address_line1": "",
+            "address_line2": "",
+            "city": "",
+            "state": "",
+            "pincode": "",
+            "country": ""
+          }
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "name": "",
+            "logo": "",
+            "tagline": "",
+            "gstin": "",
+            "address_line1": "",
+            "address_line2": "",
+            "city": "",
+            "state": "",
+            "pincode": "",
+            "country": ""
+          }

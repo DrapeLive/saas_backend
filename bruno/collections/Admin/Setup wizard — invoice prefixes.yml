@@ -1,0 +1,56 @@
+info:
+  name: Setup wizard — invoice prefixes
+  type: http
+  seq: 7
+  tags:
+    - Admin
+
+http:
+  method: PATCH
+  url: "{{baseUrl}}/api/admin/setup/invoice"
+  body:
+    type: json
+    data: |-
+      {
+        "invoice_prefix": "",
+        "po_prefix": "",
+        "financial_year_start": ""
+      }
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    request:
+      url: "{{baseUrl}}/api/admin/setup/invoice"
+      method: PATCH
+      body:
+        type: json
+        data: |-
+          {
+            "invoice_prefix": "",
+            "po_prefix": "",
+            "financial_year_start": ""
+          }
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "invoice_prefix": "",
+            "po_prefix": "",
+            "financial_year_start": ""
+          }

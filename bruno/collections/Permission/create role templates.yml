@@ -1,0 +1,31 @@
+info:
+  name: create role templates
+  type: http
+  seq: 3
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/admin/role-templates"
+  body:
+    type: json
+    data: |-
+      {
+        "name": "Sub Admin Template",
+        "description": "Only used for Sub Admins",
+        "rank": 69,
+        "is_default": false,
+        "permission_ids": [
+          "87ac55d0-5fb9-406c-a7ee-47544a981180",
+          "300797b8-d1eb-45bb-a340-9b63c5c3a15c"
+        ]
+      }
+  auth:
+    type: bearer
+    token: "{{ACCESS}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

@@ -1,0 +1,46 @@
+info:
+  name: List ledger mappings
+  type: http
+  seq: 1
+  tags:
+    - Tally_Integration
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/tally/ledger-mappings/"
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    request:
+      url: "{{baseUrl}}/api/tally/ledger-mappings/"
+      method: GET
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          [
+            {
+              "id": "",
+              "entity_type": "",
+              "entity_id": "",
+              "tally_ledger_name": "",
+              "tally_group": "",
+              "created_at": "",
+              "updated_at": ""
+            }
+          ]

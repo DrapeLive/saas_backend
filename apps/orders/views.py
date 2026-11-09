@@ -1,33 +1,44 @@
-from decimal import Decimal
-
 from django.db import transaction
-from django.db.models import F, Sum
+from django.db.models import F, Value
+from django.db.models.functions import Greatest
 from django.utils.timezone import now
 from rest_framework import status
-from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 
 from apps.accounts.authentication import CustomJWTAuthentication
-from apps.accounts.permissions import IsAdminOrSubAdmin, IsAdminSubAdminOrAgent, IsAgent
-from apps.customers.models import CustomerProfile
+from apps.accounts.permissions import IsAdminSubAdminOrAgent
+from apps.orders import order_flow
+from apps.orders.exceptions import OrderFlowError
 from apps.orders.models import (
     Order,
-    OrderItem,
     OrderSignature,
     OrderStatus,
     OrderStatusHistory,
+    PackingStatus,
+)
+from apps.orders.realtime import (
+    broadcast_order_expired,
+    broadcast_order_updated,
+    broadcast_stock_updates,
 )
 from apps.orders.serializers import (
+    OrderAddItemSerializer,
     OrderApprovalSerializer,
     OrderCancelSerializer,
-    OrderCreateSerializer,
     OrderDetailSerializer,
+    OrderDraftCreateSerializer,
+    OrderDraftUpdateSerializer,
     OrderListSerializer,
     OrderSignatureSerializer,
     OrderStatusUpdateSerializer,
+    OrderSubmitSerializer,
+    OrderUpdateItemSerializer,
+    PackItemsSerializer,
 )
+from apps.orders.services import send_order_notification
 from apps.products.models import StockMovement, VariantSize
+from apps.sub_admin.services import scope_order_queryset
 
 
 class OrderViewSet(GenericViewSet):
@@ -56,74 +67,14 @@ class OrderViewSet(GenericViewSet):
             notes=notes,
         )
 
-    def _build_order_number(self, company):
-        # Use select_for_update inside the caller's atomic block to prevent
-        # duplicate order numbers under concurrent requests.
-        count = Order.objects.filter(company=company).select_for_update().count() + 1
-        year = now().year
-        return f"ORD-{year}-{count:05d}"
-
-    def _calculate_totals(self, items_data, discount_pct, company):
-        """
-        Resolve prices from VariantSize, apply discount + GST.
-        Returns (line_items, subtotal, discount_amount, taxable, cgst, sgst, igst, total, is_interstate).
-        """
-        subtotal = Decimal("0")
-        line_items = []
-        customer_state = None  # resolved later for interstate check
-
-        for item in items_data:
-            variant = VariantSize.objects.select_related("color_variant__product").get(
-                id=item["variant_size"].id
-            )
-            product = variant.color_variant.product
-            unit_price = variant.price_override or product.wholesale_price
-            qty = item["quantity"]
-            item_disc = item.get("discount_pct", Decimal("0"))
-            line_total = unit_price * qty * (1 - item_disc / 100)
-            subtotal += line_total
-
-            line_items.append(
-                {
-                    "variant_size": variant,
-                    "product_name": product.name,
-                    "color_name": variant.color_variant.color_name,
-                    "size": variant.size,
-                    "sku": variant.sku,
-                    "hsn_code": product.hsn_code,
-                    "unit_price": unit_price,
-                    "quantity": qty,
-                    "discount_pct": item_disc,
-                    "line_total": line_total,
-                    "gst_rate": product.gst_rate,
-                    "gst_amount": line_total * product.gst_rate / 100,
-                }
-            )
-
-        discount_amount = subtotal * discount_pct / 100
-        taxable = subtotal - discount_amount
-        gst_total = sum(i["gst_amount"] for i in line_items)
-        is_interstate = (
-            False  # simplified; real logic compares company state vs customer state
-        )
-        cgst = sgst = igst = Decimal("0")
-        if is_interstate:
-            igst = gst_total
-        else:
-            cgst = sgst = gst_total / 2
-
-        total = taxable + gst_total
-        return (
-            line_items,
-            subtotal,
-            discount_amount,
-            taxable,
-            cgst,
-            sgst,
-            igst,
-            total,
-            is_interstate,
-        )
+    def _advance_status(self, order, new_status, user, notes=""):
+        """Set a new order status and record the transition in status history."""
+        old_status = order.status
+        if old_status == new_status:
+            return
+        order.status = new_status
+        order.save(update_fields=["status", "updated_at"])
+        self._log_status_change(order, old_status, new_status, user, notes or "")
 
     # ─────────────────────────────────────────────────────────────
     # LIST
@@ -135,8 +86,10 @@ class OrderViewSet(GenericViewSet):
         qs = (
             Order.objects.filter(company=company)
             .select_related("customer", "agent__user")
+            .prefetch_related("items")
             .order_by("-created_at")
         )
+        qs = scope_order_queryset(request.user, qs)
 
         # Filters
         status_f = request.query_params.get("status")
@@ -148,8 +101,15 @@ class OrderViewSet(GenericViewSet):
         pending_approval = request.query_params.get("pending_approval")
         offline_f = request.query_params.get("offline")
 
+        include_drafts = request.query_params.get("include_drafts") in (
+            "1",
+            "true",
+            "True",
+        )
         if status_f:
             qs = qs.filter(status=status_f)
+        elif not include_drafts:
+            qs = qs.exclude(status=OrderStatus.DRAFT)
         if agent_f:
             qs = qs.filter(agent_id=agent_f)
         if customer_f:
@@ -184,6 +144,13 @@ class OrderViewSet(GenericViewSet):
         order = self._get_order(pk, company)
         if not order:
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+        scoped_ids = set(
+            scope_order_queryset(request.user, Order.objects.all()).values_list(
+                "id", flat=True
+            )
+        )
+        if scoped_ids and order.id not in scoped_ids:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
 
         # Agents can only see their own orders
         if request.user.role == "agent":
@@ -195,7 +162,7 @@ class OrderViewSet(GenericViewSet):
 
         # Re-fetch with nested relations scoped to company to prevent cross-company leak.
         order_full = Order.objects.prefetch_related(
-            "items", "status_history", "signature"
+            "items", "status_history", "signature", "invoices"
         ).get(pk=pk, company=company)
         return Response(OrderDetailSerializer(order_full).data)
 
@@ -206,136 +173,261 @@ class OrderViewSet(GenericViewSet):
 
     @transaction.atomic
     def create(self, request):
+        """Create an empty DRAFT order after the agent selects a customer."""
         company = self._get_company(request)
-        print(f"Company {company}")
-        serializer = OrderCreateSerializer(
-            data=request.data,
-            context={
-                "request": request,
-                "company": company,
-            },
-        )
+        if request.data.get("items"):
+            return Response(
+                {
+                    "detail": (
+                        "Items cannot be sent while creating an order. Create the "
+                        "draft first, then add items via POST /api/orders/<id>/items/."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = OrderDraftCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
-
-        # Resolve customer
-        customer = CustomerProfile.objects.get(id=data["customer"], company=company)
-
-        # Calculate totals
-        discount_pct = data.get("discount_pct", Decimal("0"))
-        (
-            line_items,
-            subtotal,
-            discount_amount,
-            taxable,
-            cgst,
-            sgst,
-            igst,
-            total,
-            is_interstate,
-        ) = self._calculate_totals(data["items"], discount_pct, company)
-
-        # Check credit limit
-        settings = getattr(company, "settings", None)
-        if settings and settings.credit_block_on_exceed:
-            if customer.credit_utilized + total > customer.credit_limit > 0:
-                return Response(
-                    {
-                        "detail": (
-                            f"Order total ₹{total} would exceed {customer.business_name}'s "
-                            f"credit limit of ₹{customer.credit_limit}."
-                        )
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-        # Approval required?
-        requires_approval = False
-        if settings and settings.order_approval_required:
-            subadmin = getattr(request.user, "subadmin_profile", None)
-            if subadmin and subadmin.approval_threshold:
-                requires_approval = total > subadmin.approval_threshold
-            elif request.user.role == "agent":
-                requires_approval = True
-
-        # Determine initial status
-        order_status = OrderStatus.SUBMITTED
-        if settings and settings.order_auto_confirm and not requires_approval:
-            order_status = OrderStatus.CONFIRMED
-
-        agent_profile = None
-        if request.user.role == "agent":
-            agent_profile = request.user.agent_profile
-
-        # Create Order
-        order = Order.objects.create(
-            company=company,
-            order_number=self._build_order_number(company),
-            customer=customer,
-            agent=agent_profile,
-            status=order_status,
-            subtotal=subtotal,
-            discount_pct=discount_pct,
-            discount_amount=discount_amount,
-            taxable_amount=taxable,
-            cgst_amount=cgst,
-            sgst_amount=sgst,
-            igst_amount=igst,
-            total_amount=total,
-            is_interstate=is_interstate,
-            delivery_address_line1=data.get("delivery_address_line1", ""),
-            delivery_address_line2=data.get("delivery_address_line2", ""),
-            delivery_city=data.get("delivery_city", ""),
-            delivery_state=data.get("delivery_state", ""),
-            delivery_pincode=data.get("delivery_pincode", ""),
-            expected_delivery_date=data.get("expected_delivery_date"),
-            order_notes=data.get("order_notes", ""),
-            requires_approval=requires_approval,
-            is_offline_order=data.get("is_offline_order", False),
-            offline_created_at=data.get("offline_created_at"),
-            sync_status="synced",
-            submitted_at=now(),
-        )
-
-        # Create OrderItems + reserve stock
-        for li in line_items:
-            variant = li.pop("variant_size")
-            OrderItem.objects.create(order=order, **li, variant_size=variant)
-
-            # Reserve stock atomically and refresh to get the updated balance.
-            VariantSize.objects.filter(pk=variant.pk).update(
-                reserved_qty=F("reserved_qty") + li["quantity"]
+        agent = self._get_agent(request)
+        try:
+            order = order_flow.create_draft_order(
+                company, agent, request.user, serializer.validated_data
             )
-            variant.refresh_from_db(fields=["stock_quantity", "reserved_qty"])
-            StockMovement.objects.create(
-                variant_size=variant,
-                movement_type=StockMovement.MovementType.RESERVE,
-                quantity=-li["quantity"],
-                balance_after=variant.available_qty,
-                reference_type="order",
-                reference_id=order.id,
-                performed_by=request.user,
-            )
+        except OrderFlowError as exc:
+            return self._flow_error(exc)
 
-        # Status history
-        self._log_status_change(order, "", OrderStatus.SUBMITTED, request.user)
-
+        order = self._reload_order(order.pk, company)
+        broadcast_order_updated(order)
         return Response(
             OrderDetailSerializer(order).data,
             status=status.HTTP_201_CREATED,
         )
 
     # ─────────────────────────────────────────────────────────────
+    # DRAFT ORDER FLOW
+    # ─────────────────────────────────────────────────────────────
+
+    def _get_agent(self, request):
+        from rest_framework.exceptions import PermissionDenied
+
+        agent = getattr(request.user, "agent_profile", None)
+        if request.user.role != "agent" or agent is None:
+            raise PermissionDenied(
+                "Only agents can use the order draft flow."
+            )
+        return agent
+
+    def _reload_order(self, pk, company):
+        return (
+            Order.objects.select_related(
+                "customer", "agent__user", "approved_by", "company"
+            )
+            .prefetch_related("items", "status_history", "signature", "invoices")
+            .get(pk=pk, company=company)
+        )
+
+    def _flow_error(self, exc):
+        return Response(
+            {"detail": exc.message, "code": exc.code, "fields": exc.fields},
+            status=exc.status_code,
+        )
+
+    def _agent_draft(self, request):
+        self._get_agent(request)
+        company = self._get_company(request)
+        order_flow.expire_draft_orders(
+            company=company, agent=request.user.agent_profile
+        )
+        return company, request.user.agent_profile
+
+    def drafts(self, request):
+        """GET /api/orders/drafts/ — current agent's resumable drafts."""
+        company, agent = self._agent_draft(request)
+        queryset = order_flow.list_draft_orders(company, agent)
+        return Response(OrderDetailSerializer(queryset, many=True).data)
+
+    @transaction.atomic
+    def add_item(self, request, pk=None):
+        """POST /api/orders/<pk>/items/ — add a scanned size range to a draft."""
+        company = self._get_company(request)
+        agent = self._get_agent(request)
+        order = order_flow.get_agent_order(pk, company, agent)
+        serializer = OrderAddItemSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            order, group_id, stock_updates, created = order_flow.add_item_to_draft(
+                order, request.user, serializer.validated_data
+            )
+        except OrderFlowError as exc:
+            return self._flow_error(exc)
+
+        order = self._reload_order(order.pk, company)
+        broadcast_order_updated(order)
+        if created:
+            broadcast_stock_updates(company.id, stock_updates)
+        return Response(
+            {
+                "order": OrderDetailSerializer(order).data,
+                "group_id": str(group_id),
+                "stock_updates": stock_updates,
+                "created": created,
+            },
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+        )
+
+    @transaction.atomic
+    def remove_item(self, request, pk=None, item_id=None):
+        """DELETE /api/orders/<pk>/items/<item_id>/ — remove a scan group."""
+        company = self._get_company(request)
+        agent = self._get_agent(request)
+        order = order_flow.get_agent_order(pk, company, agent)
+        scope = request.query_params.get("scope", "group")
+        try:
+            order, stock_updates = order_flow.remove_item_from_draft(
+                order, request.user, item_id, scope=scope
+            )
+        except OrderFlowError as exc:
+            return self._flow_error(exc)
+
+        if not Order.objects.filter(pk=order.pk, company=company).exists():
+            broadcast_order_updated(order)
+            broadcast_stock_updates(company.id, stock_updates)
+            return Response(
+                {
+                    "order": OrderDetailSerializer(order).data,
+                    "stock_updates": stock_updates,
+                },
+                status=status.HTTP_200_OK,
+            )
+        order = self._reload_order(order.pk, company)
+        broadcast_order_updated(order)
+        broadcast_stock_updates(company.id, stock_updates)
+        return Response(
+            {
+                "order": OrderDetailSerializer(order).data,
+                "stock_updates": stock_updates,
+            }
+        )
+
+    def continue_order(self, request, pk=None):
+        """GET /api/orders/<pk>/continue/ — resume an unexpired draft."""
+        company = self._get_company(request)
+        agent = self._get_agent(request)
+        order = order_flow.get_agent_order(pk, company, agent)
+        try:
+            order_flow.assert_draft_available(order)
+        except OrderFlowError as exc:
+            return self._flow_error(exc)
+        order = self._reload_order(order.pk, company)
+        return Response(OrderDetailSerializer(order).data)
+
+    @transaction.atomic
+    def update_item(self, request, pk=None, item_id=None):
+        """PATCH /api/orders/<pk>/items/<item_id>/ — change group quantity."""
+        company = self._get_company(request)
+        agent = self._get_agent(request)
+        order = order_flow.get_agent_order(pk, company, agent)
+        serializer = OrderUpdateItemSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            order, stock_updates = order_flow.update_item_quantity(
+                order, request.user, item_id, serializer.validated_data["quantity"]
+            )
+        except OrderFlowError as exc:
+            return self._flow_error(exc)
+
+        order = self._reload_order(order.pk, company)
+        broadcast_order_updated(order)
+        broadcast_stock_updates(company.id, stock_updates)
+        return Response(
+            {
+                "order": OrderDetailSerializer(order).data,
+                "stock_updates": stock_updates,
+            }
+        )
+
+    @transaction.atomic
+    def partial_update(self, request, pk=None):
+        """PATCH /api/orders/<pk>/ — update draft delivery/notes/discount."""
+        company = self._get_company(request)
+        agent = self._get_agent(request)
+        order = order_flow.get_agent_order(pk, company, agent)
+        if order.status != OrderStatus.DRAFT:
+            return Response(
+                {"detail": "Only DRAFT orders can be updated."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        serializer = OrderDraftUpdateSerializer(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        for field, value in serializer.validated_data.items():
+            setattr(order, field, value)
+        order.save()
+        order_flow.recalculate_order_totals(order)
+        order_flow.refresh_draft_expiry(order)
+        order.save(update_fields=["draft_expires_at", "updated_at"])
+        order = self._reload_order(order.pk, company)
+        broadcast_order_updated(order)
+        return Response(OrderDetailSerializer(order).data)
+
+    @transaction.atomic
+    def discard(self, request, pk=None):
+        """DELETE /api/orders/<pk>/ — discard a draft and release stock."""
+        company = self._get_company(request)
+        agent = self._get_agent(request)
+        order = order_flow.get_agent_order(pk, company, agent)
+        try:
+            order_id, agent_id = order_flow.discard_draft(order, request.user)
+        except OrderFlowError as exc:
+            return self._flow_error(exc)
+        broadcast_order_expired(order_id, agent_id, company.id)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @transaction.atomic
+    def submit(self, request, pk=None):
+        """POST /api/orders/<pk>/submit/ — convert a DRAFT into a real order."""
+        company = self._get_company(request)
+        agent = self._get_agent(request)
+        order = order_flow.get_agent_order(pk, company, agent)
+        serializer = OrderSubmitSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            order = order_flow.submit_draft(
+                order, request.user, serializer.validated_data
+            )
+        except OrderFlowError as exc:
+            return self._flow_error(exc)
+        order = self._reload_order(order.pk, company)
+        broadcast_order_updated(order)
+        return Response(OrderDetailSerializer(order).data)
+
+    def _create_order(self, company, request, payload):
+        """Legacy helper retained for the offline sync path.
+
+        Creates a draft, adds each item and submits it in one transaction.
+        Returns ``(order, error_response)``.
+        """
+        items = payload.get("items") or []
+        order_payload = {
+            key: value for key, value in payload.items() if key != "items"
+        }
+        agent = getattr(request.user, "agent_profile", None)
+        try:
+            with transaction.atomic():
+                order = order_flow.create_draft_order(
+                    company, agent, request.user, order_payload
+                )
+                for item in items:
+                    order_flow.add_item_to_draft(order, request.user, item)
+                order = order_flow.submit_draft(order, request.user, order_payload)
+            return order, None
+        except OrderFlowError as exc:
+            return None, self._flow_error(exc)
+
+    # ─────────────────────────────────────────────────────────────
     # UPDATE STATUS
     # POST /api/orders/<pk>/status/
     # ─────────────────────────────────────────────────────────────
 
-    @action(
-        detail=True,
-        methods=["post"],
-        url_path="status",
-        permission_classes=[IsAdminOrSubAdmin],
-    )
     @transaction.atomic
     def update_status(self, request, pk=None):
         company = self._get_company(request)
@@ -352,7 +444,6 @@ class OrderViewSet(GenericViewSet):
         order.status = new_status
 
         timestamp_map = {
-            OrderStatus.CONFIRMED: "confirmed_at",
             OrderStatus.DISPATCHED: "dispatched_at",
             OrderStatus.DELIVERED: "delivered_at",
             OrderStatus.CANCELLED: "cancelled_at",
@@ -367,17 +458,42 @@ class OrderViewSet(GenericViewSet):
         if new_status == OrderStatus.CANCELLED:
             for item in order.items.all():
                 VariantSize.objects.filter(pk=item.variant_size_id).update(
-                    reserved_qty=F("reserved_qty") - item.quantity
+                    reserved_qty=Greatest(
+                        F("reserved_qty") - item.quantity, Value(0)
+                    )
+                )
+                item.variant_size.refresh_from_db(
+                    fields=["stock_quantity", "reserved_qty"]
                 )
                 StockMovement.objects.create(
                     variant_size=item.variant_size,
                     movement_type=StockMovement.MovementType.RELEASE,
                     quantity=item.quantity,
-                    balance_after=item.variant_size.stock_quantity,
+                    balance_after=item.variant_size.available_qty,
                     reference_type="order",
                     reference_id=order.id,
                     performed_by=request.user,
                 )
+            event = "order_cancelled"
+        elif new_status == OrderStatus.DISPATCHED:
+            event = "order_dispatched"
+            # Direct status update bypasses the dispatch app: generate the
+            # sales invoice + commission so the ledger stays consistent.
+            from apps.orders.services import (
+                create_commission_entry,
+                generate_sales_invoice,
+            )
+
+            generate_sales_invoice(company, order)
+            if order.agent:
+                create_commission_entry(company, order, performed_by=request.user)
+        elif new_status == OrderStatus.DELIVERED:
+            event = "order_delivered"
+        else:
+            event = None
+
+        if event and order.customer.user:
+            send_order_notification(company, order, event, order.customer.user)
 
         return Response(OrderDetailSerializer(order).data)
 
@@ -386,12 +502,6 @@ class OrderViewSet(GenericViewSet):
     # POST /api/orders/<pk>/approve/
     # ─────────────────────────────────────────────────────────────
 
-    @action(
-        detail=True,
-        methods=["post"],
-        url_path="approve",
-        permission_classes=[IsAdminOrSubAdmin],
-    )
     @transaction.atomic
     def approve(self, request, pk=None):
         company = self._get_company(request)
@@ -416,15 +526,14 @@ class OrderViewSet(GenericViewSet):
 
         if action_val == "approve":
             old_status = order.status
-            order.status = OrderStatus.CONFIRMED
+            order.status = OrderStatus.PROCESSING
             order.approved_by = request.user
             order.approved_at = now()
-            order.confirmed_at = now()
             order.save(
-                update_fields=["status", "approved_by", "approved_at", "confirmed_at"]
+                update_fields=["status", "approved_by", "approved_at"]
             )
             self._log_status_change(
-                order, old_status, OrderStatus.CONFIRMED, request.user, "Approved"
+                order, old_status, OrderStatus.PROCESSING, request.user, "Approved"
             )
         else:
             old_status = order.status
@@ -442,8 +551,32 @@ class OrderViewSet(GenericViewSet):
             # Release reserved stock
             for item in order.items.all():
                 VariantSize.objects.filter(pk=item.variant_size_id).update(
-                    reserved_qty=F("reserved_qty") - item.quantity
+                    reserved_qty=Greatest(
+                        F("reserved_qty") - item.quantity, Value(0)
+                    )
                 )
+                item.variant_size.refresh_from_db(
+                    fields=["stock_quantity", "reserved_qty"]
+                )
+                StockMovement.objects.create(
+                    variant_size=item.variant_size,
+                    movement_type=StockMovement.MovementType.RELEASE,
+                    quantity=item.quantity,
+                    balance_after=item.variant_size.available_qty,
+                    reference_type="order",
+                    reference_id=order.id,
+                    performed_by=request.user,
+                )
+            if order.customer.user:
+                send_order_notification(
+                    company, order, "order_cancelled", order.customer.user
+                )
+            return Response(OrderDetailSerializer(order).data)
+
+        if order.customer.user:
+            send_order_notification(
+                company, order, "order_confirmed", order.customer.user
+            )
 
         return Response(OrderDetailSerializer(order).data)
 
@@ -452,13 +585,18 @@ class OrderViewSet(GenericViewSet):
     # POST /api/orders/<pk>/cancel/
     # ─────────────────────────────────────────────────────────────
 
-    @action(detail=True, methods=["post"], url_path="cancel")
     @transaction.atomic
     def cancel(self, request, pk=None):
         company = self._get_company(request)
         order = self._get_order(pk, company)
         if not order:
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if order.status == OrderStatus.DRAFT:
+            return Response(
+                {"detail": "Use DELETE /api/orders/<id>/ to discard a draft."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         non_cancellable = [
             OrderStatus.DISPATCHED,
@@ -477,9 +615,9 @@ class OrderViewSet(GenericViewSet):
                 return Response(
                     {"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND
                 )
-            if order.status not in [OrderStatus.DRAFT, OrderStatus.SUBMITTED]:
+            if order.status not in [OrderStatus.SUBMITTED]:
                 return Response(
-                    {"detail": "Agents can only cancel draft or submitted orders."},
+                    {"detail": "Agents can only cancel submitted orders."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
@@ -503,16 +641,96 @@ class OrderViewSet(GenericViewSet):
         # Release reserved stock
         for item in order.items.all():
             VariantSize.objects.filter(pk=item.variant_size_id).update(
-                reserved_qty=F("reserved_qty") - item.quantity
+                reserved_qty=Greatest(F("reserved_qty") - item.quantity, Value(0))
+            )
+            item.variant_size.refresh_from_db(
+                fields=["stock_quantity", "reserved_qty"]
             )
             StockMovement.objects.create(
                 variant_size=item.variant_size,
                 movement_type=StockMovement.MovementType.RELEASE,
                 quantity=item.quantity,
-                balance_after=item.variant_size.stock_quantity,
+                balance_after=item.variant_size.available_qty,
                 reference_type="order",
                 reference_id=order.id,
                 performed_by=request.user,
+            )
+
+        if order.customer.user:
+            send_order_notification(
+                company, order, "order_cancelled", order.customer.user
+            )
+
+        return Response(OrderDetailSerializer(order).data)
+
+    # ─────────────────────────────────────────────────────────────
+    # PACKING — record packed quantities per item
+    # POST /api/orders/<pk>/pack-items/
+    # ─────────────────────────────────────────────────────────────
+    @transaction.atomic
+    def pack_items(self, request, pk=None):
+        company = self._get_company(request)
+        order = self._get_order(pk, company)
+        if not order:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if order.status in (
+            OrderStatus.DISPATCHED,
+            OrderStatus.DELIVERED,
+            OrderStatus.CANCELLED,
+        ):
+            return Response(
+                {
+                    "detail": (
+                        f"Packing cannot be updated for an order with status "
+                        f"'{order.status}'."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = PackItemsSerializer(data=request.data, context={"order": order})
+        serializer.is_valid(raise_exception=True)
+        resolved = serializer.validated_data["_resolved_items"]
+        notes = serializer.validated_data.get("notes", "")
+
+        previous_packing_status = order.packing_status
+        changes = []
+        for item, packed_qty in resolved:
+            if item.packed_quantity != packed_qty:
+                changes.append(f"{item.sku}: {item.packed_quantity}→{packed_qty}")
+            item.packed_quantity = packed_qty
+            item.save(update_fields=["packed_quantity", "updated_at"])
+
+        order.refresh_from_db()
+        new_packing_status = order.packing_status
+
+        # Auto-advance the order status based on the derived packing state.
+        # PROGRESS_STATUS_TRANSITIONS:
+        #   - PARTIALLY_PACKED -> PROCESSING (order moved to the packing stage)
+        #   - PACKED          -> PACKED (final pre-dispatch state; sticky once set)
+        # The order only advances forward from SUBMITTED/PROCESSING; once PACKED
+        # it is never downgraded even if packed quantities are later reduced.
+        if order.status in (OrderStatus.SUBMITTED, OrderStatus.PROCESSING):
+            if (
+                order.status == OrderStatus.SUBMITTED
+                and new_packing_status == PackingStatus.PARTIALLY_PACKED
+            ):
+                self._advance_status(order, OrderStatus.PROCESSING, request.user, notes)
+                order.refresh_from_db()
+            if (
+                order.status in (OrderStatus.SUBMITTED, OrderStatus.PROCESSING)
+                and new_packing_status == PackingStatus.PACKED
+            ):
+                self._advance_status(order, OrderStatus.PACKED, request.user, notes)
+
+        if changes:
+            self._log_status_change(
+                order,
+                previous_packing_status,
+                new_packing_status,
+                request.user,
+                notes or f"Packing update: {'; '.join(changes)}",
             )
 
         return Response(OrderDetailSerializer(order).data)
@@ -522,28 +740,22 @@ class OrderViewSet(GenericViewSet):
     # GET /api/orders/kanban/
     # ─────────────────────────────────────────────────────────────
 
-    @action(
-        detail=False,
-        methods=["get"],
-        url_path="kanban",
-        permission_classes=[IsAdminOrSubAdmin],
-    )
     def kanban(self, request):
         company = self._get_company(request)
         result = {}
         kanban_statuses = [
             OrderStatus.SUBMITTED,
-            OrderStatus.CONFIRMED,
             OrderStatus.PROCESSING,
             OrderStatus.PACKED,
-            OrderStatus.READY,
         ]
         for s in kanban_statuses:
             qs = (
                 Order.objects.filter(company=company, status=s)
                 .select_related("customer", "agent__user")
+                .prefetch_related("items")
                 .order_by("created_at")
             )
+            qs = scope_order_queryset(request.user, qs)
             result[s] = OrderListSerializer(qs, many=True).data
 
         return Response(result)
@@ -552,16 +764,14 @@ class OrderViewSet(GenericViewSet):
     # OFFLINE SYNC
     # POST /api/orders/sync/
     # ─────────────────────────────────────────────────────────────
-
-    @action(
-        detail=False, methods=["post"], url_path="sync", permission_classes=[IsAgent]
-    )
     @transaction.atomic
     def sync_offline(self, request):
         """
         Agent mobile app bulk-syncs orders created offline.
-        Each item in the list is processed independently.
+        Each payload is persisted independently inside its own savepoint so a
+        single failure doesn't roll back the rest of the batch.
         """
+        company = self._get_company(request)
         orders_data = request.data.get("orders", [])
         if not isinstance(orders_data, list):
             return Response(
@@ -571,18 +781,23 @@ class OrderViewSet(GenericViewSet):
 
         synced, failed = [], []
         for order_data in orders_data:
+            offline_ref = order_data.get("offline_ref")
             try:
-                serializer = OrderCreateSerializer(
-                    data={**order_data, "is_offline_order": True},
-                    context={"request": request},
-                )
-                serializer.is_valid(raise_exception=True)
-                # Re-use create logic via self.create with modified request
-                synced.append(order_data.get("offline_ref"))
-            except Exception as e:
-                failed.append(
-                    {"offline_ref": order_data.get("offline_ref"), "error": str(e)}
-                )
+                with transaction.atomic():
+                    _, error_response = self._create_order(
+                        company, request, {**order_data, "is_offline_order": True}
+                    )
+                if error_response is not None:
+                    failed.append(
+                        {
+                            "offline_ref": offline_ref,
+                            "error": str(error_response.data),
+                        }
+                    )
+                else:
+                    synced.append(offline_ref)
+            except Exception as e:  # noqa: BLE001 - isolate each offline item
+                failed.append({"offline_ref": offline_ref, "error": str(e)})
 
         return Response({"synced": synced, "failed": failed})
 
@@ -590,13 +805,6 @@ class OrderViewSet(GenericViewSet):
     # SIGNATURE CAPTURE
     # POST /api/orders/<pk>/signature/
     # ─────────────────────────────────────────────────────────────
-
-    @action(
-        detail=True,
-        methods=["post"],
-        url_path="signature",
-        permission_classes=[IsAgent],
-    )
     @transaction.atomic
     def capture_signature(self, request, pk=None):
         company = self._get_company(request)

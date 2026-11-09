@@ -1,0 +1,60 @@
+info:
+  name: Commission summary
+  type: http
+  seq: 5
+  tags:
+    - Commissions
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/commission-entries/summary/"
+  params:
+    - name: month
+      value: ""
+      type: query
+      description: Settlement month (YYYY-MM-01).
+      disabled: true
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    request:
+      url: "{{baseUrl}}/api/commission-entries/summary/"
+      method: GET
+      params:
+        - name: month
+          value: ""
+          type: query
+          description: Settlement month (YYYY-MM-01).
+          disabled: true
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          [
+            {
+              "agent_id": "",
+              "agent_name": "",
+              "pending_amount": "",
+              "approved_amount": "",
+              "paid_amount": "",
+              "disputed_count": 0,
+              "period": ""
+            }
+          ]
+
+docs: Per-agent commission totals for the current (or given) settlement month.

@@ -7,6 +7,7 @@ class CustomJWTAuthentication(JWTAuthentication):
         user = super().get_user(validated_token)
         if not user.is_active:
             from rest_framework.exceptions import AuthenticationFailed
+
             raise AuthenticationFailed("User account is disabled.")
         return user
 
@@ -21,6 +22,7 @@ class CustomJWTAuthentication(JWTAuthentication):
                 header_company_id = request.META.get("HTTP_X_COMPANY_ID")
                 if header_company_id:
                     from apps.agents.models import AgentCompanyMembership
+
                     if AgentCompanyMembership.objects.filter(
                         agent__user=user,
                         company_id=header_company_id,
@@ -30,6 +32,7 @@ class CustomJWTAuthentication(JWTAuthentication):
 
             if company_id:
                 from apps.companies.models import Company
+
                 try:
                     request.company = Company.objects.get(pk=company_id)
                 except Company.DoesNotExist:

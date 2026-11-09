@@ -1,0 +1,21 @@
+info:
+  name: retrieve categories
+  type: http
+  seq: 3
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/categories/f475cc24-34d8-4829-ad6d-4386463788da/"
+  body:
+    type: json
+    data: ""
+  auth:
+    type: bearer
+    token: "{{ACCESS}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: true

@@ -1,0 +1,31 @@
+info:
+    name: Inventory Listing - Low Stock
+    type: http
+    seq: 5
+
+http:
+    method: GET
+    url: "{{baseUrl}}/products/?low_stock=true"
+    headers:
+        - name: Authorization
+          value: "Bearer {{authToken}}"
+        - name: accept
+          value: application/json
+    body:
+        type: none
+    auth:
+        type: none
+
+runtime:
+    scripts:
+        - type: tests
+          code: |-
+              test("Returns 200", function () {
+                expect(res.status).to.equal(200);
+              });
+
+              test("All results are low stock (available <= reorder_level)", function () {
+                res.body.results.forEach(function (row) {
+                  expect(row.stock.is_low_stock).to.equal(true);
+                });
+              });

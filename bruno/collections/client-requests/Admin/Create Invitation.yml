@@ -1,0 +1,26 @@
+info:
+  name: Create Invitation
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/admin/invitations"
+  body:
+    type: json
+    data: |-
+      {
+        "email": "miqdad@gmail.com",
+        "phone": "9995676590",
+        "max_uses": 2
+      }
+  auth:
+    type: bearer
+    token: "{{ACCESS}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: true

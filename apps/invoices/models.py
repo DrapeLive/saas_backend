@@ -15,7 +15,6 @@ class InvoiceStatus(models.TextChoices):
     ISSUED = "issued", "Issued"
     PAID = "paid", "Paid"
     PARTIAL = "partial", "Partially Paid"
-    OVERDUE = "overdue", "Overdue"
     VOID = "void", "Void"
 
 
@@ -52,15 +51,6 @@ class Invoice(CompanyScopeModel):
     is_interstate = models.BooleanField(default=False)
     reverse_charge = models.BooleanField(default=False)
     place_of_supply = models.CharField(max_length=100, blank=True)
-
-    # PDF
-    pdf_file = models.FileField(
-        upload_to="media/invoices/pdf/%Y/%m/", null=True, blank=True
-    )
-    pdf_generated_at = models.DateTimeField(null=True, blank=True)
-
-    tally_voucher_id = models.CharField(max_length=100, blank=True)
-    tally_synced_at = models.DateTimeField(null=True, blank=True)
 
     notes = models.TextField(blank=True)
 

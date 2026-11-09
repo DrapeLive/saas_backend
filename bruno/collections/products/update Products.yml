@@ -1,0 +1,25 @@
+info:
+  name: update Products
+  type: http
+  seq: 11
+
+http:
+  method: PATCH
+  url: "{{baseUrl}}/api/products/b5b04644-df0a-499c-8f57-96e9b4992563/"
+  body:
+    type: json
+    data: |-
+      {
+        "name": "Classic Cotton Polo T-Shirt Hello"
+        
+      }
+  auth:
+    type: bearer
+    token: "{{ACCESS}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: true

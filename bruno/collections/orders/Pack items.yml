@@ -1,0 +1,33 @@
+info:
+  name: Pack items
+  type: http
+  seq: 6
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/orders/8a6fe194-7a17-4850-ba84-fc826c53b040/pack-items/"
+  headers:
+    - name: X-Company-Id
+      value: 34548a8b-3322-44f3-ad9b-48ba4e40278c
+  body:
+    type: json
+    data: |-
+      {
+        "items": [
+          {
+            "item_id": "78998165-f6d7-4839-af98-929b5e2d2d0f",
+            "packed_quantity": 1
+          }
+        ],
+        "notes": "1 unit short packed"
+      }
+  auth:
+    type: bearer
+    token: "{{ACCESS}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: true

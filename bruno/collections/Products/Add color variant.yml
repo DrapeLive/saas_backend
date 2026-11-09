@@ -1,0 +1,193 @@
+info:
+  name: Add color variant
+  type: http
+  seq: 7
+  tags:
+    - Products
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/products/:product_pk/variants/"
+  params:
+    - name: product_pk
+      value: ""
+      type: path
+  body:
+    type: json
+    data: |-
+      {
+        "color_name": "",
+        "color_hex": "",
+        "image": "",
+        "is_primary": false,
+        "is_active": false,
+        "sizes": [
+          {
+            "size": "",
+            "sku": "",
+            "price_override": "",
+            "stock_quantity": 0,
+            "reorder_level": 0,
+            "is_active": false
+          }
+        ]
+      }
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 201 Response
+    request:
+      url: "{{baseUrl}}/api/products/:product_pk/variants/"
+      method: POST
+      params:
+        - name: product_pk
+          value: ""
+          type: path
+      body:
+        type: json
+        data: |-
+          {
+            "color_name": "",
+            "color_hex": "",
+            "image": "",
+            "is_primary": false,
+            "is_active": false,
+            "sizes": [
+              {
+                "size": "",
+                "sku": "",
+                "price_override": "",
+                "stock_quantity": 0,
+                "reorder_level": 0,
+                "is_active": false
+              }
+            ]
+          }
+    response:
+      status: 201
+      statusText: Created
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "id": "",
+            "color_name": "",
+            "color_hex": "",
+            "image": "",
+            "is_primary": false,
+            "sku": "",
+            "qr_code": "",
+            "is_active": false,
+            "sizes": [
+              {
+                "id": "",
+                "size": "",
+                "sku": "",
+                "price_override": "",
+                "stock_quantity": 0,
+                "reserved_qty": 0,
+                "available_qty": 0,
+                "reorder_level": 0,
+                "is_low_stock": false,
+                "is_active": false
+              }
+            ],
+            "created_at": "",
+            "updated_at": ""
+          }
+  - name: 400 Response
+    description: Bad request. Field/validation errors are flattened into a single `detail` string.
+    request:
+      url: "{{baseUrl}}/api/products/:product_pk/variants/"
+      method: POST
+      params:
+        - name: product_pk
+          value: ""
+          type: path
+      body:
+        type: json
+        data: |-
+          {
+            "color_name": "",
+            "color_hex": "",
+            "image": "",
+            "is_primary": false,
+            "is_active": false,
+            "sizes": [
+              {
+                "size": "",
+                "sku": "",
+                "price_override": "",
+                "stock_quantity": 0,
+                "reorder_level": 0,
+                "is_active": false
+              }
+            ]
+          }
+    response:
+      status: 400
+      statusText: Bad Request
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "detail": ""
+          }
+  - name: 404 Response
+    description: Not found. The requested resource does not exist in the current company.
+    request:
+      url: "{{baseUrl}}/api/products/:product_pk/variants/"
+      method: POST
+      params:
+        - name: product_pk
+          value: ""
+          type: path
+      body:
+        type: json
+        data: |-
+          {
+            "color_name": "",
+            "color_hex": "",
+            "image": "",
+            "is_primary": false,
+            "is_active": false,
+            "sizes": [
+              {
+                "size": "",
+                "sku": "",
+                "price_override": "",
+                "stock_quantity": 0,
+                "reorder_level": 0,
+                "is_active": false
+              }
+            ]
+          }
+    response:
+      status: 404
+      statusText: Not Found
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "detail": ""
+          }
+
+docs: Adds a color variant to a product, with optional nested `sizes`.

@@ -1,0 +1,25 @@
+info:
+  name: Extend Subscription
+  type: http
+  seq: 10
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/subscriptions/15c6292c-c43c-4f51-a2d4-463bdbafcf4b/extend/"
+  body:
+    type: json
+    data: |-
+      {
+        "extend_days": 30,
+        "notes" : "notes"
+      }
+  auth:
+    type: bearer
+    token: "{{SUPERADMIN_ACCESS}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: true

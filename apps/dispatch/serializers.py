@@ -49,7 +49,7 @@ class TransportSerializer(serializers.ModelSerializer):
 class DispatchListSerializer(serializers.ModelSerializer):
     order_number = serializers.CharField(source="order.order_number", read_only=True)
     customer_name = serializers.CharField(
-        source="order.customer.business_name", read_only=True
+        source="order.customer.trade_name", read_only=True
     )
     dispatched_by_name = serializers.CharField(
         source="dispatched_by.full_name", read_only=True, default=None
@@ -76,7 +76,7 @@ class DispatchListSerializer(serializers.ModelSerializer):
 class DispatchDetailSerializer(serializers.ModelSerializer):
     order_number = serializers.CharField(source="order.order_number", read_only=True)
     customer_name = serializers.CharField(
-        source="order.customer.business_name", read_only=True
+        source="order.customer.trade_name", read_only=True
     )
     dispatched_by_name = serializers.CharField(
         source="dispatched_by.full_name", read_only=True, default=None
@@ -162,9 +162,9 @@ class DispatchCreateSerializer(serializers.ModelSerializer):
         return attrs
 
     def validate_order(self, value):
-        if value.status not in ["packed", "ready"]:
+        if value.status != "packed":
             raise serializers.ValidationError(
-                "Order must be in 'Packed' or 'Ready to Dispatch' status before dispatching."
+                "Order must be in 'Packed' status before dispatching."
             )
         if hasattr(value, "dispatch"):
             raise serializers.ValidationError(

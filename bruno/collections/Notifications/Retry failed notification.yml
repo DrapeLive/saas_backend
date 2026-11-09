@@ -1,0 +1,99 @@
+info:
+  name: Retry failed notification
+  type: http
+  seq: 8
+  tags:
+    - Notifications
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/notifications/retry/"
+  body:
+    type: json
+    data: |-
+      {
+        "notification_id": ""
+      }
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    description: Success.
+    request:
+      url: "{{baseUrl}}/api/notifications/retry/"
+      method: POST
+      body:
+        type: json
+        data: |-
+          {
+            "notification_id": ""
+          }
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "detail": ""
+          }
+  - name: 400 Response
+    description: Bad request. Field/validation errors are flattened into a single `detail` string.
+    request:
+      url: "{{baseUrl}}/api/notifications/retry/"
+      method: POST
+      body:
+        type: json
+        data: |-
+          {
+            "notification_id": ""
+          }
+    response:
+      status: 400
+      statusText: Bad Request
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "detail": ""
+          }
+  - name: 403 Response
+    description: Forbidden. The authenticated user is not allowed to perform this action.
+    request:
+      url: "{{baseUrl}}/api/notifications/retry/"
+      method: POST
+      body:
+        type: json
+        data: |-
+          {
+            "notification_id": ""
+          }
+    response:
+      status: 403
+      statusText: Forbidden
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "detail": ""
+          }
+
+docs: Re-queues a single failed notification for delivery. Admin only.

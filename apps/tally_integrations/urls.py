@@ -1,5 +1,3 @@
-# apps/tally_integration/urls.py
-
 from django.urls import path
 
 from apps.tally_integrations.views import TallyLedgerMappingViewSet, TallySyncLogViewSet

@@ -22,8 +22,6 @@ urlpatterns = [
     #
     # GET    /api/invoices/<pk>/                 Full invoice detail with line items
     # POST   /api/invoices/<pk>/void/            Void invoice (blocked if payments exist)
-    # POST   /api/invoices/<pk>/regenerate-pdf/  Queue background PDF regeneration
-    # GET    /api/invoices/<pk>/download/         Get PDF download URL
     path(
         "invoices/",
         InvoiceViewSet.as_view({"get": "list", "post": "create"}),
@@ -38,15 +36,5 @@ urlpatterns = [
         "invoices/<uuid:pk>/void/",
         InvoiceViewSet.as_view({"post": "void"}),
         name="invoice-void",
-    ),
-    path(
-        "invoices/<uuid:pk>/regenerate-pdf/",
-        InvoiceViewSet.as_view({"post": "regenerate_pdf"}),
-        name="invoice-regenerate-pdf",
-    ),
-    path(
-        "invoices/<uuid:pk>/download/",
-        InvoiceViewSet.as_view({"get": "download"}),
-        name="invoice-download",
     ),
 ]

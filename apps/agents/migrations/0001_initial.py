@@ -7,81 +7,184 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = [
-        ('companies', '0001_initial'),
+        ("companies", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='AgentInvitation',
+            name="AgentInvitation",
             fields=[
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('email', models.EmailField(blank=True, max_length=254)),
-                ('phone', models.CharField(blank=True, max_length=15)),
-                ('token', models.CharField(max_length=64, unique=True)),
-                ('status', models.CharField(choices=[('pending', 'Pending'), ('accepted', 'Accepted'), ('expired', 'Expired'), ('revoked', 'Revoked')], default='pending', max_length=15)),
-                ('delivery_method', models.CharField(choices=[('whatsapp', 'WhatsApp'), ('email', 'Email'), ('qr_code', 'QR Code'), ('in_app', 'In-App')], max_length=15)),
-                ('expires_at', models.DateTimeField()),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                ("email", models.EmailField(blank=True, max_length=254)),
+                ("phone", models.CharField(blank=True, max_length=15)),
+                ("token", models.CharField(max_length=64, unique=True)),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("pending", "Pending"),
+                            ("accepted", "Accepted"),
+                            ("expired", "Expired"),
+                            ("revoked", "Revoked"),
+                        ],
+                        default="pending",
+                        max_length=15,
+                    ),
+                ),
+                (
+                    "delivery_method",
+                    models.CharField(
+                        choices=[
+                            ("whatsapp", "WhatsApp"),
+                            ("email", "Email"),
+                            ("qr_code", "QR Code"),
+                            ("in_app", "In-App"),
+                        ],
+                        max_length=15,
+                    ),
+                ),
+                ("expires_at", models.DateTimeField()),
             ],
             options={
-                'db_table': 'agents_invitation',
+                "db_table": "agents_invitation",
             },
         ),
         migrations.CreateModel(
-            name='AgentProfile',
+            name="AgentProfile",
             fields=[
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('employee_code', models.CharField(blank=True, max_length=20)),
-                ('profile_bio', models.TextField(blank=True)),
-                ('total_sales', models.DecimalField(decimal_places=2, default=0, max_digits=14)),
-                ('total_orders', models.PositiveIntegerField(default=0)),
-                ('leaderboard_rank', models.PositiveIntegerField(blank=True, null=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                ("employee_code", models.CharField(blank=True, max_length=20)),
+                ("profile_bio", models.TextField(blank=True)),
+                (
+                    "total_sales",
+                    models.DecimalField(decimal_places=2, default=0, max_digits=14),
+                ),
+                ("total_orders", models.PositiveIntegerField(default=0)),
+                (
+                    "leaderboard_rank",
+                    models.PositiveIntegerField(blank=True, null=True),
+                ),
             ],
             options={
-                'db_table': 'agents_profile',
+                "db_table": "agents_profile",
             },
         ),
         migrations.CreateModel(
-            name='AgentVisitLog',
+            name="AgentVisitLog",
             fields=[
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('visit_date', models.DateField()),
-                ('notes', models.TextField(blank=True)),
-                ('order_placed', models.BooleanField(default=False)),
-                ('location_lat', models.DecimalField(blank=True, decimal_places=7, max_digits=10, null=True)),
-                ('location_lng', models.DecimalField(blank=True, decimal_places=7, max_digits=10, null=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                ("visit_date", models.DateField()),
+                ("notes", models.TextField(blank=True)),
+                ("order_placed", models.BooleanField(default=False)),
+                (
+                    "location_lat",
+                    models.DecimalField(
+                        blank=True, decimal_places=7, max_digits=10, null=True
+                    ),
+                ),
+                (
+                    "location_lng",
+                    models.DecimalField(
+                        blank=True, decimal_places=7, max_digits=10, null=True
+                    ),
+                ),
             ],
             options={
-                'db_table': 'agents_visit_log',
-                'ordering': ['-visit_date'],
+                "db_table": "agents_visit_log",
+                "ordering": ["-visit_date"],
             },
         ),
         migrations.CreateModel(
-            name='AgentCompanyMembership',
+            name="AgentCompanyMembership",
             fields=[
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('status', models.CharField(choices=[('pending', 'Pending Approval'), ('active', 'Active'), ('suspended', 'Suspended'), ('removed', 'Removed')], default='pending', max_length=15)),
-                ('territory', models.CharField(blank=True, max_length=200)),
-                ('monthly_target', models.DecimalField(blank=True, decimal_places=2, max_digits=12, null=True)),
-                ('joined_at', models.DateTimeField(blank=True, null=True)),
-                ('removed_at', models.DateTimeField(blank=True, null=True)),
-                ('approved_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='+', to=settings.AUTH_USER_MODEL)),
-                ('company', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='agent_memberships', to='companies.company')),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("pending", "Pending Approval"),
+                            ("active", "Active"),
+                            ("suspended", "Suspended"),
+                            ("removed", "Removed"),
+                        ],
+                        default="pending",
+                        max_length=15,
+                    ),
+                ),
+                ("territory", models.CharField(blank=True, max_length=200)),
+                (
+                    "monthly_target",
+                    models.DecimalField(
+                        blank=True, decimal_places=2, max_digits=12, null=True
+                    ),
+                ),
+                ("joined_at", models.DateTimeField(blank=True, null=True)),
+                ("removed_at", models.DateTimeField(blank=True, null=True)),
+                (
+                    "approved_by",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="+",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "company",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="agent_memberships",
+                        to="companies.company",
+                    ),
+                ),
             ],
             options={
-                'db_table': 'agents_company_membership',
+                "db_table": "agents_company_membership",
             },
         ),
     ]

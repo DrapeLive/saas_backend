@@ -1,15 +1,16 @@
-# apps/products/views.py
-
-from django.db import transaction
-from django.db.models import F
+from django.db import IntegrityError, transaction
+from django.db.models import F, Q
 from django.utils.timezone import now
-from rest_framework import status
+from rest_framework import parsers, status
 from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 
 from apps.accounts.authentication import CustomJWTAuthentication
-from apps.accounts.permissions import IsAdminOrSubAdmin
+from apps.accounts.permissions import CompanyApproved, IsAdminOrSubAdmin, IsCompanyStaff
+from apps.core.pagination import DefaultPageNumberPagination
+from apps.core.parsers import NestedMultiPartParser
 from apps.products.models import (
     Category,
     ColorVariant,
@@ -25,6 +26,7 @@ from apps.products.serializers import (
     ColorVariantCreateSerializer,
     ColorVariantDetailSerializer,
     ColorVariantListSerializer,
+    ColorVariantUpdateSerializer,
     ProductCreateSerializer,
     ProductDetailSerializer,
     ProductListSerializer,
@@ -34,18 +36,40 @@ from apps.products.serializers import (
     StockMovementSerializer,
     VariantSizeSerializer,
 )
-
-# ─────────────────────────────────────────────────────────────────
-# CATEGORY
-# ─────────────────────────────────────────────────────────────────
+from apps.sub_admin.services import (
+    scope_category_queryset,
+    scope_product_queryset,
+)
 
 
 class CategoryViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
-    permission_classes = (IsAdminOrSubAdmin,)
+
+    def get_permissions(self):
+        if self.action == "list":
+            permission_classes = [IsCompanyStaff]
+        elif self.action == "retrieve":
+            permission_classes = [IsCompanyStaff]
+        elif self.action in ["create", "update", "partial_update", "destroy"]:
+            permission_classes = [IsAdminOrSubAdmin]
+        else:
+            permission_classes = [IsAdminOrSubAdmin]
+
+        return [
+            IsAuthenticated(),
+            CompanyApproved(),
+            *[permission() for permission in permission_classes],
+        ]
+
+    def get_serializer_class(self):
+        if self.action == "list":
+            return CategoryListSerializer
+        if self.action in ("create", "partial_update"):
+            return CategoryCreateUpdateSerializer
+        return CategorySerializer
 
     def _get_company(self, request):
-        return request.user.company
+        return request.company or request.user.company
 
     def _get_obj(self, pk, company):
         try:
@@ -53,17 +77,14 @@ class CategoryViewSet(GenericViewSet):
         except Category.DoesNotExist:
             return None
 
-    # GET /api/categories/
     def list(self, request):
         company = self._get_company(request)
-        qs = (
-            Category.objects.filter(company=company, is_deleted=False, parent=None)
-            .prefetch_related("children")
-            .order_by("display_order", "name")
+        qs = Category.objects.filter(company=company, is_deleted=False).order_by(
+            "display_order", "name"
         )
+        qs = scope_category_queryset(request.user, qs)
         return Response(CategoryListSerializer(qs, many=True).data)
 
-    # GET /api/categories/<pk>/
     def retrieve(self, request, pk=None):
         company = self._get_company(request)
         obj = self._get_obj(pk, company)
@@ -76,10 +97,16 @@ class CategoryViewSet(GenericViewSet):
     def create(self, request):
         company = self._get_company(request)
         serializer = CategoryCreateUpdateSerializer(
-            data=request.data, context={"request": request}
+            data=request.data, context={"request": request, "company": company}
         )
         serializer.is_valid(raise_exception=True)
-        category = serializer.save(company=company)
+        try:
+            category = serializer.save(company=company)
+        except IntegrityError:
+            return Response(
+                {"detail": "A category with this name already exists."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         return Response(
             CategorySerializer(category).data, status=status.HTTP_201_CREATED
         )
@@ -92,10 +119,19 @@ class CategoryViewSet(GenericViewSet):
         if not obj:
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
         serializer = CategoryCreateUpdateSerializer(
-            obj, data=request.data, partial=True, context={"request": request}
+            obj,
+            data=request.data,
+            partial=True,
+            context={"request": request, "company": company},
         )
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        try:
+            serializer.save()
+        except IntegrityError:
+            return Response(
+                {"detail": "A category with this name already exists."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         return Response(CategorySerializer(serializer.instance).data)
 
     # DELETE /api/categories/<pk>/
@@ -115,17 +151,28 @@ class CategoryViewSet(GenericViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-# ─────────────────────────────────────────────────────────────────
-# SIZE CHART
-# ─────────────────────────────────────────────────────────────────
-
-
 class SizeChartViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
-    permission_classes = (IsAdminOrSubAdmin,)
+    serializer_class = SizeChartSerializer
+
+    def get_permissions(self):
+        if self.action == "list":
+            permission_classes = [IsCompanyStaff]
+        elif self.action == "retrieve":
+            permission_classes = [IsCompanyStaff]
+        elif self.action in ["create", "update", "partial_update", "destroy"]:
+            permission_classes = [IsAdminOrSubAdmin]
+        else:
+            permission_classes = [IsAdminOrSubAdmin]
+
+        return [
+            IsAuthenticated(),
+            CompanyApproved(),
+            *[permission() for permission in permission_classes],
+        ]
 
     def _get_company(self, request):
-        return request.user.company
+        return request.company or request.user.company
 
     # GET /api/size-charts/
     def list(self, request):
@@ -171,17 +218,33 @@ class SizeChartViewSet(GenericViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-# ─────────────────────────────────────────────────────────────────
-# PRODUCT
-# ─────────────────────────────────────────────────────────────────
-
-
 class ProductViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
-    permission_classes = (IsAdminOrSubAdmin,)
+    pagination_class = DefaultPageNumberPagination
+    parser_classes = (
+        parsers.JSONParser,
+        parsers.FormParser,
+        NestedMultiPartParser,
+    )
+
+    def get_serializer_class(self):
+        if self.action == "list":
+            return ProductListSerializer
+        if self.action == "create":
+            return ProductCreateSerializer
+        if self.action == "partial_update":
+            return ProductUpdateSerializer
+        return ProductDetailSerializer
+
+    def get_permissions(self):
+        # Agents (quick action: browse catalog, scan QR) may read; only
+        # admin/sub-admin may mutate catalog data.
+        if self.action in ("create", "partial_update", "destroy"):
+            return [IsAuthenticated(), CompanyApproved(), IsAdminOrSubAdmin()]
+        return [IsAuthenticated(), CompanyApproved(), IsCompanyStaff()]
 
     def _get_company(self, request):
-        return request.user.company
+        return request.company or request.user.company
 
     def _get_product(self, pk, company):
         try:
@@ -192,12 +255,14 @@ class ProductViewSet(GenericViewSet):
     # GET /api/products/
     def list(self, request):
         company = self._get_company(request)
+
         qs = (
             Product.objects.filter(company=company, is_deleted=False)
-            .select_related("category")
-            .prefetch_related("color_variants")
+            .select_related("category", "size_chart")
+            .prefetch_related("color_variants__sizes")
             .order_by("name")
         )
+        qs = scope_product_queryset(request.user, qs)
 
         category_f = request.query_params.get("category")
         search = request.query_params.get("search")
@@ -213,32 +278,104 @@ class ProductViewSet(GenericViewSet):
                 total_stock__lte=F("color_variants__sizes__reorder_level")
             ).distinct()
         if search:
-            qs = qs.filter(name__icontains=search) | qs.filter(
-                sku_prefix__icontains=search
+            qs = qs.filter(
+                Q(name__icontains=search)
+                | Q(category__name__icontains=search)
+                | Q(color_variants__color_name__icontains=search)
             )
 
-        return Response(
-            ProductListSerializer(qs, many=True, context={"request": request}).data
-        )
+        # Category filter (UUID)
+        category = request.query_params.get("category")
+        if category:
+            qs = qs.filter(category_id=category)
+
+        # Status filter (active/inactive/discontinued)
+        status_f = request.query_params.get("status")
+        if status_f:
+            qs = qs.filter(status=status_f)
+
+        # Size filter: products having a variant size with that size
+        size = request.query_params.get("size")
+        if size:
+            qs = qs.filter(color_variants__sizes__size=size)
+
+        # Low stock / out of stock: products with at least one such variant size
+        low_stock = request.query_params.get("low_stock")
+        if low_stock and low_stock.lower() == "true":
+            qs = qs.filter(
+                color_variants__sizes__stock_quantity__lte=F(
+                    "color_variants__sizes__reorder_level"
+                )
+                + F("color_variants__sizes__reserved_qty")
+            )
+
+        out_of_stock = request.query_params.get("out_of_stock")
+        if out_of_stock and out_of_stock.lower() == "true":
+            qs = qs.filter(
+                color_variants__sizes__stock_quantity__lte=F(
+                    "color_variants__sizes__reserved_qty"
+                )
+            )
+
+        if (
+            search
+            or category
+            or status_f
+            or size
+            or (low_stock and low_stock.lower() == "true")
+            or (out_of_stock and out_of_stock.lower() == "true")
+        ):
+            qs = qs.distinct()
+
+        # Ordering (whitelist)
+        ALLOWED_ORDERING = {
+            "name": "name",
+            "-name": "-name",
+            "mrp": "mrp",
+            "-mrp": "-mrp",
+            "wholesale_price": "wholesale_price",
+            "-wholesale_price": "-wholesale_price",
+            "total_stock": "total_stock",
+            "-total_stock": "-total_stock",
+            "created_at": "created_at",
+            "-created_at": "-created_at",
+        }
+        ordering = request.query_params.get("ordering", "name")
+        if ordering in ALLOWED_ORDERING:
+            qs = qs.order_by(ALLOWED_ORDERING[ordering])
+
+        page = self.paginate_queryset(qs)
+        if page is not None:
+            serializer = ProductListSerializer(
+                page, many=True, context={"request": request}
+            )
+            return self.get_paginated_response(serializer.data)
+
+        serializer = ProductListSerializer(qs, many=True, context={"request": request})
+        return Response({"count": qs.count(), "results": serializer.data})
 
     # GET /api/products/<pk>/
     def retrieve(self, request, pk=None):
         company = self._get_company(request)
-        product = self._get_product(pk, company)
+        product = (
+            Product.objects.filter(pk=pk, company=company, is_deleted=False)
+            .select_related("category", "size_chart")
+            .prefetch_related("color_variants__sizes")
+            .first()
+        )
         if not product:
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
-        product_qs = Product.objects.prefetch_related("color_variants__sizes").get(
-            pk=pk
-        )
         return Response(
-            ProductDetailSerializer(product_qs, context={"request": request}).data
+            ProductDetailSerializer(product, context={"request": request}).data
         )
 
     # POST /api/products/
     @transaction.atomic
     def create(self, request):
         company = self._get_company(request)
-        serializer = ProductCreateSerializer(data=request.data)
+        serializer = ProductCreateSerializer(
+            data=request.data, context={"request": request, "company": company}
+        )
         serializer.is_valid(raise_exception=True)
         product = serializer.save(company=company)
         return Response(
@@ -253,7 +390,12 @@ class ProductViewSet(GenericViewSet):
         product = self._get_product(pk, company)
         if not product:
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
-        serializer = ProductUpdateSerializer(product, data=request.data, partial=True)
+        serializer = ProductUpdateSerializer(
+            product,
+            data=request.data,
+            partial=True,
+            context={"request": request, "company": company},
+        )
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(
@@ -274,34 +416,69 @@ class ProductViewSet(GenericViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     # GET /api/products/scan/<qr_code>/
-    @action(detail=False, methods=["get"], url_path=r"scan/(?P<qr_code>[0-9a-f-]+)")
+    @action(detail=False, methods=["get"], url_path=r"scan/(?P<qr_code>[0-9a-fA-F-]+)")
     def scan_qr(self, request, qr_code=None):
         company = self._get_company(request)
+
         try:
-            variant = ColorVariant.objects.get(
-                qr_code=qr_code, product__company=company, product__is_deleted=False
+            variant = (
+                ColorVariant.objects.select_related("product")
+                .prefetch_related("sizes")
+                .get(
+                    qr_code=qr_code,
+                    product__company=company,
+                    product__is_deleted=False,
+                )
             )
         except ColorVariant.DoesNotExist:
             return Response(
-                {"detail": "Variant not found."}, status=status.HTTP_404_NOT_FOUND
+                {"detail": "Variant not found."},
+                status=status.HTTP_404_NOT_FOUND,
             )
 
-        product_qs = Product.objects.prefetch_related("color_variants__sizes").get(
-            pk=variant.product_id
-        )
+        data = ColorVariantDetailSerializer(
+            variant,
+            context={"request": request},
+        ).data
 
-        data = ProductDetailSerializer(product_qs, context={"request": request}).data
-        return Response({"scanned_variant_id": str(variant.id), "product": data})
-
-
-# ─────────────────────────────────────────────────────────────────
-# COLOR VARIANT
-# ─────────────────────────────────────────────────────────────────
+        return Response(data)
 
 
 class ColorVariantViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
-    permission_classes = (IsAdminOrSubAdmin,)
+    parser_classes = (
+        parsers.JSONParser,
+        parsers.FormParser,
+        NestedMultiPartParser,
+    )
+
+    def get_permissions(self):
+        if self.action == "list":
+            permission_classes = [IsCompanyStaff]
+        elif self.action == "retrieve":
+            permission_classes = [IsCompanyStaff]
+        elif self.action in ["create", "update", "partial_update", "destroy"]:
+            permission_classes = [IsAdminOrSubAdmin]
+        else:
+            permission_classes = [IsAdminOrSubAdmin]
+
+        return [
+            IsAuthenticated(),
+            CompanyApproved(),
+            *[permission() for permission in permission_classes],
+        ]
+
+    def get_serializer_class(self):
+        if self.action == "create":
+            return ColorVariantCreateSerializer
+        if self.action == "partial_update":
+            return ColorVariantUpdateSerializer
+        if self.action == "retrieve":
+            return ColorVariantDetailSerializer
+        return ColorVariantListSerializer
+
+    def _get_company(self, request):
+        return request.company or request.user.company
 
     def _get_product(self, product_pk, company):
         try:
@@ -311,7 +488,7 @@ class ColorVariantViewSet(GenericViewSet):
 
     # GET /api/products/<product_pk>/variants/
     def list(self, request, product_pk=None):
-        company = request.user.company
+        company = self._get_company(request)
         product = self._get_product(product_pk, company)
         if not product:
             return Response(
@@ -322,7 +499,7 @@ class ColorVariantViewSet(GenericViewSet):
 
     # GET /api/products/<product_pk>/variants/<pk>/
     def retrieve(self, request, product_pk=None, pk=None):
-        company = request.user.company
+        company = self._get_company(request)
         product = self._get_product(product_pk, company)
         if not product:
             return Response(
@@ -334,12 +511,16 @@ class ColorVariantViewSet(GenericViewSet):
             )
         except ColorVariant.DoesNotExist:
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
-        return Response(ColorVariantDetailSerializer(variant).data)
+        return Response(
+            ColorVariantDetailSerializer(
+                variant, context={"request": request}
+            ).data
+        )
 
     # POST /api/products/<product_pk>/variants/
     @transaction.atomic
     def create(self, request, product_pk=None):
-        company = request.user.company
+        company = self._get_company(request)
         product = self._get_product(product_pk, company)
         if not product:
             return Response(
@@ -348,13 +529,43 @@ class ColorVariantViewSet(GenericViewSet):
         serializer = ColorVariantCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         variant = serializer.save(product=product)
+        self._refresh_product_stock(product)
         return Response(
-            ColorVariantDetailSerializer(variant).data, status=status.HTTP_201_CREATED
+            ColorVariantDetailSerializer(
+                variant, context={"request": request}
+            ).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    # PATCH /api/products/<product_pk>/variants/<pk>/
+    @transaction.atomic
+    def partial_update(self, request, product_pk=None, pk=None):
+        company = self._get_company(request)
+        product = self._get_product(product_pk, company)
+        if not product:
+            return Response(
+                {"detail": "Product not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+        try:
+            variant = ColorVariant.objects.prefetch_related("sizes").get(
+                pk=pk, product=product
+            )
+        except ColorVariant.DoesNotExist:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+        serializer = ColorVariantUpdateSerializer(
+            variant, data=request.data, partial=True
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(
+            ColorVariantDetailSerializer(
+                serializer.instance, context={"request": request}
+            ).data
         )
 
     # DELETE /api/products/<product_pk>/variants/<pk>/
     def destroy(self, request, product_pk=None, pk=None):
-        company = request.user.company
+        company = self._get_company(request)
         product = self._get_product(product_pk, company)
         if not product:
             return Response(
@@ -364,23 +575,50 @@ class ColorVariantViewSet(GenericViewSet):
             variant = ColorVariant.objects.get(pk=pk, product=product)
         except ColorVariant.DoesNotExist:
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
-        variant.is_active = False
-        variant.save(update_fields=["is_active"])
+        variant.delete()
+        self._refresh_product_stock(product)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+    @staticmethod
+    def _refresh_product_stock(product):
+        from django.db.models import Sum as DSum
 
-# ─────────────────────────────────────────────────────────────────
-# STOCK ADJUSTMENT
-# ─────────────────────────────────────────────────────────────────
+        total = VariantSize.objects.filter(color_variant__product=product).aggregate(
+            total=DSum("stock_quantity")
+        )
+        Product.objects.filter(pk=product.pk).update(total_stock=total["total"] or 0)
 
 
 class StockViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
-    permission_classes = (IsAdminOrSubAdmin,)
+
+    def get_permissions(self):
+        if self.action == "list":
+            permission_classes = [IsCompanyStaff]
+        elif self.action == "retrieve":
+            permission_classes = [IsCompanyStaff]
+        elif self.action in ["create", "update", "partial_update", "destroy"]:
+            permission_classes = [IsAdminOrSubAdmin]
+        else:
+            permission_classes = [IsAdminOrSubAdmin]
+
+        return [
+            IsAuthenticated(),
+            CompanyApproved(),
+            *[permission() for permission in permission_classes],
+        ]
+
+    def get_serializer_class(self):
+        if self.action == "adjust":
+            return StockAdjustmentSerializer
+        return StockMovementSerializer
+
+    def _get_company(self, request):
+        return request.company or request.user.company
 
     # GET /api/stock/movements/
     def list(self, request):
-        company = request.user.company
+        company = self._get_company(request)
         qs = (
             StockMovement.objects.filter(
                 variant_size__color_variant__product__company=company
@@ -394,15 +632,30 @@ class StockViewSet(GenericViewSet):
         return Response(StockMovementSerializer(qs, many=True).data)
 
     # POST /api/stock/adjust/
+    @action(detail=False, methods=["post"])
     @transaction.atomic
     def adjust(self, request):
+        company = self._get_company(request)
         serializer = StockAdjustmentSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
-        variant = VariantSize.objects.select_for_update().get(
-            id=data["variant_size_id"]
-        )
+        try:
+            variant = (
+                VariantSize.objects.select_for_update()
+                .select_related("color_variant__product")
+                .get(
+                    id=data["variant_size_id"],
+                    color_variant__product__company=company,
+                    color_variant__product__is_deleted=False,
+                )
+            )
+        except VariantSize.DoesNotExist:
+            return Response(
+                {"detail": "Variant size not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
         qty = data["quantity"]
 
         if qty < 0 and variant.available_qty < abs(qty):

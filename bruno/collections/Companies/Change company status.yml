@@ -1,0 +1,159 @@
+info:
+  name: Change company status
+  type: http
+  seq: 7
+  tags:
+    - Companies
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/super-admin/companies/:id/status"
+  params:
+    - name: id
+      value: ""
+      type: path
+  body:
+    type: json
+    data: |-
+      {
+        "status": "pending",
+        "reason": ""
+      }
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    request:
+      url: "{{baseUrl}}/api/super-admin/companies/:id/status"
+      method: POST
+      params:
+        - name: id
+          value: ""
+          type: path
+      body:
+        type: json
+        data: |-
+          {
+            "status": "pending",
+            "reason": ""
+          }
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "detail": "",
+            "company": {
+              "id": "",
+              "name": "",
+              "slug": "",
+              "logo": "",
+              "tagline": "",
+              "gstin": "",
+              "gstin_verified": false,
+              "gstin_legal_name": "",
+              "pan": "",
+              "address_line1": "",
+              "address_line2": "",
+              "city": "",
+              "state": "",
+              "pincode": "",
+              "country": "",
+              "contact_email": "",
+              "contact_phone": "",
+              "website": "",
+              "invoice_prefix": "",
+              "po_prefix": "",
+              "invoice_counter": 0,
+              "po_counter": 0,
+              "financial_year_start": "",
+              "bank_name": "",
+              "bank_account": "",
+              "bank_ifsc": "",
+              "bank_branch": "",
+              "upi_id": "",
+              "tally_enabled": false,
+              "tally_url": "",
+              "tally_company": "",
+              "whatsapp_enabled": false,
+              "gst_verify_enabled": false,
+              "status": "pending",
+              "setup_completed": false,
+              "subscription": "",
+              "settings": "",
+              "created_at": "",
+              "updated_at": ""
+            }
+          }
+  - name: 400 Response
+    description: Bad request. Field/validation errors are flattened into a single `detail` string.
+    request:
+      url: "{{baseUrl}}/api/super-admin/companies/:id/status"
+      method: POST
+      params:
+        - name: id
+          value: ""
+          type: path
+      body:
+        type: json
+        data: |-
+          {
+            "status": "pending",
+            "reason": ""
+          }
+    response:
+      status: 400
+      statusText: Bad Request
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "detail": ""
+          }
+  - name: 404 Response
+    description: Not found. The requested resource does not exist in the current company.
+    request:
+      url: "{{baseUrl}}/api/super-admin/companies/:id/status"
+      method: POST
+      params:
+        - name: id
+          value: ""
+          type: path
+      body:
+        type: json
+        data: |-
+          {
+            "status": "pending",
+            "reason": ""
+          }
+    response:
+      status: 404
+      statusText: Not Found
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "detail": ""
+          }
+
+docs: Super-admin only. Transitions a company between pending, trial, active, suspended, expired and grace.

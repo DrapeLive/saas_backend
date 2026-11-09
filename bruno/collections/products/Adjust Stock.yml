@@ -1,0 +1,26 @@
+info:
+  name: Adjust Stock
+  type: http
+  seq: 19
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/stock/adjust/"
+  body:
+    type: json
+    data: |-
+      {
+        "variant_size_id": "e5dc2065-e8b3-411c-ad75-65b420da359f",
+        "quantity": 30, 
+        "reason": "Hello"
+      }
+  auth:
+    type: bearer
+    token: "{{ACCESS}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: true

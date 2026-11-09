@@ -1,0 +1,78 @@
+info:
+  name: My performance (agent)
+  type: http
+  seq: 14
+  tags:
+    - Agents
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/auth/agents/performance"
+  headers:
+    - name: X-Company-Id
+      value: ""
+      description: Optional company to operate in. Agents whose JWT does not carry a `company_id` claim must pass an active membership company via this header to access company-scoped endpoints.
+      disabled: true
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    request:
+      url: "{{baseUrl}}/api/auth/agents/performance"
+      method: GET
+      headers:
+        - name: X-Company-Id
+          value: ""
+          description: Optional company to operate in. Agents whose JWT does not carry a `company_id` claim must pass an active membership company via this header to access company-scoped endpoints.
+          disabled: true
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "orders_this_month": 0,
+            "sales_this_month": "",
+            "commission_earned": "",
+            "commission_preview": "",
+            "leaderboard_rank": 0,
+            "target_vs_actual": 0,
+            "monthly_target": ""
+          }
+  - name: 400 Response
+    description: Bad request. Field/validation errors are flattened into a single `detail` string.
+    request:
+      url: "{{baseUrl}}/api/auth/agents/performance"
+      method: GET
+      headers:
+        - name: X-Company-Id
+          value: ""
+          description: Optional company to operate in. Agents whose JWT does not carry a `company_id` claim must pass an active membership company via this header to access company-scoped endpoints.
+          disabled: true
+    response:
+      status: 400
+      statusText: Bad Request
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "detail": ""
+          }
+
+docs: Agent-facing. Performance for the current company selected via JWT `company_id` claim or `X-Company-Id` header.

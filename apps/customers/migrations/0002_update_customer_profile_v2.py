@@ -4,48 +4,60 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('customers', '0001_initial'),
+        ("customers", "0001_initial"),
     ]
 
     operations = [
         migrations.RemoveField(
-            model_name='customerprofile',
-            name='business_name',
+            model_name="customerprofile",
+            name="business_name",
         ),
         migrations.AddField(
-            model_name='customerprofile',
-            name='is_credit_blocked',
+            model_name="customerprofile",
+            name="is_credit_blocked",
             field=models.BooleanField(default=False),
         ),
         migrations.AddField(
-            model_name='customerprofile',
-            name='legal_name',
+            model_name="customerprofile",
+            name="legal_name",
             field=models.CharField(blank=True, max_length=200),
         ),
         migrations.AddField(
-            model_name='customerprofile',
-            name='tags',
+            model_name="customerprofile",
+            name="tags",
             field=models.JSONField(blank=True, default=list),
         ),
         migrations.AddField(
-            model_name='customerprofile',
-            name='trade_name',
-            field=models.CharField(default='', max_length=200),
+            model_name="customerprofile",
+            name="trade_name",
+            field=models.CharField(default="", max_length=200),
         ),
         migrations.AlterField(
-            model_name='customerprofile',
-            name='gstin_status',
-            field=models.CharField(choices=[('active', 'Active'), ('cancelled', 'Cancelled'), ('suspended', 'Suspended'), ('unverified', 'Unverified')], default='unverified', max_length=15),
+            model_name="customerprofile",
+            name="gstin_status",
+            field=models.CharField(
+                choices=[
+                    ("active", "Active"),
+                    ("cancelled", "Cancelled"),
+                    ("suspended", "Suspended"),
+                    ("unverified", "Unverified"),
+                ],
+                default="unverified",
+                max_length=15,
+            ),
         ),
         migrations.AlterField(
-            model_name='customerprofile',
-            name='owner_name',
+            model_name="customerprofile",
+            name="owner_name",
             field=models.CharField(blank=True, max_length=150),
         ),
         migrations.AddConstraint(
-            model_name='customerprofile',
-            constraint=models.UniqueConstraint(condition=models.Q(('gstin__gt', '')), fields=('company', 'gstin'), name='unique_gstin_per_company'),
+            model_name="customerprofile",
+            constraint=models.UniqueConstraint(
+                condition=models.Q(("gstin__gt", "")),
+                fields=("company", "gstin"),
+                name="unique_gstin_per_company",
+            ),
         ),
     ]

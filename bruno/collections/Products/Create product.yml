@@ -1,0 +1,210 @@
+info:
+  name: Create product
+  type: http
+  seq: 2
+  tags:
+    - Products
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/products/"
+  body:
+    type: json
+    data: |-
+      {
+        "category": "",
+        "name": "",
+        "description": "",
+        "sku_prefix": "",
+        "hsn_code": "",
+        "gst_rate": "",
+        "size_chart": "",
+        "mrp": "",
+        "wholesale_price": "",
+        "minimum_order_qty": 0,
+        "order_in_multiples": 0,
+        "status": "active",
+        "color_variants": [
+          {
+            "color_name": "",
+            "color_hex": "",
+            "image": "",
+            "is_primary": false,
+            "is_active": false,
+            "sizes": [
+              {
+                "size": "",
+                "sku": "",
+                "price_override": "",
+                "stock_quantity": 0,
+                "reorder_level": 0,
+                "is_active": false
+              }
+            ]
+          }
+        ]
+      }
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 201 Response
+    request:
+      url: "{{baseUrl}}/api/products/"
+      method: POST
+      body:
+        type: json
+        data: |-
+          {
+            "category": "",
+            "name": "",
+            "description": "",
+            "sku_prefix": "",
+            "hsn_code": "",
+            "gst_rate": "",
+            "size_chart": "",
+            "mrp": "",
+            "wholesale_price": "",
+            "minimum_order_qty": 0,
+            "order_in_multiples": 0,
+            "status": "active",
+            "color_variants": [
+              {
+                "color_name": "",
+                "color_hex": "",
+                "image": "",
+                "is_primary": false,
+                "is_active": false,
+                "sizes": [
+                  {
+                    "size": "",
+                    "sku": "",
+                    "price_override": "",
+                    "stock_quantity": 0,
+                    "reorder_level": 0,
+                    "is_active": false
+                  }
+                ]
+              }
+            ]
+          }
+    response:
+      status: 201
+      statusText: Created
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "id": "",
+            "category": "",
+            "category_name": "",
+            "name": "",
+            "description": "",
+            "sku_prefix": "",
+            "hsn_code": "",
+            "gst_rate": "",
+            "size_chart": "",
+            "size_chart_name": "",
+            "mrp": "",
+            "wholesale_price": "",
+            "minimum_order_qty": 0,
+            "order_in_multiples": 0,
+            "total_stock": 0,
+            "status": "active",
+            "color_variants": [
+              {
+                "id": "",
+                "color_name": "",
+                "color_hex": "",
+                "image": "",
+                "is_primary": false,
+                "sku": "",
+                "qr_code": "",
+                "is_active": false,
+                "sizes": [
+                  {
+                    "id": "",
+                    "size": "",
+                    "sku": "",
+                    "price_override": "",
+                    "stock_quantity": 0,
+                    "reserved_qty": 0,
+                    "available_qty": 0,
+                    "reorder_level": 0,
+                    "is_low_stock": false,
+                    "is_active": false
+                  }
+                ],
+                "created_at": "",
+                "updated_at": ""
+              }
+            ],
+            "created_at": "",
+            "updated_at": ""
+          }
+  - name: 400 Response
+    description: Bad request. Field/validation errors are flattened into a single `detail` string.
+    request:
+      url: "{{baseUrl}}/api/products/"
+      method: POST
+      body:
+        type: json
+        data: |-
+          {
+            "category": "",
+            "name": "",
+            "description": "",
+            "sku_prefix": "",
+            "hsn_code": "",
+            "gst_rate": "",
+            "size_chart": "",
+            "mrp": "",
+            "wholesale_price": "",
+            "minimum_order_qty": 0,
+            "order_in_multiples": 0,
+            "status": "active",
+            "color_variants": [
+              {
+                "color_name": "",
+                "color_hex": "",
+                "image": "",
+                "is_primary": false,
+                "is_active": false,
+                "sizes": [
+                  {
+                    "size": "",
+                    "sku": "",
+                    "price_override": "",
+                    "stock_quantity": 0,
+                    "reorder_level": 0,
+                    "is_active": false
+                  }
+                ]
+              }
+            ]
+          }
+    response:
+      status: 400
+      statusText: Bad Request
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "detail": ""
+          }
+
+docs: Creates a product with optional nested `color_variants` (each with `sizes`).

@@ -1,0 +1,42 @@
+info:
+  name: Sync health summary
+  type: http
+  seq: 7
+  tags:
+    - Tally_Integration
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/tally/status/"
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    request:
+      url: "{{baseUrl}}/api/tally/status/"
+      method: GET
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "total_synced": 0,
+            "total_pending": 0,
+            "total_failed": 0,
+            "last_synced_at": "",
+            "last_error": ""
+          }

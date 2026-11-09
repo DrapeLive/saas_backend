@@ -1,5 +1,4 @@
 from django.urls import path
-from rest_framework_simplejwt.views import TokenRefreshView
 
 # ✅ Completely Verified
 from apps.accounts.views import (
@@ -8,18 +7,21 @@ from apps.accounts.views import (
     AdminUserViewSet,
     AgentRegisterView,
     AuthViewSet,
+    BusinessStatsViewSet,
     CompanySetupViewSet,
     InvitationViewSet,
     LoginView,
+    PermissionViewSet,
     SignupView,
     SuperAdminDashboardViewSet,
+    TokenRefreshApiView,
 )
 
 app_name = "accounts"
 
 urlpatterns = [
     path("auth/login", LoginView.as_view(), name="auth-login"),  # ✅
-    path("auth/refresh", TokenRefreshView.as_view(), name="auth-refresh"),  # ✅
+    path("auth/refresh", TokenRefreshApiView.as_view(), name="auth-refresh"),  # ✅
     path(
         "auth/signup", SignupView.as_view({"post": "create"}), name="auth-signup"
     ),  # ✅
@@ -59,8 +61,25 @@ urlpatterns = [
     # Admin endpoints
     path(
         "admin/users",
-        AdminUserViewSet.as_view({"get": "list", "post": "create_sub_admin"}),
+        AdminUserViewSet.as_view({"get": "list"}),
         name="admin-users-list",
+    ),  # ✅
+    path(
+        "admin/permissions",
+        PermissionViewSet.as_view({"get": "list", "post": "create"}),
+        name="admin-permissions-list",
+    ),  # ✅
+    path(
+        "admin/permissions/<uuid:pk>",
+        PermissionViewSet.as_view(
+            {
+                "get": "retrieve",
+                "put": "update",
+                "patch": "partial_update",
+                "delete": "destroy",
+            }
+        ),
+        name="admin-permissions-detail",
     ),  # ✅
     path(
         "admin/users/<uuid:pk>",
@@ -82,10 +101,29 @@ urlpatterns = [
         AdminDashboardViewSet.as_view({"get": "low_stock_items"}),
         name="admin-dashboard-low-stock-items",
     ),
+        "admin/dashboard/recent-orders",
+        AdminDashboardViewSet.as_view({"get": "recent_orders"}),
+        name="admin-dashboard-recent-orders",
+    ),  # ✅
+    path(
+        "admin/dashboard/low-stock-items",
+        AdminDashboardViewSet.as_view({"get": "low_stock_items"}),
+        name="admin-dashboard-low-stock-items",
+    ),  # ✅
+    path(
+        "admin/dashboard/top-agents",
+        AdminDashboardViewSet.as_view({"get": "top_agents"}),
+        name="admin-dashboard-top-agents",
+    ),  # ✅
     path(
         "admin/analytics",
         AdminAnalyticsViewSet.as_view({"get": "list"}),
         name="admin-analytics",
+    ),  # ✅
+    path(
+        "business/stats",
+        BusinessStatsViewSet.as_view({"get": "list"}),
+        name="business-stats",
     ),  # ✅
     path(
         "super-admin/dashboard",

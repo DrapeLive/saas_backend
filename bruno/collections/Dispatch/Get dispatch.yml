@@ -1,0 +1,84 @@
+info:
+  name: Get dispatch
+  type: http
+  seq: 3
+  tags:
+    - Dispatch
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/dispatches/:id/"
+  params:
+    - name: id
+      value: ""
+      type: path
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    request:
+      url: "{{baseUrl}}/api/dispatches/:id/"
+      method: GET
+      params:
+        - name: id
+          value: ""
+          type: path
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "id": "",
+            "order": "",
+            "order_number": "",
+            "customer_name": "",
+            "lr_number": "",
+            "transport_name": "",
+            "vehicle_number": "",
+            "driver_contact": "",
+            "dispatch_date": "",
+            "expected_delivery": "",
+            "actual_delivery": "",
+            "tracking_url": "",
+            "eway_bill_no": "",
+            "boxes_count": 0,
+            "weight_kg": "",
+            "dispatched_by_name": "",
+            "created_at": "",
+            "updated_at": ""
+          }
+  - name: 404 Response
+    description: Not found. The requested resource does not exist in the current company.
+    request:
+      url: "{{baseUrl}}/api/dispatches/:id/"
+      method: GET
+      params:
+        - name: id
+          value: ""
+          type: path
+    response:
+      status: 404
+      statusText: Not Found
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "detail": ""
+          }

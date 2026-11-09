@@ -1,0 +1,43 @@
+info:
+  name: Recent orders
+  type: http
+  seq: 4
+  tags:
+    - Admin
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/admin/dashboard/recent-orders"
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    request:
+      url: "{{baseUrl}}/api/admin/dashboard/recent-orders"
+      method: GET
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          [
+            {
+              "order_name": "",
+              "customer_name": "",
+              "payment": "",
+              "status": ""
+            }
+          ]

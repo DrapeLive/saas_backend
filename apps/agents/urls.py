@@ -3,16 +3,54 @@
 from django.urls import path
 
 from apps.agents.views import AgentMembershipViewSet
+from apps.agents.dashboard import AgentHomeViewSet, BroadcastViewSet
 
 app_name = "agents"
 
 urlpatterns = [
+    # Agent home dashboard (agent UI)
+    path(
+        "agent/home",
+        AgentHomeViewSet.as_view({"get": "home"}),
+        name="agent-home",
+    ),
+    path(
+        "agent/home/summary",
+        AgentHomeViewSet.as_view({"get": "summary"}),
+        name="agent-home-summary",
+    ),
+    path(
+        "agent/home/recent-orders",
+        AgentHomeViewSet.as_view({"get": "recent_orders"}),
+        name="agent-home-recent-orders",
+    ),
+    path(
+        "agent/home/broadcast",
+        AgentHomeViewSet.as_view({"get": "broadcast"}),
+        name="agent-home-broadcast",
+    ),
+    # Admin broadcast management
+    path(
+        "admin/broadcast/",
+        BroadcastViewSet.as_view({"get": "list", "post": "create"}),
+        name="admin-broadcast-list-create",
+    ),
+    path(
+        "admin/broadcast/<uuid:pk>/",
+        BroadcastViewSet.as_view({"patch": "partial_update", "delete": "destroy"}),
+        name="admin-broadcast-detail",
+    ),
     # Agent-facing (auth/*)
     path(
         "auth/agents/companies",
         AgentMembershipViewSet.as_view({"get": "my_companies"}),
         name="auth-agent-companies",
     ),  # ✅
+    path(
+        "auth/agents/profile",
+        AgentMembershipViewSet.as_view({"get": "profile"}),
+        name="auth-agent-profile",
+    ),
     path(
         "auth/agents/switch-company",
         AgentMembershipViewSet.as_view({"post": "switch_company"}),
@@ -30,10 +68,20 @@ urlpatterns = [
         name="admin-agents-list",
     ),  # ✅
     path(
+        "admin/agents/overview",
+        AgentMembershipViewSet.as_view({"get": "overview"}),
+        name="admin-agents-overview",
+    ),
+    path(
         "admin/agents/leaderboard",
         AgentMembershipViewSet.as_view({"get": "leaderboard"}),
         name="admin-agents-leaderboard",
     ),  # ✅
+    path(
+        "admin/agents/agent-memberships",
+        AgentMembershipViewSet.as_view({"get": "memberships"}),
+        name="admin-agents-memberships",
+    ),
     path(
         "admin/agents/<uuid:pk>",
         AgentMembershipViewSet.as_view(
@@ -71,4 +119,30 @@ urlpatterns = [
         AgentMembershipViewSet.as_view({"get": "agent_performance"}),
         name="admin-agents-performance",
     ),  # ✅
+    # Individual agent detail page (admin / sub-admin)
+    path(
+        "admin/agents/<uuid:pk>/overview",
+        AgentMembershipViewSet.as_view({"get": "agent_detail"}),
+        name="admin-agents-detail-overview",
+    ),
+    path(
+        "admin/agents/<uuid:pk>/transactions",
+        AgentMembershipViewSet.as_view({"get": "agent_transactions"}),
+        name="admin-agents-detail-transactions",
+    ),
+    path(
+        "admin/agents/<uuid:pk>/commission",
+        AgentMembershipViewSet.as_view({"get": "agent_commission"}),
+        name="admin-agents-detail-commission",
+    ),
+    path(
+        "admin/agents/<uuid:pk>/payouts",
+        AgentMembershipViewSet.as_view({"get": "agent_payouts"}),
+        name="admin-agents-detail-payouts",
+    ),
+    path(
+        "admin/agents/<uuid:pk>/adjustments",
+        AgentMembershipViewSet.as_view({"get": "agent_adjustments"}),
+        name="admin-agents-detail-adjustments",
+    ),
 ]

@@ -1,0 +1,44 @@
+info:
+    name: Inventory Listing - Combined Filters
+    type: http
+    seq: 9
+
+http:
+    method: GET
+    url: "{{baseUrl}}/products/?search=tshirt&size=M&status=active&ordering=-stock_quantity&page_size=10"
+    headers:
+        - name: Authorization
+          value: "Bearer {{authToken}}"
+        - name: accept
+          value: application/json
+    body:
+        type: none
+    auth:
+        type: none
+
+runtime:
+    scripts:
+        - type: tests
+          code: |-
+              test("Returns 200", function () {
+                expect(res.status).to.equal(200);
+              });
+
+              test("All filters applied correctly", function () {
+                res.body.results.forEach(function (row) {
+                  expect(row.size).to.equal("M");
+                });
+              });
+
+              test("Results are ordered by stock_quantity descending", function () {
+                for (let i = 1; i < res.body.results.length; i++) {
+                  expect(res.body.results[i - 1].stock.stock_quantity).to.be.at.least(
+                    res.body.results[i].stock.stock_quantity
+                  );
+                }
+              });
+
+              test("Summary and filters present", function () {
+                expect(res.body.summary).to.have.property("stock_valuation");
+                expect(res.body.filters.sizes).to.be.an("array");
+              });

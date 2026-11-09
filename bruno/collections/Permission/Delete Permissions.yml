@@ -1,0 +1,21 @@
+info:
+  name: Delete Permissions
+  type: http
+  seq: 8
+
+http:
+  method: DELETE
+  url: "{{baseUrl}}/api/admin/permissions/918c4b55-8993-4f07-9a06-72670a68ae08"
+  body:
+    type: json
+    data: ""
+  auth:
+    type: bearer
+    token: "{{ACCESS}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

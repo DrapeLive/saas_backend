@@ -1,0 +1,47 @@
+info:
+  name: List notification templates
+  type: http
+  seq: 1
+  tags:
+    - Notifications
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/notification-templates/"
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    request:
+      url: "{{baseUrl}}/api/notification-templates/"
+      method: GET
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          [
+            {
+              "id": "",
+              "event_type": "order_submitted",
+              "channel": "whatsapp",
+              "subject": "",
+              "is_active": false,
+              "created_at": ""
+            }
+          ]
+
+docs: Active templates, including system defaults (`company` is null).

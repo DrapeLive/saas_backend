@@ -1,0 +1,84 @@
+info:
+  name: Get notification
+  type: http
+  seq: 7
+  tags:
+    - Notifications
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/notifications/:id/"
+  params:
+    - name: id
+      value: ""
+      type: path
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    request:
+      url: "{{baseUrl}}/api/notifications/:id/"
+      method: GET
+      params:
+        - name: id
+          value: ""
+          type: path
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "id": "",
+            "company": "",
+            "recipient": "",
+            "recipient_name": "",
+            "recipient_phone": "",
+            "recipient_email": "",
+            "channel": "whatsapp",
+            "template": "",
+            "subject": "",
+            "body": "",
+            "status": "queued",
+            "external_id": "",
+            "sent_at": "",
+            "delivered_at": "",
+            "read_at": "",
+            "error_message": "",
+            "retry_count": 0,
+            "created_at": ""
+          }
+  - name: 404 Response
+    description: Not found. The requested resource does not exist in the current company.
+    request:
+      url: "{{baseUrl}}/api/notifications/:id/"
+      method: GET
+      params:
+        - name: id
+          value: ""
+          type: path
+    response:
+      status: 404
+      statusText: Not Found
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "detail": ""
+          }

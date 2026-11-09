@@ -6,7 +6,7 @@ from apps.payments.models import OutstandingAging, Payment
 
 class PaymentListSerializer(serializers.ModelSerializer):
     customer_name = serializers.CharField(
-        source="customer.business_name", read_only=True
+        source="customer.trade_name", read_only=True
     )
     agent_name = serializers.CharField(
         source="agent.user.full_name", read_only=True, default=None
@@ -39,7 +39,7 @@ class PaymentListSerializer(serializers.ModelSerializer):
 
 class PaymentDetailSerializer(serializers.ModelSerializer):
     customer_name = serializers.CharField(
-        source="customer.business_name", read_only=True
+        source="customer.trade_name", read_only=True
     )
     agent_name = serializers.CharField(
         source="agent.user.full_name", read_only=True, default=None
@@ -128,7 +128,7 @@ class PaymentModeBreakdownSerializer(serializers.Serializer):
 
 class OutstandingAgingSerializer(serializers.ModelSerializer):
     customer_name = serializers.CharField(
-        source="customer.business_name", read_only=True
+        source="customer.trade_name", read_only=True
     )
     customer_phone = serializers.CharField(source="customer.phone", read_only=True)
     assigned_agent = serializers.CharField(
@@ -177,3 +177,11 @@ class SendPaymentReminderSerializer(serializers.Serializer):
         allow_blank=True,
         help_text="Custom message; leave blank to use the default template.",
     )
+
+
+class PaymentReminderQueuedSerializer(serializers.Serializer):
+    """Confirmation that payment reminders were queued."""
+
+    detail = serializers.CharField()
+    channel = serializers.CharField()
+    customer_count = serializers.IntegerField()

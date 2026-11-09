@@ -1,0 +1,151 @@
+info:
+  name: List subscriptions
+  type: http
+  seq: 4
+  tags:
+    - Subscriptions
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/subscriptions/"
+  params:
+    - name: status
+      value: active
+      type: query
+      description: Filter by subscription status.
+      disabled: true
+    - name: status
+      value: cancelled
+      type: query
+      description: Filter by subscription status.
+      disabled: true
+    - name: status
+      value: expired
+      type: query
+      description: Filter by subscription status.
+      disabled: true
+    - name: status
+      value: grace
+      type: query
+      description: Filter by subscription status.
+      disabled: true
+    - name: status
+      value: suspended
+      type: query
+      description: Filter by subscription status.
+      disabled: true
+    - name: status
+      value: trial
+      type: query
+      description: Filter by subscription status.
+      disabled: true
+    - name: tier
+      value: enterprise
+      type: query
+      description: Filter by plan tier.
+      disabled: true
+    - name: tier
+      value: free
+      type: query
+      description: Filter by plan tier.
+      disabled: true
+    - name: tier
+      value: professional
+      type: query
+      description: Filter by plan tier.
+      disabled: true
+    - name: tier
+      value: starter
+      type: query
+      description: Filter by plan tier.
+      disabled: true
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    request:
+      url: "{{baseUrl}}/api/subscriptions/"
+      method: GET
+      params:
+        - name: status
+          value: active
+          type: query
+          description: Filter by subscription status.
+          disabled: true
+        - name: status
+          value: cancelled
+          type: query
+          description: Filter by subscription status.
+          disabled: true
+        - name: status
+          value: expired
+          type: query
+          description: Filter by subscription status.
+          disabled: true
+        - name: status
+          value: grace
+          type: query
+          description: Filter by subscription status.
+          disabled: true
+        - name: status
+          value: suspended
+          type: query
+          description: Filter by subscription status.
+          disabled: true
+        - name: status
+          value: trial
+          type: query
+          description: Filter by subscription status.
+          disabled: true
+        - name: tier
+          value: enterprise
+          type: query
+          description: Filter by plan tier.
+          disabled: true
+        - name: tier
+          value: free
+          type: query
+          description: Filter by plan tier.
+          disabled: true
+        - name: tier
+          value: professional
+          type: query
+          description: Filter by plan tier.
+          disabled: true
+        - name: tier
+          value: starter
+          type: query
+          description: Filter by plan tier.
+          disabled: true
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          [
+            {
+              "id": "",
+              "plan_name": "",
+              "plan_tier": "",
+              "billing_cycle": "monthly",
+              "status": "trial",
+              "trial_end": "",
+              "current_period_end": "",
+              "price_paid": ""
+            }
+          ]
+
+docs: Super-admin only. Lists all tenant subscriptions, newest first, optionally filtered by `status` and `tier`.

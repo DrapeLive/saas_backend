@@ -1,0 +1,25 @@
+info:
+  name: Update Sub Admin
+  type: http
+  seq: 4
+
+http:
+  method: PATCH
+  url: "{{baseUrl}}/api/admin/sub-admins/4ab6f83d-674a-434f-aff5-4db1c4fa58fb"
+  body:
+    type: json
+    data: |-
+      {
+        "role_template_id": "c2c0b615-45aa-4b4f-9998-7ab3eac8d7b4",
+        "approval_threshold": 20
+      }
+  auth:
+    type: bearer
+    token: "{{ACCESS}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

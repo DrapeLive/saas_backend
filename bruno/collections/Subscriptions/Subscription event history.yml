@@ -1,0 +1,78 @@
+info:
+  name: Subscription event history
+  type: http
+  seq: 8
+  tags:
+    - Subscriptions
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/subscriptions/:id/events/"
+  params:
+    - name: id
+      value: ""
+      type: path
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    request:
+      url: "{{baseUrl}}/api/subscriptions/:id/events/"
+      method: GET
+      params:
+        - name: id
+          value: ""
+          type: path
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          [
+            {
+              "id": "",
+              "event_type": "created",
+              "from_plan_name": "",
+              "to_plan_name": "",
+              "performed_by_name": "",
+              "notes": "",
+              "metadata": "",
+              "created_at": ""
+            }
+          ]
+  - name: 404 Response
+    description: Not found. The requested resource does not exist in the current company.
+    request:
+      url: "{{baseUrl}}/api/subscriptions/:id/events/"
+      method: GET
+      params:
+        - name: id
+          value: ""
+          type: path
+    response:
+      status: 404
+      statusText: Not Found
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "detail": ""
+          }
+
+docs: Immutable audit history of the subscription, newest first.

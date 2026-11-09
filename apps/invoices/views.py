@@ -2,31 +2,123 @@ from decimal import Decimal
 
 from django.db import transaction
 from django.utils.timezone import now
+from drf_spectacular.utils import (
+    OpenApiParameter,
+    OpenApiTypes,
+    extend_schema,
+    extend_schema_view,
+)
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 
 from apps.accounts.authentication import CustomJWTAuthentication
-from apps.accounts.permissions import IsAdminOrSubAdmin
+from apps.accounts.permissions import IsAdminOrSubAdmin, IsAdminSubAdminOrAgent
+from apps.core.openapi import RESPONSE_400, RESPONSE_404
 from apps.invoices.models import Invoice, InvoiceItem, InvoiceStatus, InvoiceType
 from apps.invoices.serializers import (
     InvoiceCreateSerializer,
     InvoiceDetailSerializer,
     InvoiceItemSerializer,
     InvoiceListSerializer,
-    InvoicePDFRegenerateSerializer,
-    InvoiceStatusUpdateSerializer,
     InvoiceVoidSerializer,
 )
 
 
+@extend_schema_view(
+    list=extend_schema(
+        tags=["Invoices"],
+        summary="List invoices",
+        parameters=[
+            OpenApiParameter(
+                "type",
+                OpenApiTypes.STR,
+                OpenApiParameter.QUERY,
+                enum=[c.value for c in InvoiceType],
+                description="Invoice type (sales_invoice, purchase_order, credit_note, debit_note).",
+            ),
+            OpenApiParameter(
+                "status",
+                OpenApiTypes.STR,
+                OpenApiParameter.QUERY,
+                enum=[c.value for c in InvoiceStatus],
+                description="Invoice status.",
+            ),
+            OpenApiParameter(
+                "customer_id",
+                OpenApiTypes.UUID,
+                OpenApiParameter.QUERY,
+                description="Filter by customer.",
+            ),
+            OpenApiParameter(
+                "overdue",
+                OpenApiTypes.BOOL,
+                OpenApiParameter.QUERY,
+                description="`true` for issued/overdue invoices past their due date.",
+            ),
+            OpenApiParameter(
+                "date_from",
+                OpenApiTypes.DATE,
+                OpenApiParameter.QUERY,
+                description="Invoice date from.",
+            ),
+            OpenApiParameter(
+                "date_to",
+                OpenApiTypes.DATE,
+                OpenApiParameter.QUERY,
+                description="Invoice date to.",
+            ),
+            OpenApiParameter(
+                "search",
+                OpenApiTypes.STR,
+                OpenApiParameter.QUERY,
+                description="Search by invoice number or customer name.",
+            ),
+        ],
+        responses={200: InvoiceListSerializer(many=True)},
+    ),
+    retrieve=extend_schema(
+        tags=["Invoices"],
+        summary="Get invoice",
+        responses={200: InvoiceDetailSerializer, 404: RESPONSE_404},
+    ),
+    create=extend_schema(
+        tags=["Invoices"],
+        summary="Create manual invoice",
+        description="Manual credit/debit notes only — sales invoices are auto-generated from orders.",
+        responses={201: InvoiceDetailSerializer, 400: RESPONSE_400},
+    ),
+    void=extend_schema(
+        tags=["Invoices"],
+        summary="Void invoice",
+        description="Irreversibly voids a draft/issued invoice with no recorded payments.",
+        responses={200: InvoiceDetailSerializer, 400: RESPONSE_400, 404: RESPONSE_404},
+    ),
+)
 class InvoiceViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
-    permission_classes = (IsAdminOrSubAdmin,)
+    permission_classes = (IsAdminSubAdminOrAgent,)
+
+    def get_permissions(self):
+        # Agents can view invoices but only admin/subadmin may create or void.
+        if self.action in ("create", "void"):
+            return [IsAdminOrSubAdmin()]
+        return [IsAdminSubAdminOrAgent()]
+
+    def get_serializer_class(self):
+        if self.action == "list":
+            return InvoiceListSerializer
+        if self.action == "create":
+            return InvoiceCreateSerializer
+        if self.action == "void":
+            return InvoiceVoidSerializer
+        return InvoiceDetailSerializer
 
     def _get_company(self, request):
-        return request.user.company
+        # Use request.company which is set by CustomJWTAuthentication and
+        # correctly resolves the company for agents using X-Company-Id header.
+        return request.company or request.user.company
 
     def _get_invoice(self, pk, company):
         try:
@@ -63,17 +155,22 @@ class InvoiceViewSet(GenericViewSet):
             qs = qs.filter(customer_id=customer_f)
         if overdue_f:
             qs = qs.filter(
-                status__in=[InvoiceStatus.ISSUED, InvoiceStatus.OVERDUE],
+                status=InvoiceStatus.ISSUED,
                 due_date__lt=now().date(),
-            )
+            ).exclude(invoice_type=InvoiceType.PURCHASE_ORDER)
         if date_from:
             qs = qs.filter(invoice_date__gte=date_from)
         if date_to:
             qs = qs.filter(invoice_date__lte=date_to)
         if search:
             qs = qs.filter(invoice_number__icontains=search) | qs.filter(
-                customer__business_name__icontains=search
+                customer__trade_name__icontains=search
             )
+
+        # Agents only see invoices on orders they booked.
+        if request.user.role == "agent":
+            agent_profile = getattr(request.user, "agent_profile", None)
+            qs = qs.filter(order__agent=agent_profile) if agent_profile else qs.none()
 
         return Response(InvoiceListSerializer(qs, many=True).data)
 
@@ -83,6 +180,19 @@ class InvoiceViewSet(GenericViewSet):
         invoice = self._get_invoice(pk, company)
         if not invoice:
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Agents can only view invoices on orders they booked.
+        if request.user.role == "agent":
+            agent_profile = getattr(request.user, "agent_profile", None)
+            if (
+                not agent_profile
+                or invoice.order_id is None
+                or invoice.order.agent_id != agent_profile.id
+            ):
+                return Response(
+                    {"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND
+                )
+
         return Response(InvoiceDetailSerializer(invoice).data)
 
     # POST /api/invoices/  — manual credit/debit notes only
@@ -97,6 +207,10 @@ class InvoiceViewSet(GenericViewSet):
             company=company,
             invoice_number=company.get_next_invoice_number(),
             status=InvoiceStatus.DRAFT,
+            subtotal=Decimal("0"),
+            taxable_amount=Decimal("0"),
+            total_amount=Decimal("0"),
+            amount_due=Decimal("0"),
             **serializer.validated_data,
         )
 
@@ -156,31 +270,3 @@ class InvoiceViewSet(GenericViewSet):
         invoice.notes = serializer.validated_data["reason"]
         invoice.save(update_fields=["status", "notes"])
         return Response(InvoiceDetailSerializer(invoice).data)
-
-    # POST /api/invoices/<pk>/regenerate-pdf/
-    @action(detail=True, methods=["post"], url_path="regenerate-pdf")
-    def regenerate_pdf(self, request, pk=None):
-        company = self._get_company(request)
-        invoice = self._get_invoice(pk, company)
-        if not invoice:
-            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
-        serializer = InvoicePDFRegenerateSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        # tasks.generate_invoice_pdf.delay(str(invoice.id), force=serializer.validated_data["force"])
-        return Response(
-            {"detail": "PDF regeneration queued.", "invoice_id": str(invoice.id)}
-        )
-
-    # GET /api/invoices/<pk>/download/
-    @action(detail=True, methods=["get"], url_path="download")
-    def download(self, request, pk=None):
-        company = self._get_company(request)
-        invoice = self._get_invoice(pk, company)
-        if not invoice:
-            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
-        if not invoice.pdf_file:
-            return Response(
-                {"detail": "PDF not yet generated. Call regenerate-pdf first."},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-        return Response({"pdf_url": request.build_absolute_uri(invoice.pdf_file.url)})

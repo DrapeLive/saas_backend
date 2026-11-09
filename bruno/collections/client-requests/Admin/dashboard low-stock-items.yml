@@ -1,0 +1,17 @@
+info:
+  name: dashboard low-stock-items
+  type: http
+  seq: 29
+
+http:
+  method: GET
+  url: "{{BASE_URL}}/admin/dashboard/low-stock-items"
+  auth:
+    type: bearer
+    token: "{{ACCESS}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

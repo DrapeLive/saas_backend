@@ -1,0 +1,88 @@
+info:
+  name: Get / update my profile (PATCH)
+  type: http
+  seq: 6
+  tags:
+    - Authentication
+
+http:
+  method: PATCH
+  url: "{{baseUrl}}/api/auth/me"
+  body:
+    type: json
+    data: |-
+      {
+        "full_name": "",
+        "phone": ""
+      }
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    request:
+      url: "{{baseUrl}}/api/auth/me"
+      method: PATCH
+      body:
+        type: json
+        data: |-
+          {
+            "full_name": "",
+            "phone": ""
+          }
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "id": "",
+            "email": "",
+            "full_name": "",
+            "phone": "",
+            "role": "",
+            "company": "",
+            "company_name": "",
+            "company_status": "",
+            "is_active": false,
+            "created_at": "",
+            "updated_at": ""
+          }
+  - name: 400 Response
+    description: Bad request. Field/validation errors are flattened into a single `detail` string.
+    request:
+      url: "{{baseUrl}}/api/auth/me"
+      method: PATCH
+      body:
+        type: json
+        data: |-
+          {
+            "full_name": "",
+            "phone": ""
+          }
+    response:
+      status: 400
+      statusText: Bad Request
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "detail": ""
+          }
+
+docs: GET returns the current user's profile. PATCH with `full_name`/`phone` updates the profile and returns the refreshed profile.

@@ -1,7 +1,9 @@
 from django.contrib.auth.password_validation import validate_password
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
-from apps.accounts.models import RoleType, User
+from apps.accounts.models import Permission, RoleType, User
+from apps.agents.models import AgentInvitation
 from apps.companies.models import Company, CompanySettings
 
 
@@ -20,7 +22,9 @@ class SignupSerializer(serializers.Serializer):
 
     def validate_company_slug(self, value):
         if Company.objects.filter(slug__iexact=value).exists():
-            raise serializers.ValidationError("A company with this slug already exists.")
+            raise serializers.ValidationError(
+                "A company with this slug already exists."
+            )
         return value
 
     def create(self, validated_data):
@@ -80,6 +84,7 @@ class AgentJoinSerializer(serializers.Serializer):
 
     def validate_invite_code(self, value):
         from django.utils import timezone
+
         from apps.agents.models import AgentInvitation
 
         try:
@@ -95,15 +100,51 @@ class AgentJoinSerializer(serializers.Serializer):
         if invitation.used_count >= invitation.max_uses:
             invitation.status = "expired"
             invitation.save(update_fields=["status"])
-            raise serializers.ValidationError("This invitation has reached its maximum uses.")
+            raise serializers.ValidationError(
+                "This invitation has reached its maximum uses."
+            )
 
         self.context["invitation"] = invitation
         return value
 
 
+class AgentInvitationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AgentInvitation
+        fields = [
+            "id",
+            "email",
+            "phone",
+            "token",
+            "status",
+            "max_uses",
+            "used_count",
+            "expires_at",
+            "created_at",
+        ]
+        read_only_fields = fields
+
+
+class AgentInvitationCreateSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=False, allow_blank=True)
+    phone = serializers.CharField(max_length=15, required=False, allow_blank=True)
+    max_uses = serializers.IntegerField(required=False, min_value=1)
+
+    def validate(self, attrs):
+        if not attrs.get("email") and not attrs.get("phone"):
+            raise serializers.ValidationError("Either email or phone is required.")
+        return attrs
+
+
+class LogoutSerializer(serializers.Serializer):
+    refresh_token = serializers.CharField(write_only=True)
+
+
 class PasswordChangeSerializer(serializers.Serializer):
     old_password = serializers.CharField(write_only=True)
-    new_password = serializers.CharField(write_only=True, validators=[validate_password])
+    new_password = serializers.CharField(
+        write_only=True, validators=[validate_password]
+    )
 
     def validate_old_password(self, value):
         user = self.context["request"].user
@@ -127,7 +168,9 @@ class PasswordResetSerializer(serializers.Serializer):
 class PasswordResetConfirmSerializer(serializers.Serializer):
     token = serializers.CharField()
     uid = serializers.CharField()
-    new_password = serializers.CharField(write_only=True, validators=[validate_password])
+    new_password = serializers.CharField(
+        write_only=True, validators=[validate_password]
+    )
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
@@ -161,14 +204,39 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
 
+    @extend_schema_field(serializers.CharField(allow_null=True))
     def get_company_name(self, obj):
         if obj.company_id:
             return obj.company.name
         return None
 
+    @extend_schema_field(serializers.CharField(allow_null=True))
     def get_company_status(self, obj):
         if obj.company_id:
             return obj.company.status
+        return None
+
+
+class LoginUserSerializer(serializers.ModelSerializer):
+    company_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = [
+            "id",
+            "email",
+            "full_name",
+            "phone",
+            "role",
+            "company",
+            "company_name",
+        ]
+        read_only_fields = fields
+
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_company_name(self, obj):
+        if obj.company_id:
+            return obj.company.name
         return None
 
 
@@ -205,30 +273,6 @@ class UserAdminSerializer(serializers.ModelSerializer):
         ]
 
 
-class CreateSubAdminSerializer(serializers.Serializer):
-    email = serializers.EmailField()
-    password = serializers.CharField(write_only=True, validators=[validate_password])
-    full_name = serializers.CharField(max_length=150)
-    phone = serializers.CharField(max_length=15, required=False, allow_blank=True)
-
-    def validate_email(self, value):
-        if User.objects.filter(email__iexact=value).exists():
-            raise serializers.ValidationError("A user with this email already exists.")
-        return value.lower()
-
-    def create(self, validated_data):
-        company = self.context["company"]
-        user = User.objects.create_user(
-            email=validated_data["email"],
-            password=validated_data["password"],
-            full_name=validated_data["full_name"],
-            phone=validated_data.get("phone", ""),
-            role=RoleType.SUB_ADMIN,
-            company=company,
-        )
-        return user
-
-
 class SuperAdminDashboardSerializer(serializers.Serializer):
     total_companies = serializers.IntegerField()
     active_companies = serializers.IntegerField()
@@ -240,14 +284,63 @@ class SuperAdminDashboardSerializer(serializers.Serializer):
     ltv = serializers.DecimalField(max_digits=12, decimal_places=2)
 
 
+class ReceivablesAgeingSerializer(serializers.Serializer):
+    _0_30 = serializers.DecimalField(
+        source="0_30",
+        max_digits=14,
+        decimal_places=2,
+    )
+    _31_60 = serializers.DecimalField(
+        source="31_60",
+        max_digits=14,
+        decimal_places=2,
+    )
+    _60_plus = serializers.DecimalField(
+        source="60_plus",
+        max_digits=14,
+        decimal_places=2,
+    )
+
+
+class TallySyncSerializer(serializers.Serializer):
+    status = serializers.CharField()
+    last_synced_at = serializers.DateTimeField(allow_null=True)
+
+
 class AdminDashboardSerializer(serializers.Serializer):
-    orders_today = serializers.IntegerField()
-    sales_today = serializers.DecimalField(max_digits=14, decimal_places=2)
-    outstanding_total = serializers.DecimalField(max_digits=14, decimal_places=2)
-    overdue_total = serializers.DecimalField(max_digits=14, decimal_places=2)
-    avg_order_value = serializers.DecimalField(max_digits=10, decimal_places=2)
-    agent_response_time = serializers.FloatField()
-    order_conversion_rate = serializers.FloatField()
+    sales_total = serializers.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+    )
+    orders_pending = serializers.IntegerField()
+
+    outstanding_total = serializers.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+    )
+    overdue_total = serializers.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+    )
+
+    receivables_ageing = ReceivablesAgeingSerializer()
+    tally_sync = TallySyncSerializer()
+
+
+class BusinessStatsSerializer(serializers.Serializer):
+    total_customers = serializers.IntegerField()
+    overdue_customers = serializers.IntegerField()
+    overdue_invoices = serializers.IntegerField()
+    total_agents = serializers.IntegerField()
+    active_agents_today = serializers.IntegerField()
+    outstanding_total = serializers.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+    )
+    overdue_total = serializers.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+    )
 
 
 class AdminAnalyticsSerializer(serializers.Serializer):
@@ -264,8 +357,16 @@ class SetupProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = Company
         fields = [
-            "name", "logo", "tagline", "gstin",
-            "address_line1", "address_line2", "city", "state", "pincode", "country",
+            "name",
+            "logo",
+            "tagline",
+            "gstin",
+            "address_line1",
+            "address_line2",
+            "city",
+            "state",
+            "pincode",
+            "country",
         ]
 
 
@@ -291,6 +392,29 @@ class SetupNotificationSerializer(serializers.ModelSerializer):
     class Meta:
         model = CompanySettings
         fields = [
-            "notify_order_whatsapp", "notify_order_email",
-            "notify_low_stock", "notify_payment_due_days",
+            "notify_order_whatsapp",
+            "notify_order_email",
+            "notify_low_stock",
+            "notify_payment_due_days",
         ]
+
+
+class PermissionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Permission
+        fields = [
+            "id",
+            "module",
+            "can_view",
+            "can_add",
+            "can_edit",
+            "can_delete",
+            "can_export",
+        ]
+
+    def validate_module(self, value):
+        if self.instance is None and Permission.objects.filter(module=value).exists():
+            raise serializers.ValidationError(
+                "A permission for this module already exists."
+            )
+        return value

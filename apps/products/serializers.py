@@ -1,7 +1,8 @@
 from typing import ClassVar
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.utils.text import slugify
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.products.models import (
@@ -14,51 +15,54 @@ from apps.products.models import (
 )
 
 
-class CategoryListSerializer(serializers.ModelSerializer):
-    parent_name = serializers.CharField(
-        source="parent.name", read_only=True, default=None
-    )
-    product_count = serializers.IntegerField(source="products.count", read_only=True)
+def _generate_unique_sku(model, base_sku, exclude=()):
+    """
+    Return ``base_sku`` if unused, otherwise append a numeric suffix ("-2", "-3").
 
+    SKUs are derived from the product name, color and size, so different products
+    can collide. This helper keeps the SKU readable while guaranteeing global
+    uniqueness under the model's ``sku`` constraint.
+    """
+    field = model._meta.get_field("sku")
+    max_length = field.max_length or 50
+    exclude = set(exclude)
+
+    candidate = base_sku
+    if len(candidate) > max_length:
+        candidate = candidate[:max_length]
+
+    counter = 2
+    while model.objects.filter(sku=candidate).exists() or candidate in exclude:
+        suffix = f"-{counter}"
+        candidate = f"{candidate[: max_length - len(suffix)]}{suffix}"
+        counter += 1
+    return candidate
+
+
+class CategoryListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
         fields: ClassVar = [
             "id",
             "name",
-            "slug",
-            "parent",
-            "parent_name",
-            "image",
+            "hsn_code",
             "display_order",
-            "is_active",
             "default_commission_pct",
-            "product_count",
         ]
 
 
 class CategorySerializer(serializers.ModelSerializer):
-    children = serializers.SerializerMethodField()
-
     class Meta:
         model = Category
         fields: ClassVar = [
             "id",
             "name",
-            "slug",
-            "parent",
-            "description",
-            "image",
+            "hsn_code",
             "display_order",
-            "is_active",
             "default_commission_pct",
-            "children",
             "created_at",
             "updated_at",
         ]
-
-    def get_children(self, obj):
-        qs = obj.children.filter(is_deleted=False, is_active=True)
-        return CategoryListSerializer(qs, many=True).data
 
 
 class CategoryCreateUpdateSerializer(serializers.ModelSerializer):
@@ -66,25 +70,21 @@ class CategoryCreateUpdateSerializer(serializers.ModelSerializer):
         model = Category
         fields: ClassVar = [
             "name",
-            "slug",
-            "parent",
-            "description",
-            "image",
+            "hsn_code",
             "display_order",
-            "is_active",
             "default_commission_pct",
         ]
 
-    def validate_slug(self, value):
-        request = self.context.get("request")
-        company = getattr(request, "company", None)
-        qs = Category.objects.filter(company=company, slug=value, is_deleted=False)
-        if self.instance:
-            qs = qs.exclude(pk=self.instance.pk)
-        if qs.exists():
-            raise serializers.ValidationError(
-                "A category with this slug already exists."
-            )
+    def validate_name(self, value):
+        company = self.context.get("company")
+        if company is not None:
+            qs = Category.objects.filter(company=company, name__iexact=value)
+            if self.instance is not None:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise serializers.ValidationError(
+                    "A category with this name already exists."
+                )
         return value
 
 
@@ -100,8 +100,12 @@ class SizeChartSerializer(serializers.ModelSerializer):
         ]
 
     def validate_sizes(self, value):
+        if isinstance(value, dict):
+            value = [value]
         if not isinstance(value, list) or len(value) == 0:
-            raise serializers.ValidationError("Sizes must be a non-empty list.")
+            raise serializers.ValidationError("Sizes must be a non-empty list or mapping.")
+        if not all(isinstance(item, (str, dict)) for item in value):
+            raise serializers.ValidationError("Each size must be a string or mapping.")
         return value
 
 
@@ -121,11 +125,14 @@ class VariantSizeSerializer(serializers.ModelSerializer):
             "available_qty",
             "reorder_level",
             "is_low_stock",
-            "is_active",
         ]
 
 
 class VariantSizeCreateSerializer(serializers.ModelSerializer):
+    sku = serializers.CharField(
+        max_length=60, required=False, allow_blank=True, write_only=True
+    )
+
     class Meta:
         model = VariantSize
         fields: ClassVar = [
@@ -134,8 +141,17 @@ class VariantSizeCreateSerializer(serializers.ModelSerializer):
             "price_override",
             "stock_quantity",
             "reorder_level",
-            "is_active",
         ]
+
+    def validate_stock_quantity(self, value):
+        if value < 0:
+            raise serializers.ValidationError("Stock quantity cannot be negative.")
+        return value
+
+    def validate_reorder_level(self, value):
+        if value < 0:
+            raise serializers.ValidationError("Reorder level cannot be negative.")
+        return value
 
 
 class ColorVariantListSerializer(serializers.ModelSerializer):
@@ -146,33 +162,30 @@ class ColorVariantListSerializer(serializers.ModelSerializer):
         fields: ClassVar = [
             "id",
             "color_name",
-            "color_hex",
             "image",
             "is_primary",
-            "sku",
-            "is_active",
             "total_stock",
         ]
 
+    @extend_schema_field(serializers.IntegerField())
     def get_total_stock(self, obj):
-        return sum(s.available_qty for s in obj.sizes.filter(is_active=True))
+        return sum(s.available_qty for s in obj.sizes.all())
 
 
 class ColorVariantDetailSerializer(serializers.ModelSerializer):
     sizes = VariantSizeSerializer(many=True, read_only=True)
+    size_chart = SizeChartSerializer(source="product.size_chart", read_only=True)
 
     class Meta:
         model = ColorVariant
         fields: ClassVar = [
             "id",
             "color_name",
-            "color_hex",
             "image",
             "is_primary",
-            "sku",
             "qr_code",
-            "is_active",
             "sizes",
+            "size_chart",
             "created_at",
             "updated_at",
         ]
@@ -185,67 +198,80 @@ class ColorVariantCreateSerializer(serializers.ModelSerializer):
         model = ColorVariant
         fields: ClassVar = [
             "color_name",
-            "color_hex",
             "image",
             "is_primary",
-            "is_active",
             "sizes",
         ]
 
+    def validate_sizes(self, value):
+        if not isinstance(value, list) or len(value) == 0:
+            raise serializers.ValidationError("Sizes must be a non-empty list.")
+        seen = set()
+        for item in value:
+            size = item.get("size")
+            if size not in seen:
+                seen.add(size)
+            else:
+                raise serializers.ValidationError(
+                    "Each color variant may contain a size only once."
+                )
+        return value
+
+    @transaction.atomic
     def create(self, validated_data):
         sizes_data = validated_data.pop("sizes", [])
-        variant = ColorVariant.objects.create(**validated_data)
-        for size_data in sizes_data:
-            VariantSize.objects.create(color_variant=variant, **size_data)
+        product = validated_data["product"]
+        product_slug = slugify(product.name).upper().replace("-", "")
+        color_slug = slugify(validated_data["color_name"]).upper().replace("-", "")
+        try:
+            variant = ColorVariant.objects.create(**validated_data)
+            used_size_skus = set()
+            for size_data in sizes_data:
+                requested_sku = size_data.pop("sku", "").strip()
+                size_sku = _generate_unique_sku(
+                    VariantSize,
+                    requested_sku
+                    or f"{product_slug}-{color_slug}-{size_data['size']}",
+                    exclude=used_size_skus,
+                )
+                used_size_skus.add(size_sku)
+                VariantSize.objects.create(
+                    color_variant=variant, sku=size_sku, **size_data
+                )
+        except IntegrityError as exc:
+            raise serializers.ValidationError(
+                "A color variant with these details already exists."
+            ) from exc
         return variant
 
 
-class ProductListSerializer(serializers.ModelSerializer):
-    category_name = serializers.CharField(source="category.name", read_only=True)
-    primary_image = serializers.SerializerMethodField()
-    variant_count = serializers.IntegerField(
-        source="color_variants.count", read_only=True
-    )
+class ColorVariantUpdateSerializer(serializers.ModelSerializer):
+    """PATCH support for an existing color variant.
+
+    Sizes are managed through stock adjustments; this endpoint updates the
+    variant's identity and image without deleting/recreating the variant.
+    """
 
     class Meta:
-        model = Product
-        fields: ClassVar = [
-            "id",
-            "name",
-            "category",
-            "category_name",
-            "sku_prefix",
-            "hsn_code",
-            "gst_rate",
-            "mrp",
-            "wholesale_price",
-            "minimum_order_qty",
-            "total_stock",
-            "primary_image",
-            "variant_count",
-            "created_at",
-        ]
-
-    def get_primary_image(self, obj):
-        variant = obj.color_variants.filter(is_primary=True).first()
-        if not variant:
-            variant = obj.color_variants.first()
-        if variant and variant.image:
-            request = self.context.get("request")
-            return (
-                request.build_absolute_uri(variant.image.url)
-                if request
-                else variant.image.url
-            )
-        return None
+        model = ColorVariant
+        fields: ClassVar = ["color_name", "image", "is_primary"]
 
 
-class ProductDetailSerializer(serializers.ModelSerializer):
+class ProductListSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source="category.name", read_only=True)
     size_chart_name = serializers.CharField(
         source="size_chart.name", read_only=True, default=None
     )
     color_variants = ColorVariantDetailSerializer(many=True, read_only=True)
+    available_stock = serializers.SerializerMethodField()
+
+    @extend_schema_field(serializers.IntegerField())
+    def get_available_stock(self, obj):
+        return sum(
+            size.available_qty
+            for variant in obj.color_variants.all()
+            for size in variant.sizes.all()
+        )
 
     class Meta:
         model = Product
@@ -255,16 +281,50 @@ class ProductDetailSerializer(serializers.ModelSerializer):
             "category_name",
             "name",
             "description",
-            "sku_prefix",
-            "hsn_code",
-            "gst_rate",
             "size_chart",
             "size_chart_name",
             "mrp",
             "wholesale_price",
-            "minimum_order_qty",
-            "order_in_multiples",
             "total_stock",
+            "available_stock",
+            "status",
+            "color_variants",
+            "created_at",
+            "updated_at",
+        ]
+
+
+class ProductDetailSerializer(serializers.ModelSerializer):
+    category_name = serializers.CharField(source="category.name", read_only=True)
+    size_chart_name = serializers.CharField(
+        source="size_chart.name", read_only=True, default=None
+    )
+    color_variants = ColorVariantDetailSerializer(many=True, read_only=True)
+    available_stock = serializers.SerializerMethodField()
+
+    @extend_schema_field(serializers.IntegerField())
+    def get_available_stock(self, obj):
+        return sum(
+            size.available_qty
+            for variant in obj.color_variants.all()
+            for size in variant.sizes.all()
+        )
+
+    class Meta:
+        model = Product
+        fields: ClassVar = [
+            "id",
+            "category",
+            "category_name",
+            "name",
+            "description",
+            "size_chart",
+            "size_chart_name",
+            "mrp",
+            "wholesale_price",
+            "total_stock",
+            "available_stock",
+            "status",
             "color_variants",
             "created_at",
             "updated_at",
@@ -280,9 +340,6 @@ class ProductCreateSerializer(serializers.ModelSerializer):
             "category",
             "name",
             "description",
-            "sku_prefix",
-            "hsn_code",
-            "gst_rate",
             "size_chart",
             "mrp",
             "wholesale_price",
@@ -303,43 +360,64 @@ class ProductCreateSerializer(serializers.ModelSerializer):
         return value
 
     def validate(self, attrs):
-        if attrs.get("wholesale_price", 0) > attrs.get("mrp", 0):
+        wholesale = attrs.get("wholesale_price", 0)
+        mrp = attrs.get("mrp")
+        if mrp is not None and wholesale > mrp:
             raise serializers.ValidationError(
                 {"wholesale_price": "Wholesale price cannot exceed MRP."}
             )
+        company = self.context.get("company")
+        if company is not None:
+            for field in ("category", "size_chart"):
+                related = attrs.get(field)
+                if related is not None and related.company_id != company.pk:
+                    raise serializers.ValidationError(
+                        {field: "This value does not belong to your company."}
+                    )
         return attrs
 
     @transaction.atomic
     def create(self, validated_data):
         variants_data = validated_data.pop("color_variants", [])
 
-        product = Product.objects.create(**validated_data)
+        try:
+            product = Product.objects.create(**validated_data)
+            product_slug = slugify(product.name).upper().replace("-", "")
+            total_stock = 0
+            for variant_data in variants_data:
+                sizes_data = variant_data.pop("sizes", [])
 
-        total_stock = 0
+                color_slug = slugify(variant_data["color_name"]).upper().replace("-", "")
 
-        for variant_data in variants_data:
-            sizes_data = variant_data.pop("sizes", [])
-
-            color_slug = slugify(variant_data["color_name"]).upper().replace("-", "")
-            variant_data.pop("sku", None)
-
-            variant = ColorVariant.objects.create(
-                product=product,
-                sku=f"{product.sku_prefix}-{color_slug}",
-                **variant_data,
-            )
-
-            for size_data in sizes_data:
-                size_data.pop("sku", None)
-                stock = size_data.get("stock_quantity", 0)
-
-                VariantSize.objects.create(
-                    color_variant=variant,
-                    sku=f"{variant.sku}-{size_data['size']}",
-                    **size_data,
+                variant = ColorVariant.objects.create(
+                    product=product,
+                    **variant_data,
                 )
 
-                total_stock += stock
+                used_size_skus = set()
+                for size_data in sizes_data:
+                    requested_sku = size_data.pop("sku", "").strip()
+                    stock = size_data.get("stock_quantity", 0)
+
+                    size_sku = _generate_unique_sku(
+                        VariantSize,
+                        requested_sku
+                        or f"{product_slug}-{color_slug}-{size_data['size']}",
+                        exclude=used_size_skus,
+                    )
+                    used_size_skus.add(size_sku)
+
+                    VariantSize.objects.create(
+                        color_variant=variant,
+                        sku=size_sku,
+                        **size_data,
+                    )
+
+                    total_stock += stock
+        except IntegrityError as exc:
+            raise serializers.ValidationError(
+                "Could not save product variants. Please check the colors and sizes."
+            ) from exc
 
         product.total_stock = total_stock
         product.save(update_fields=["total_stock"])
@@ -354,20 +432,35 @@ class ProductUpdateSerializer(serializers.ModelSerializer):
             "category",
             "name",
             "description",
-            "hsn_code",
-            "gst_rate",
             "size_chart",
             "mrp",
             "wholesale_price",
-            "minimum_order_qty",
-            "order_in_multiples",
+            "status",
         ]
 
-    def to_internal_value(self, data):
-        # Older mobile clients still send status; ignore it during rollout.
-        data = data.copy()
-        data.pop("status", None)
-        return super().to_internal_value(data)
+    def validate_wholesale_price(self, value):
+        if value < 0:
+            raise serializers.ValidationError("Wholesale price cannot be negative.")
+        return value
+
+    def validate(self, attrs):
+        wholesale = attrs.get(
+            "wholesale_price", getattr(self.instance, "wholesale_price", None)
+        )
+        mrp = attrs.get("mrp", getattr(self.instance, "mrp", None))
+        if wholesale is not None and mrp is not None and wholesale > mrp:
+            raise serializers.ValidationError(
+                {"wholesale_price": "Wholesale price cannot exceed MRP."}
+            )
+        company = self.context.get("company")
+        if company is not None:
+            for field in ("category", "size_chart"):
+                related = attrs.get(field)
+                if related is not None and related.company_id != company.pk:
+                    raise serializers.ValidationError(
+                        {field: "This value does not belong to your company."}
+                    )
+        return attrs
 
 
 class StockMovementSerializer(serializers.ModelSerializer):
@@ -406,12 +499,117 @@ class StockAdjustmentSerializer(serializers.Serializer):
     quantity = serializers.IntegerField()  # positive = add, negative = remove
     reason = serializers.CharField(max_length=500)
 
-    def validate_variant_size_id(self, value):
-        if not VariantSize.objects.filter(id=value, is_active=True).exists():
-            raise serializers.ValidationError("Variant size not found or inactive.")
-        return value
+    # Existence is validated in the tenant-scoped view so a user can never
+    # discover or modify a variant that belongs to another company.
 
     def validate_quantity(self, value):
         if value == 0:
             raise serializers.ValidationError("Quantity cannot be zero.")
         return value
+
+
+# ─────────────────────────────────────────────────────────────────
+# INVENTORY LISTING (VariantSize-level)
+# ─────────────────────────────────────────────────────────────────
+
+
+class ProductRefSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    name = serializers.CharField()
+
+
+class CategoryRefSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    name = serializers.CharField()
+
+
+class ColorRefSerializer(serializers.Serializer):
+    name = serializers.CharField()
+
+
+class StockInfoSerializer(serializers.Serializer):
+    stock_quantity = serializers.IntegerField()
+    reserved_quantity = serializers.IntegerField()
+    available_quantity = serializers.IntegerField()
+    reorder_level = serializers.IntegerField()
+    is_low_stock = serializers.BooleanField()
+    is_out_of_stock = serializers.BooleanField()
+
+
+class ProductInventoryListSerializer(serializers.ModelSerializer):
+    """One inventory row per VariantSize (SKU)."""
+
+    product = serializers.SerializerMethodField()
+    image = serializers.SerializerMethodField()
+    category = serializers.SerializerMethodField()
+    color = serializers.SerializerMethodField()
+    price_per_unit = serializers.SerializerMethodField()
+    stock = serializers.SerializerMethodField()
+
+    class Meta:
+        model = VariantSize
+        fields: ClassVar = [
+            "id",
+            "product",
+            "image",
+            "sku",
+            "category",
+            "color",
+            "size",
+            "price_per_unit",
+            "stock",
+        ]
+
+    @extend_schema_field(ProductRefSerializer)
+    def get_product(self, obj):
+        p = obj.color_variant.product
+        return {"id": str(p.id), "name": p.name}
+
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_image(self, obj):
+        image = obj.color_variant.image
+        if not image:
+            return None
+        request = self.context.get("request")
+        return request.build_absolute_uri(image.url) if request else image.url
+
+    @extend_schema_field(CategoryRefSerializer)
+    def get_category(self, obj):
+        c = obj.color_variant.product.category
+        return {"id": str(c.id), "name": c.name}
+
+    @extend_schema_field(ColorRefSerializer)
+    def get_color(self, obj):
+        return {"name": obj.color_variant.color_name}
+
+    @extend_schema_field(serializers.CharField())
+    def get_price_per_unit(self, obj):
+        price = (
+            obj.price_override
+            if obj.price_override is not None
+            else obj.color_variant.product.wholesale_price
+        )
+        return str(price)
+
+    @extend_schema_field(StockInfoSerializer)
+    def get_stock(self, obj):
+        return {
+            "stock_quantity": obj.stock_quantity,
+            "reserved_quantity": obj.reserved_qty,
+            "available_quantity": obj.available_qty,
+            "reorder_level": obj.reorder_level,
+            "is_low_stock": obj.is_low_stock,
+            "is_out_of_stock": obj.available_qty <= 0,
+        }
+
+
+class ProductInventorySummarySerializer(serializers.Serializer):
+    """Summary stats computed over the full filtered queryset."""
+
+    stock_valuation = serializers.DecimalField(max_digits=14, decimal_places=2)
+
+
+class InventoryFiltersSerializer(serializers.Serializer):
+    """Facet values available in the current filtered result set."""
+
+    sizes = serializers.ListField(child=serializers.CharField())

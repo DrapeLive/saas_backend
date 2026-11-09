@@ -1,0 +1,135 @@
+info:
+  name: Mark dispatch delivered
+  type: http
+  seq: 5
+  tags:
+    - Dispatch
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/dispatches/:id/mark-delivered/"
+  params:
+    - name: id
+      value: ""
+      type: path
+  body:
+    type: json
+    data: |-
+      {
+        "actual_delivery": "",
+        "notes": ""
+      }
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    request:
+      url: "{{baseUrl}}/api/dispatches/:id/mark-delivered/"
+      method: POST
+      params:
+        - name: id
+          value: ""
+          type: path
+      body:
+        type: json
+        data: |-
+          {
+            "actual_delivery": "",
+            "notes": ""
+          }
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "id": "",
+            "order": "",
+            "order_number": "",
+            "customer_name": "",
+            "lr_number": "",
+            "transport_name": "",
+            "vehicle_number": "",
+            "driver_contact": "",
+            "dispatch_date": "",
+            "expected_delivery": "",
+            "actual_delivery": "",
+            "tracking_url": "",
+            "eway_bill_no": "",
+            "boxes_count": 0,
+            "weight_kg": "",
+            "dispatched_by_name": "",
+            "created_at": "",
+            "updated_at": ""
+          }
+  - name: 400 Response
+    description: Bad request. Field/validation errors are flattened into a single `detail` string.
+    request:
+      url: "{{baseUrl}}/api/dispatches/:id/mark-delivered/"
+      method: POST
+      params:
+        - name: id
+          value: ""
+          type: path
+      body:
+        type: json
+        data: |-
+          {
+            "actual_delivery": "",
+            "notes": ""
+          }
+    response:
+      status: 400
+      statusText: Bad Request
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "detail": ""
+          }
+  - name: 404 Response
+    description: Not found. The requested resource does not exist in the current company.
+    request:
+      url: "{{baseUrl}}/api/dispatches/:id/mark-delivered/"
+      method: POST
+      params:
+        - name: id
+          value: ""
+          type: path
+      body:
+        type: json
+        data: |-
+          {
+            "actual_delivery": "",
+            "notes": ""
+          }
+    response:
+      status: 404
+      statusText: Not Found
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "detail": ""
+          }
+
+docs: Records actual delivery and advances the order to `DELIVERED`.

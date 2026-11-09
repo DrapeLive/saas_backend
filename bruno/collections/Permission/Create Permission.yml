@@ -1,0 +1,29 @@
+info:
+  name: Create Permission
+  type: http
+  seq: 7
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/admin/permissions"
+  body:
+    type: json
+    data: |-
+      {
+        "module": "customers",
+        "can_view": true,
+        "can_add": true,
+        "can_edit": true,
+        "can_delete": true,
+        "can_export": true
+      }
+  auth:
+    type: bearer
+    token: "{{ACCESS}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

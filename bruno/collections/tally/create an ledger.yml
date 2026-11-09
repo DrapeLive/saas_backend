@@ -1,0 +1,27 @@
+info:
+  name: create an ledger
+  type: http
+  seq: 5
+
+http:
+  method: POST
+  url: "{{BASE_URL}}/tally/ledger-mappings/"
+  body:
+    type: json
+    data: |-
+      {
+        "entity_type": "customer",
+        "entity_id": "fff65bbc-6fa2-439a-be91-0fc53d262d41",
+        "tally_ledger_name": "PRODUCT",
+        "tally_group": "credit"
+      }
+  auth:
+    type: bearer
+    token: "{{ACCESS}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

@@ -4,15 +4,23 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('subscriptions', '0001_initial'),
+        ("subscriptions", "0001_initial"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='plan',
-            name='tier',
-            field=models.CharField(choices=[('free', 'Free'), ('starter', 'Starter'), ('professional', 'Professional'), ('enterprise', 'Enterprise')], max_length=20, unique=True),
+            model_name="plan",
+            name="tier",
+            field=models.CharField(
+                choices=[
+                    ("free", "Free"),
+                    ("starter", "Starter"),
+                    ("professional", "Professional"),
+                    ("enterprise", "Enterprise"),
+                ],
+                max_length=20,
+                unique=True,
+            ),
         ),
     ]

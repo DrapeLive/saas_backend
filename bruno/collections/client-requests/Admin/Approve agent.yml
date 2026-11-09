@@ -1,0 +1,21 @@
+info:
+  name: Approve agent
+  type: http
+  seq: 17
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/admin/agents/c1a28634-fc4d-41a0-be39-258b3a55176d/approve"
+  body:
+    type: json
+    data: ""
+  auth:
+    type: bearer
+    token: "{{ACCESS}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: true

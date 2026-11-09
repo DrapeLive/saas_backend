@@ -1,0 +1,26 @@
+info:
+  name: create sub admin restrict agent
+  type: http
+  seq: 6
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/admin/sub-admins/4ab6f83d-674a-434f-aff5-4db1c4fa58fb/restrict-agents"
+  body:
+    type: json
+    data: |-
+      {
+        "agent_ids": [
+          "3803b335-14f5-44d8-877c-0238204026a7"
+        ]
+      }
+  auth:
+    type: bearer
+    token: "{{ACCESS}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

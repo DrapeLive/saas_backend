@@ -5,6 +5,7 @@ from django.urls import path
 from apps.subscriptions.views import (
     MySubscriptionViewSet,
     PlanViewSet,
+    SubscriptionPaymentViewSet,
     SubscriptionViewSet,
 )
 
@@ -102,6 +103,31 @@ urlpatterns = [
         SubscriptionViewSet.as_view({"get": "usage"}),
         name="subscription-usage",
     ),  # ✅
+    path(
+        "subscription-payments/",
+        SubscriptionPaymentViewSet.as_view({"get": "list", "post": "create"}),
+        name="subscription-payment-list-create",
+    ),
+    path(
+        "subscription-payments/<uuid:pk>/",
+        SubscriptionPaymentViewSet.as_view({"get": "retrieve"}),
+        name="subscription-payment-detail",
+    ),
+    path(
+        "subscription-payments/<uuid:pk>/confirm/",
+        SubscriptionPaymentViewSet.as_view({"post": "confirm"}),
+        name="subscription-payment-confirm",
+    ),
+    path(
+        "subscription-payments/<uuid:pk>/fail/",
+        SubscriptionPaymentViewSet.as_view({"post": "fail"}),
+        name="subscription-payment-fail",
+    ),
+    path(
+        "subscription-payments/<uuid:pk>/refund/",
+        SubscriptionPaymentViewSet.as_view({"post": "refund"}),
+        name="subscription-payment-refund",
+    ),
     # ─────────────────────────────────────────────────────────────
     # MY SUBSCRIPTION  (Admin self-service — reads own company's subscription)
     # ─────────────────────────────────────────────────────────────

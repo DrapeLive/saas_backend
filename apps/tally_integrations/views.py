@@ -1,6 +1,12 @@
 from django.db import transaction
 from django.db.models import Q, Sum
 from django.utils.timezone import now
+from drf_spectacular.utils import (
+    OpenApiParameter,
+    OpenApiTypes,
+    extend_schema,
+    extend_schema_view,
+)
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAdminUser
@@ -9,6 +15,12 @@ from rest_framework.viewsets import GenericViewSet
 
 from apps.accounts.authentication import CustomJWTAuthentication
 from apps.accounts.permissions import IsAdmin, IsAdminOrSubAdmin
+from apps.core.openapi import (
+    DETAIL_RESPONSE_200,
+    RESPONSE_400,
+    RESPONSE_403,
+    RESPONSE_404,
+)
 from apps.tally_integrations.models import TallyLedgerMapping, TallySyncLog
 from apps.tally_integrations.serializers import (
     TallyConnectionTestSerializer,
@@ -22,9 +34,71 @@ from apps.tally_integrations.serializers import (
 )
 
 
+@extend_schema_view(
+    list=extend_schema(
+        tags=["Tally Integration"],
+        summary="List sync logs",
+        description="Company-scoped sync ledger (latest 200 entries).",
+        parameters=[
+            OpenApiParameter(
+                "direction", OpenApiTypes.STR, OpenApiParameter.QUERY,
+                enum=["push", "pull"], description="Filter by sync direction.",
+            ),
+            OpenApiParameter(
+                "status", OpenApiTypes.STR, OpenApiParameter.QUERY,
+                enum=["pending", "success", "failed", "retry"],
+                description="Filter by sync status.",
+            ),
+            OpenApiParameter(
+                "entity_type", OpenApiTypes.STR, OpenApiParameter.QUERY,
+                description="Filter by entity type.",
+            ),
+        ],
+        responses={200: TallySyncLogListSerializer(many=True)},
+    ),
+    retrieve=extend_schema(
+        tags=["Tally Integration"],
+        summary="Get sync log",
+        responses={200: TallySyncLogDetailSerializer, 404: RESPONSE_404},
+    ),
+    trigger=extend_schema(
+        tags=["Tally Integration"],
+        summary="Trigger sync",
+        description="Manually queues a Tally sync for an entity. Admin only.",
+        responses={200: DETAIL_RESPONSE_200, 400: RESPONSE_400, 403: RESPONSE_403},
+    ),
+    retry=extend_schema(
+        tags=["Tally Integration"],
+        summary="Retry failed syncs",
+        description="Re-queues one or more failed sync logs. Admin only.",
+        responses={200: DETAIL_RESPONSE_200, 400: RESPONSE_400, 403: RESPONSE_403},
+    ),
+    test_connection=extend_schema(
+        tags=["Tally Integration"],
+        summary="Test Tally connection",
+        description="Pings the configured Tally HTTP gateway. Admin only.",
+        responses={200: DETAIL_RESPONSE_200, 400: RESPONSE_400, 403: RESPONSE_403},
+    ),
+    sync_status=extend_schema(
+        tags=["Tally Integration"],
+        summary="Sync health summary",
+        responses={200: TallySyncStatusSummarySerializer},
+    ),
+)
 class TallySyncLogViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
     permission_classes = (IsAdminOrSubAdmin,)
+
+    def get_serializer_class(self):
+        if self.action == "retrieve":
+            return TallySyncLogDetailSerializer
+        if self.action == "trigger":
+            return TallySyncTriggerSerializer
+        if self.action == "retry":
+            return TallySyncRetrySerializer
+        if self.action == "test_connection":
+            return TallyConnectionTestSerializer
+        return TallySyncLogListSerializer
 
     def _get_company(self, request):
         return request.user.company
@@ -145,9 +219,33 @@ class TallySyncLogViewSet(GenericViewSet):
         )
 
 
+@extend_schema_view(
+    list=extend_schema(
+        tags=["Tally Integration"],
+        summary="List ledger mappings",
+        responses={200: TallyLedgerMappingSerializer(many=True)},
+    ),
+    create=extend_schema(
+        tags=["Tally Integration"],
+        summary="Create or update ledger mapping",
+        description="Idempotent mapping keyed on `(company, entity_type, entity_id)`. Admin only.",
+        responses={201: TallyLedgerMappingSerializer, 400: RESPONSE_400, 403: RESPONSE_403},
+    ),
+    destroy=extend_schema(
+        tags=["Tally Integration"],
+        summary="Delete ledger mapping",
+        description="Returns 204.",
+        responses={204: None, 404: RESPONSE_404, 403: RESPONSE_403},
+    ),
+)
 class TallyLedgerMappingViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
     permission_classes = (IsAdmin,)
+
+    def get_serializer_class(self):
+        if self.action == "create":
+            return TallyLedgerMappingCreateUpdateSerializer
+        return TallyLedgerMappingSerializer
 
     def _get_company(self, request):
         return request.user.company

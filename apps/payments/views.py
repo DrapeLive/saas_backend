@@ -2,7 +2,6 @@ from decimal import Decimal
 
 from django.db import transaction
 from django.db.models import Count, Q, Sum
-from django.utils.timezone import now
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -11,6 +10,7 @@ from rest_framework.viewsets import GenericViewSet
 from apps.accounts.authentication import CustomJWTAuthentication
 from apps.accounts.permissions import IsAdminOrSubAdmin
 from apps.invoices.models import InvoiceStatus
+from apps.orders.services import update_customer_outstanding
 from apps.payments.models import OutstandingAging, Payment
 from apps.payments.serializers import (
     AgingReportSummarySerializer,
@@ -18,6 +18,7 @@ from apps.payments.serializers import (
     PaymentCreateSerializer,
     PaymentDetailSerializer,
     PaymentListSerializer,
+    PaymentReminderQueuedSerializer,
     SendPaymentReminderSerializer,
 )
 
@@ -25,6 +26,13 @@ from apps.payments.serializers import (
 class PaymentViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
     permission_classes = (IsAdminOrSubAdmin,)
+
+    def get_serializer_class(self):
+        if self.action == "list":
+            return PaymentListSerializer
+        if self.action == "create":
+            return PaymentCreateSerializer
+        return PaymentDetailSerializer
 
     def _get_company(self, request):
         return request.user.company
@@ -92,15 +100,9 @@ class PaymentViewSet(GenericViewSet):
             )
             invoice.save(update_fields=["amount_paid", "amount_due", "status"])
 
-        # Update customer outstanding
+        # Recompute the customer's outstanding from live unpaid invoices
         customer = payment.customer
-        customer.credit_utilized = max(
-            Decimal("0"), customer.credit_utilized - payment.amount
-        )
-        customer.total_outstanding = max(
-            Decimal("0"), customer.total_outstanding - payment.amount
-        )
-        customer.save(update_fields=["credit_utilized", "total_outstanding"])
+        update_customer_outstanding(customer)
 
         # tasks.send_payment_receipt.delay(str(payment.id))
         return Response(
@@ -120,13 +122,32 @@ class PaymentViewSet(GenericViewSet):
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        customer = payment.customer
+        invoice = payment.invoice
         payment.delete()
+        if invoice:
+            paid = invoice.amount_paid - payment.amount
+            invoice.amount_paid = max(Decimal("0"), paid)
+            invoice.amount_due = invoice.total_amount - invoice.amount_paid
+            if invoice.amount_due <= 0:
+                invoice.status = InvoiceStatus.PAID
+            elif invoice.amount_paid > 0:
+                invoice.status = InvoiceStatus.PARTIAL
+            else:
+                invoice.status = InvoiceStatus.ISSUED
+            invoice.save(update_fields=["amount_paid", "amount_due", "status"])
+        update_customer_outstanding(customer)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class OutstandingAgingViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
     permission_classes = (IsAdminOrSubAdmin,)
+
+    def get_serializer_class(self):
+        if self.action == "send_reminder":
+            return SendPaymentReminderSerializer
+        return OutstandingAgingSerializer
 
     def _get_company(self, request):
         return request.user.company
@@ -142,14 +163,11 @@ class OutstandingAgingViewSet(GenericViewSet):
 
         agent_f = request.query_params.get("agent_id")
         overdue_f = request.query_params.get("overdue_only")
-        segment_f = request.query_params.get("segment")
 
         if agent_f:
             qs = qs.filter(customer__assigned_agent_id=agent_f)
         if overdue_f:
             qs = qs.filter(days_90_plus__gt=0)
-        if segment_f:
-            qs = qs.filter(customer__segment=segment_f)
 
         return Response(OutstandingAgingSerializer(qs, many=True).data)
 

@@ -1,0 +1,149 @@
+info:
+  name: Switch active company (agent)
+  type: http
+  seq: 15
+  tags:
+    - Agents
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/auth/agents/switch-company"
+  headers:
+    - name: X-Company-Id
+      value: ""
+      description: Optional company to operate in. Agents whose JWT does not carry a `company_id` claim must pass an active membership company via this header to access company-scoped endpoints.
+      disabled: true
+  body:
+    type: json
+    data: |-
+      {
+        "company_id": ""
+      }
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    request:
+      url: "{{baseUrl}}/api/auth/agents/switch-company"
+      method: POST
+      headers:
+        - name: X-Company-Id
+          value: ""
+          description: Optional company to operate in. Agents whose JWT does not carry a `company_id` claim must pass an active membership company via this header to access company-scoped endpoints.
+          disabled: true
+      body:
+        type: json
+        data: |-
+          {
+            "company_id": ""
+          }
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "access": "",
+            "refresh": "",
+            "company_id": "",
+            "company_name": ""
+          }
+  - name: 400 Response
+    description: Bad request. Field/validation errors are flattened into a single `detail` string.
+    request:
+      url: "{{baseUrl}}/api/auth/agents/switch-company"
+      method: POST
+      headers:
+        - name: X-Company-Id
+          value: ""
+          description: Optional company to operate in. Agents whose JWT does not carry a `company_id` claim must pass an active membership company via this header to access company-scoped endpoints.
+          disabled: true
+      body:
+        type: json
+        data: |-
+          {
+            "company_id": ""
+          }
+    response:
+      status: 400
+      statusText: Bad Request
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "detail": ""
+          }
+  - name: 403 Response
+    description: Forbidden. The authenticated user is not allowed to perform this action.
+    request:
+      url: "{{baseUrl}}/api/auth/agents/switch-company"
+      method: POST
+      headers:
+        - name: X-Company-Id
+          value: ""
+          description: Optional company to operate in. Agents whose JWT does not carry a `company_id` claim must pass an active membership company via this header to access company-scoped endpoints.
+          disabled: true
+      body:
+        type: json
+        data: |-
+          {
+            "company_id": ""
+          }
+    response:
+      status: 403
+      statusText: Forbidden
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "detail": ""
+          }
+  - name: 404 Response
+    description: Not found. The requested resource does not exist in the current company.
+    request:
+      url: "{{baseUrl}}/api/auth/agents/switch-company"
+      method: POST
+      headers:
+        - name: X-Company-Id
+          value: ""
+          description: Optional company to operate in. Agents whose JWT does not carry a `company_id` claim must pass an active membership company via this header to access company-scoped endpoints.
+          disabled: true
+      body:
+        type: json
+        data: |-
+          {
+            "company_id": ""
+          }
+    response:
+      status: 404
+      statusText: Not Found
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "detail": ""
+          }
+
+docs: Agent-facing. Issues a fresh JWT scoped to a different company the agent has an active membership in.

@@ -1,0 +1,162 @@
+info:
+  name: Preview customer import
+  type: http
+  seq: 18
+  tags:
+    - Customers
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/admin/customers/import-preview/"
+  body:
+    type: json
+    data: |-
+      {
+        "legal_name": "",
+        "trade_name": "",
+        "owner_name": "",
+        "email": "",
+        "phone": "",
+        "whatsapp_number": "",
+        "gstin": "",
+        "pan": "",
+        "tags": "",
+        "billing_address_line1": "",
+        "billing_address_line2": "",
+        "billing_city": "",
+        "billing_state": "",
+        "billing_pincode": "",
+        "shipping_address_line1": "",
+        "shipping_address_line2": "",
+        "shipping_city": "",
+        "shipping_state": "",
+        "shipping_pincode": "",
+        "same_as_billing": false,
+        "assigned_agent": "",
+        "credit_limit": "",
+        "is_credit_blocked": false,
+        "payment_terms_days": 0,
+        "auto_block_on_exceed": false,
+        "status": "active",
+        "internal_notes": ""
+      }
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    request:
+      url: "{{baseUrl}}/api/admin/customers/import-preview/"
+      method: POST
+      body:
+        type: json
+        data: |-
+          {
+            "legal_name": "",
+            "trade_name": "",
+            "owner_name": "",
+            "email": "",
+            "phone": "",
+            "whatsapp_number": "",
+            "gstin": "",
+            "pan": "",
+            "tags": "",
+            "billing_address_line1": "",
+            "billing_address_line2": "",
+            "billing_city": "",
+            "billing_state": "",
+            "billing_pincode": "",
+            "shipping_address_line1": "",
+            "shipping_address_line2": "",
+            "shipping_city": "",
+            "shipping_state": "",
+            "shipping_pincode": "",
+            "same_as_billing": false,
+            "assigned_agent": "",
+            "credit_limit": "",
+            "is_credit_blocked": false,
+            "payment_terms_days": 0,
+            "auto_block_on_exceed": false,
+            "status": "active",
+            "internal_notes": ""
+          }
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "valid": [
+              {}
+            ],
+            "errors": [
+              {
+                "row_number": 0,
+                "errors": {}
+              }
+            ],
+            "total": 0
+          }
+  - name: 400 Response
+    description: Bad request. Field/validation errors are flattened into a single `detail` string.
+    request:
+      url: "{{baseUrl}}/api/admin/customers/import-preview/"
+      method: POST
+      body:
+        type: json
+        data: |-
+          {
+            "legal_name": "",
+            "trade_name": "",
+            "owner_name": "",
+            "email": "",
+            "phone": "",
+            "whatsapp_number": "",
+            "gstin": "",
+            "pan": "",
+            "tags": "",
+            "billing_address_line1": "",
+            "billing_address_line2": "",
+            "billing_city": "",
+            "billing_state": "",
+            "billing_pincode": "",
+            "shipping_address_line1": "",
+            "shipping_address_line2": "",
+            "shipping_city": "",
+            "shipping_state": "",
+            "shipping_pincode": "",
+            "same_as_billing": false,
+            "assigned_agent": "",
+            "credit_limit": "",
+            "is_credit_blocked": false,
+            "payment_terms_days": 0,
+            "auto_block_on_exceed": false,
+            "status": "active",
+            "internal_notes": ""
+          }
+    response:
+      status: 400
+      statusText: Bad Request
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "detail": ""
+          }
+
+docs: Validates each row of a customer bulk-import payload without persisting.

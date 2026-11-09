@@ -1,3 +1,4 @@
+from datetime import timedelta
 from typing import ClassVar
 
 from django.db import models
@@ -189,6 +190,55 @@ class Subscription(UUIDModel, TimeStampedModel):
             SubscriptionStatus.GRACE,
         )
 
+    @property
+    def cycle_days(self):
+        """Number of days in the current billing cycle (30 monthly, 365 yearly)."""
+        return 365 if self.billing_cycle == BillingCycle.YEARLY else 30
+
+    def setup_periods(self, today=None):
+        """
+        Populate the subscription period fields from the current status, billing
+        cycle and plan trial length.
+
+        - TRIAL  → sets trial_start / trial_end (+ current period mirrors the trial)
+        - ACTIVE → sets current_period_start / current_period_end from the cycle
+        - GRACE  → sets current period + grace_period_end
+        - others → clears all period fields
+        """
+        from django.utils.timezone import now
+
+        from apps.subscriptions.models import SubscriptionStatus
+
+        today = today or now().date()
+
+        if self.status == SubscriptionStatus.TRIAL:
+            self.trial_start = today
+            self.trial_end = today + timedelta(days=self.plan.trial_days)
+            self.current_period_start = today
+            self.current_period_end = self.trial_end
+            self.grace_period_end = None
+            self.cancelled_at = None
+            return
+
+        if self.status in (SubscriptionStatus.ACTIVE, SubscriptionStatus.GRACE):
+            self.trial_start = None
+            self.trial_end = None
+            self.current_period_start = today
+            self.current_period_end = today + timedelta(days=self.cycle_days)
+            if self.status == SubscriptionStatus.GRACE:
+                self.grace_period_end = self.current_period_end + timedelta(days=7)
+            else:
+                self.grace_period_end = None
+            self.cancelled_at = None
+            return
+
+        # CANCELLED / EXPIRED / SUSPENDED: clear active period fields
+        self.trial_start = None
+        self.trial_end = None
+        self.current_period_start = None
+        self.current_period_end = None
+        self.grace_period_end = None
+
 
 class SubscriptionEvent(UUIDModel):
     class EventType(models.TextChoices):
@@ -223,6 +273,43 @@ class SubscriptionEvent(UUIDModel):
     class Meta:
         db_table = "subscriptions_event"
         ordering: ClassVar = ["-created_at"]
+
+
+class SubscriptionPaymentStatus(models.TextChoices):
+    PENDING = "pending", "Pending"
+    SUCCEEDED = "succeeded", "Succeeded"
+    FAILED = "failed", "Failed"
+    REFUNDED = "refunded", "Refunded"
+
+
+class SubscriptionPayment(UUIDModel, TimeStampedModel):
+    subscription = models.ForeignKey(
+        Subscription, on_delete=models.PROTECT, related_name="payments"
+    )
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    currency = models.CharField(max_length=3, default="INR")
+    status = models.CharField(
+        max_length=10,
+        choices=SubscriptionPaymentStatus.choices,
+        default=SubscriptionPaymentStatus.PENDING,
+    )
+    payment_method = models.CharField(max_length=30)
+    provider = models.CharField(max_length=50, blank=True)
+    provider_payment_id = models.CharField(max_length=150, blank=True)
+    idempotency_key = models.CharField(max_length=100, unique=True)
+    paid_at = models.DateTimeField(null=True, blank=True)
+    notes = models.TextField(blank=True)
+    recorded_by = models.ForeignKey(
+        "accounts.User", null=True, on_delete=models.SET_NULL, related_name="+"
+    )
+
+    class Meta:
+        db_table = "subscriptions_payment"
+        ordering: ClassVar[list[str]] = ["-created_at"]
+        indexes: ClassVar = [
+            models.Index(fields=["subscription", "status"]),
+            models.Index(fields=["provider_payment_id"]),
+        ]
 
 
 class UsageSnapshot(UUIDModel):

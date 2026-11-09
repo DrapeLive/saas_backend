@@ -1,0 +1,7 @@
+info:
+  name: reports
+  type: folder
+  seq: 28
+
+request:
+  auth: inherit

@@ -5,78 +5,167 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='User',
+            name="User",
             fields=[
-                ('password', models.CharField(max_length=128, verbose_name='password')),
-                ('last_login', models.DateTimeField(blank=True, null=True, verbose_name='last login')),
-                ('is_superuser', models.BooleanField(default=False, help_text='Designates that this user has all permissions without explicitly assigning them.', verbose_name='superuser status')),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('email', models.EmailField(max_length=254, unique=True)),
-                ('phone', models.CharField(blank=True, max_length=15)),
-                ('full_name', models.CharField(max_length=150)),
-                ('role', models.CharField(choices=[('superadmin', 'Super Admin'), ('admin', 'Admin'), ('subadmin', 'Sub Admin'), ('agent', 'Agent'), ('customer', 'Customer')], max_length=20)),
-                ('is_active', models.BooleanField(default=True)),
-                ('is_staff', models.BooleanField(default=False)),
-                ('last_login_ip', models.GenericIPAddressField(blank=True, null=True)),
-                ('last_login_device', models.CharField(blank=True, max_length=200)),
+                ("password", models.CharField(max_length=128, verbose_name="password")),
+                (
+                    "last_login",
+                    models.DateTimeField(
+                        blank=True, null=True, verbose_name="last login"
+                    ),
+                ),
+                (
+                    "is_superuser",
+                    models.BooleanField(
+                        default=False,
+                        help_text="Designates that this user has all permissions without explicitly assigning them.",
+                        verbose_name="superuser status",
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                ("email", models.EmailField(max_length=254, unique=True)),
+                ("phone", models.CharField(blank=True, max_length=15)),
+                ("full_name", models.CharField(max_length=150)),
+                (
+                    "role",
+                    models.CharField(
+                        choices=[
+                            ("superadmin", "Super Admin"),
+                            ("admin", "Admin"),
+                            ("subadmin", "Sub Admin"),
+                            ("agent", "Agent"),
+                            ("customer", "Customer"),
+                        ],
+                        max_length=20,
+                    ),
+                ),
+                ("is_active", models.BooleanField(default=True)),
+                ("is_staff", models.BooleanField(default=False)),
+                ("last_login_ip", models.GenericIPAddressField(blank=True, null=True)),
+                ("last_login_device", models.CharField(blank=True, max_length=200)),
             ],
             options={
-                'db_table': 'accounts_user',
-                'ordering': ['-created_at'],
+                "db_table": "accounts_user",
+                "ordering": ["-created_at"],
             },
         ),
         migrations.CreateModel(
-            name='Permission',
+            name="Permission",
             fields=[
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('module', models.CharField(choices=[('dashboard', 'Dashboard'), ('customers', 'Customers'), ('products', 'Products'), ('inventory', 'Inventory'), ('orders', 'Orders'), ('dispatch', 'Dispatch'), ('invoicing', 'Invoicing'), ('payments', 'Payments'), ('commissions', 'Commissions'), ('agents', 'Agents'), ('reports', 'Reports'), ('tally_sync', 'Tally Sync'), ('settings', 'Settings')], max_length=30)),
-                ('can_view', models.BooleanField(default=False)),
-                ('can_add', models.BooleanField(default=False)),
-                ('can_edit', models.BooleanField(default=False)),
-                ('can_delete', models.BooleanField(default=False)),
-                ('can_export', models.BooleanField(default=False)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                (
+                    "module",
+                    models.CharField(
+                        choices=[
+                            ("dashboard", "Dashboard"),
+                            ("customers", "Customers"),
+                            ("products", "Products"),
+                            ("inventory", "Inventory"),
+                            ("orders", "Orders"),
+                            ("dispatch", "Dispatch"),
+                            ("invoicing", "Invoicing"),
+                            ("payments", "Payments"),
+                            ("commissions", "Commissions"),
+                            ("agents", "Agents"),
+                            ("reports", "Reports"),
+                            ("tally_sync", "Tally Sync"),
+                            ("settings", "Settings"),
+                        ],
+                        max_length=30,
+                    ),
+                ),
+                ("can_view", models.BooleanField(default=False)),
+                ("can_add", models.BooleanField(default=False)),
+                ("can_edit", models.BooleanField(default=False)),
+                ("can_delete", models.BooleanField(default=False)),
+                ("can_export", models.BooleanField(default=False)),
             ],
             options={
-                'db_table': 'accounts_permission',
+                "db_table": "accounts_permission",
             },
         ),
         migrations.CreateModel(
-            name='RoleTemplate',
+            name="RoleTemplate",
             fields=[
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('name', models.CharField(max_length=100)),
-                ('description', models.TextField(blank=True)),
-                ('rank', models.PositiveSmallIntegerField(default=50, help_text='0–100; higher = more privilege. Prevents privilege escalation.')),
-                ('is_default', models.BooleanField(default=False)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                ("name", models.CharField(max_length=100)),
+                ("description", models.TextField(blank=True)),
+                (
+                    "rank",
+                    models.PositiveSmallIntegerField(
+                        default=50,
+                        help_text="0–100; higher = more privilege. Prevents privilege escalation.",
+                    ),
+                ),
+                ("is_default", models.BooleanField(default=False)),
             ],
             options={
-                'db_table': 'accounts_role_template',
+                "db_table": "accounts_role_template",
             },
         ),
         migrations.CreateModel(
-            name='SubAdminProfile',
+            name="SubAdminProfile",
             fields=[
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('approval_threshold', models.DecimalField(blank=True, decimal_places=2, help_text='Orders above this amount require Admin approval', max_digits=12, null=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                (
+                    "approval_threshold",
+                    models.DecimalField(
+                        blank=True,
+                        decimal_places=2,
+                        help_text="Orders above this amount require Admin approval",
+                        max_digits=12,
+                        null=True,
+                    ),
+                ),
             ],
             options={
-                'db_table': 'accounts_subadmin_profile',
+                "db_table": "accounts_subadmin_profile",
             },
         ),
     ]

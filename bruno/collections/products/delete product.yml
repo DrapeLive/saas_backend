@@ -1,0 +1,21 @@
+info:
+  name: delete product
+  type: http
+  seq: 13
+
+http:
+  method: DELETE
+  url: "{{baseUrl}}/api/products/315b4283-fa20-4319-905d-b0d7fdfe6bcd/"
+  body:
+    type: json
+    data: ""
+  auth:
+    type: bearer
+    token: "{{ACCESS}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: true

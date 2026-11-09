@@ -1,0 +1,21 @@
+info:
+  name: list categories
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/categories/"
+  headers:
+    - name: X-Company-Id
+      value: 36e6aadf-2a1e-4113-a448-853c73d99236
+  auth:
+    type: bearer
+    token: "{{ACCESS}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: true

@@ -1,23 +1,29 @@
 from datetime import timedelta
 
+from django.db import transaction
 from django.utils.timezone import now
 from rest_framework import status
 from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.accounts.authentication import CustomJWTAuthentication
-from apps.accounts.permissions import IsSuperAdmin
+from apps.accounts.permissions import CompanyApproved, IsAdmin, IsSuperAdmin
 from apps.audits.models import AuditLog
-from apps.companies.models import Company
+from apps.companies.models import Company, CompanySettings, CompanyStatus
 from apps.companies.serializers import (
     CompanyListSerializer,
     CompanySerializer,
+    CompanySettingsResponseSerializer,
+    CompanySettingsSerializer,
     CompanyStatusUpdateSerializer,
+    CompanyUpdateSerializer,
     ExtendTrialSerializer,
 )
-from apps.subscriptions.models import SubscriptionEvent
+from apps.subscriptions.models import SubscriptionEvent, SubscriptionStatus
+from apps.subscriptions.services import set_subscription_status
 
 
 class SuperAdminCompanyViewSet(GenericViewSet):
@@ -27,6 +33,8 @@ class SuperAdminCompanyViewSet(GenericViewSet):
     def get_serializer_class(self):
         if self.action == "update_status":
             return CompanyStatusUpdateSerializer
+        if self.action == "update":
+            return CompanyUpdateSerializer
         return CompanyListSerializer
 
     def list(self, request, *args, **kwargs):
@@ -45,6 +53,31 @@ class SuperAdminCompanyViewSet(GenericViewSet):
         serializer = CompanySerializer(company)
         return Response(serializer.data)
 
+    def update(self, request, pk=None, *args, **kwargs):
+        company = self._get_company(pk, request)
+        if company is None:
+            return Response(
+                {"detail": "Company not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        old_data = CompanySerializer(company).data
+        serializer = CompanyUpdateSerializer(company, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        changed = _audit_changes(serializer, request, old_data)
+        if changed:
+            self._log_audit(
+                request,
+                company,
+                "company.update",
+                old_value={k: v["old"] for k, v in changed.items()},
+                new_value={k: v["new"] for k, v in changed.items()},
+            )
+        return Response(CompanySerializer(company).data)
+
+    @action(detail=True, methods=["post"], url_path="status")
+    @transaction.atomic
     def update_status(self, request, pk=None, *args, **kwargs):
         try:
             company = Company.objects.get(pk=pk)
@@ -58,8 +91,39 @@ class SuperAdminCompanyViewSet(GenericViewSet):
         serializer.is_valid(raise_exception=True)
 
         old_status = company.status
-        company.status = serializer.validated_data["status"]
-        company.save(update_fields=["status"])
+        new_status = serializer.validated_data["status"]
+        subscription_status = {
+            CompanyStatus.TRIAL: SubscriptionStatus.TRIAL,
+            CompanyStatus.ACTIVE: SubscriptionStatus.ACTIVE,
+            CompanyStatus.GRACE: SubscriptionStatus.GRACE,
+            CompanyStatus.EXPIRED: SubscriptionStatus.EXPIRED,
+            CompanyStatus.SUSPENDED: SubscriptionStatus.SUSPENDED,
+        }.get(new_status)
+        if company.subscription_id and subscription_status:
+            set_subscription_status(
+                company.subscription,
+                subscription_status,
+                today=now().date(),
+                reset_period=new_status == CompanyStatus.ACTIVE,
+            )
+        else:
+            company.status = new_status
+            company.save(update_fields=["status"])
+
+        if company.subscription_id and new_status in (
+            CompanyStatus.SUSPENDED,
+            CompanyStatus.ACTIVE,
+        ):
+            SubscriptionEvent.objects.create(
+                subscription=company.subscription,
+                event_type=(
+                    SubscriptionEvent.EventType.SUSPENDED
+                    if new_status == CompanyStatus.SUSPENDED
+                    else SubscriptionEvent.EventType.REACTIVATED
+                ),
+                performed_by=request.user,
+                notes=serializer.validated_data.get("reason", ""),
+            )
 
         return Response(
             {
@@ -89,16 +153,29 @@ class SuperAdminCompanyViewSet(GenericViewSet):
             return None
 
     @action(detail=True, methods=["post"], url_path="suspend")
+    @transaction.atomic
     def suspend(self, request, pk=None):
         company = self._get_company(pk, request)
         if company is None:
-            return Response({"detail": "Company not found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"detail": "Company not found."}, status=status.HTTP_404_NOT_FOUND
+            )
         if company.status == "suspended":
-            return Response({"detail": "Company is already suspended."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "Company is already suspended."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         old = company.status
-        company.status = "suspended"
-        company.save(update_fields=["status"])
+        if company.subscription_id:
+            set_subscription_status(
+                company.subscription,
+                SubscriptionStatus.SUSPENDED,
+                today=now().date(),
+            )
+        else:
+            company.status = CompanyStatus.SUSPENDED
+            company.save(update_fields=["status"])
 
         SubscriptionEvent.objects.create(
             subscription=company.subscription,
@@ -107,19 +184,44 @@ class SuperAdminCompanyViewSet(GenericViewSet):
             notes="Suspended by super admin",
         ) if company.subscription else None
 
-        self._log_audit(request, company, "company.suspend", old_value={"status": old}, new_value={"status": "suspended"})
-        return Response({"detail": f"Company {company.name} suspended.", "company": CompanySerializer(company).data})
+        self._log_audit(
+            request,
+            company,
+            "company.suspend",
+            old_value={"status": old},
+            new_value={"status": "suspended"},
+        )
+        return Response(
+            {
+                "detail": f"Company {company.name} suspended.",
+                "company": CompanySerializer(company).data,
+            }
+        )
 
     @action(detail=True, methods=["post"], url_path="activate")
+    @transaction.atomic
     def activate(self, request, pk=None):
         company = self._get_company(pk, request)
         if company is None:
-            return Response({"detail": "Company not found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"detail": "Company not found."}, status=status.HTTP_404_NOT_FOUND
+            )
         if company.status != "suspended":
-            return Response({"detail": "Only suspended companies can be activated."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "Only suspended companies can be activated."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
-        company.status = "active"
-        company.save(update_fields=["status"])
+        if company.subscription_id:
+            set_subscription_status(
+                company.subscription,
+                SubscriptionStatus.ACTIVE,
+                today=now().date(),
+                reset_period=True,
+            )
+        else:
+            company.status = CompanyStatus.ACTIVE
+            company.save(update_fields=["status"])
 
         SubscriptionEvent.objects.create(
             subscription=company.subscription,
@@ -128,14 +230,28 @@ class SuperAdminCompanyViewSet(GenericViewSet):
             notes="Reactivated by super admin",
         ) if company.subscription else None
 
-        self._log_audit(request, company, "company.activate", old_value={"status": "suspended"}, new_value={"status": "active"})
-        return Response({"detail": f"Company {company.name} activated.", "company": CompanySerializer(company).data})
+        self._log_audit(
+            request,
+            company,
+            "company.activate",
+            old_value={"status": "suspended"},
+            new_value={"status": "active"},
+        )
+        return Response(
+            {
+                "detail": f"Company {company.name} activated.",
+                "company": CompanySerializer(company).data,
+            }
+        )
 
     @action(detail=True, methods=["post"], url_path="extend-trial")
+    @transaction.atomic
     def extend_trial(self, request, pk=None):
         company = self._get_company(pk, request)
         if company is None:
-            return Response({"detail": "Company not found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"detail": "Company not found."}, status=status.HTTP_404_NOT_FOUND
+            )
 
         serializer = ExtendTrialSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -145,14 +261,22 @@ class SuperAdminCompanyViewSet(GenericViewSet):
 
         sub = company.subscription
         if sub is None:
-            return Response({"detail": "Company has no subscription."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "Company has no subscription."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         if sub.status != "trial":
-            return Response({"detail": "Can only extend trial period."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "Can only extend trial period."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         old_end = sub.trial_end
         from datetime import timedelta as td
+
         sub.trial_end = (sub.trial_end or now().date()) + td(days=days)
-        sub.save(update_fields=["trial_end"])
+        sub.current_period_end = sub.trial_end
+        sub.save(update_fields=["trial_end", "current_period_end"])
 
         SubscriptionEvent.objects.create(
             subscription=sub,
@@ -162,20 +286,31 @@ class SuperAdminCompanyViewSet(GenericViewSet):
             metadata={"days": days},
         )
 
-        self._log_audit(request, company, "company.extend_trial",
-                        old_value={"trial_end": str(old_end) if old_end else None},
-                        new_value={"trial_end": str(sub.trial_end), "reason": reason, "days": days})
-        return Response({"detail": f"Trial extended by {days} days.", "trial_end": sub.trial_end})
+        self._log_audit(
+            request,
+            company,
+            "company.extend_trial",
+            old_value={"trial_end": str(old_end) if old_end else None},
+            new_value={"trial_end": str(sub.trial_end), "reason": reason, "days": days},
+        )
+        return Response(
+            {"detail": f"Trial extended by {days} days.", "trial_end": sub.trial_end}
+        )
 
     @action(detail=True, methods=["post"], url_path="impersonate")
     def impersonate(self, request, pk=None):
         company = self._get_company(pk, request)
         if company is None:
-            return Response({"detail": "Company not found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"detail": "Company not found."}, status=status.HTTP_404_NOT_FOUND
+            )
 
         admin = company.members.filter(role="admin").first()
         if admin is None:
-            return Response({"detail": "Company has no admin user."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "Company has no admin user."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         refresh = RefreshToken.for_user(admin)
         refresh.set_exp(lifetime=timedelta(minutes=30))
@@ -184,14 +319,20 @@ class SuperAdminCompanyViewSet(GenericViewSet):
         refresh["is_super_admin"] = False
         refresh["impersonating"] = True
 
-        self._log_audit(request, company, "superadmin.impersonate",
-                        new_value={"impersonated_user": str(admin.pk), "expires_in": "30m"})
+        self._log_audit(
+            request,
+            company,
+            "superadmin.impersonate",
+            new_value={"impersonated_user": str(admin.pk), "expires_in": "30m"},
+        )
         return Response({"access": str(refresh.access_token), "expires_in": 1800})
 
     def destroy(self, request, pk=None):
         company = self._get_company(pk, request)
         if company is None:
-            return Response({"detail": "Company not found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"detail": "Company not found."}, status=status.HTTP_404_NOT_FOUND
+            )
         if company.status == "active":
             return Response(
                 {"detail": "Cannot delete a company with an active subscription."},
@@ -205,3 +346,142 @@ class SuperAdminCompanyViewSet(GenericViewSet):
 
         self._log_audit(request, company, "company.delete")
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class CompanyDetailViewSet(GenericViewSet):
+    authentication_classes = (CustomJWTAuthentication,)
+    permission_classes = (IsAuthenticated, CompanyApproved, IsAdmin)
+
+    def get_serializer_class(self):
+        if self.action == "update":
+            return CompanyUpdateSerializer
+        return CompanySerializer
+
+    def retrieve(self, request, *args, **kwargs):
+        company = request.company
+        if company is None:
+            return Response(
+                {"detail": "Company not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response(CompanySerializer(company).data)
+
+    def update(self, request, *args, **kwargs):
+        company = request.company
+        if company is None:
+            return Response(
+                {"detail": "Company not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        old_data = CompanySerializer(company).data
+        serializer = CompanyUpdateSerializer(company, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        changed = _audit_changes(serializer, request, old_data)
+        if changed:
+            AuditLog.objects.create(
+                company=company,
+                user=request.user,
+                user_role=request.user.role,
+                action="company.update",
+                entity_type="Company",
+                entity_id=company.pk,
+                old_value={k: v["old"] for k, v in changed.items()},
+                new_value={k: v["new"] for k, v in changed.items()},
+                ip_address=request.META.get("REMOTE_ADDR", ""),
+                user_agent=request.META.get("HTTP_USER_AGENT", "")[:500],
+            )
+        return Response(CompanySerializer(company).data)
+
+
+def _audit_changes(serializer, request, old_data):
+    """Build a JSON-serializable dict of changed scalar fields for audit logs."""
+    from django.core.files.uploadedfile import UploadedFile
+
+    changed = {}
+    for k, v in request.data.items():
+        if k not in serializer.fields:
+            continue
+        if isinstance(v, (UploadedFile, dict, list)):
+            continue
+        if old_data.get(k) != v:
+            changed[k] = {"old": old_data.get(k), "new": v}
+    return changed
+
+
+def _get_company_settings(company):
+    settings, _ = CompanySettings.objects.get_or_create(company=company)
+    return settings
+
+
+class CompanySettingsViewSet(GenericViewSet):
+    """
+    Admin-facing view of the caller's own company settings.
+
+    - GET   /api/admin/company/settings   → full settings (editable + plan snapshot)
+    - PATCH /api/admin/company/settings   → update editable settings fields
+
+    Plan-derived fields (limits + advanced feature flags) are read-only and are
+    synced from the company's subscription plan via `apply_plan_to_company`.
+    """
+
+    authentication_classes = (CustomJWTAuthentication,)
+    permission_classes = (IsAuthenticated, CompanyApproved, IsAdmin)
+    queryset = CompanySettings.objects.none()
+
+    def get_serializer_class(self):
+        if self.action == "update":
+            return CompanySettingsSerializer
+        return CompanySettingsResponseSerializer
+
+    def _get_settings(self, request):
+        company = request.company
+        if company is None:
+            return None
+        return _get_company_settings(company)
+
+    def retrieve(self, request, *args, **kwargs):
+        settings = self._get_settings(request)
+        if settings is None:
+            return Response(
+                {"detail": "Company not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response(CompanySettingsResponseSerializer(settings).data)
+
+    def update(self, request, *args, **kwargs):
+        settings = self._get_settings(request)
+        if settings is None:
+            return Response(
+                {"detail": "Company not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        old_data = CompanySettingsSerializer(settings).data
+        serializer = CompanySettingsSerializer(
+            settings, data=request.data, partial=True
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        changed = {
+            k: {"old": old_data.get(k), "new": v}
+            for k, v in request.data.items()
+            if k in serializer.fields and old_data.get(k) != v
+        }
+        if changed:
+            AuditLog.objects.create(
+                company=request.company,
+                user=request.user,
+                user_role=request.user.role,
+                action="company.settings.update",
+                entity_type="CompanySettings",
+                entity_id=settings.pk,
+                old_value={k: v["old"] for k, v in changed.items()},
+                new_value={k: v["new"] for k, v in changed.items()},
+                ip_address=request.META.get("REMOTE_ADDR", ""),
+                user_agent=request.META.get("HTTP_USER_AGENT", "")[:500],
+            )
+        return Response(CompanySettingsResponseSerializer(settings).data)

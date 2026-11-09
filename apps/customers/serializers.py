@@ -1,5 +1,7 @@
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
+from apps.agents.models import AgentProfile
 from apps.customers.models import (
     CustomerCommunicationLog,
     CustomerDocument,
@@ -8,8 +10,15 @@ from apps.customers.models import (
 
 
 class CustomerSerializer(serializers.ModelSerializer):
-    credit_utilization_pct = serializers.ReadOnlyField()
+    credit_utilization_pct = serializers.FloatField(read_only=True)
     assigned_agent_name = serializers.SerializerMethodField()
+    total_outstanding = serializers.SerializerMethodField()
+    assigned_agent = serializers.SlugRelatedField(
+        slug_field="user_id",
+        queryset=AgentProfile.objects.all(),
+        allow_null=True,
+        required=False,
+    )
 
     class Meta:
         model = CustomerProfile
@@ -28,7 +37,6 @@ class CustomerSerializer(serializers.ModelSerializer):
             "gstin_type",
             "gstin_verified_at",
             "pan",
-            "tags",
             "billing_address_line1",
             "billing_address_line2",
             "billing_city",
@@ -50,9 +58,7 @@ class CustomerSerializer(serializers.ModelSerializer):
             "auto_block_on_exceed",
             "total_outstanding",
             "overdue_outstanding",
-            "segment",
             "status",
-            "internal_notes",
             "created_at",
             "updated_at",
         ]
@@ -67,18 +73,48 @@ class CustomerSerializer(serializers.ModelSerializer):
             "credit_utilization_pct",
             "total_outstanding",
             "overdue_outstanding",
-            "segment",
             "created_at",
             "updated_at",
         ]
 
+    @extend_schema_field(serializers.CharField(allow_null=True))
     def get_assigned_agent_name(self, obj):
         if obj.assigned_agent and obj.assigned_agent.user:
             return obj.assigned_agent.user.full_name
         return None
 
+    @extend_schema_field(serializers.DecimalField(max_digits=14, decimal_places=2))
+    def get_total_outstanding(self, obj):
+        # The list endpoint annotates a live sum of unpaid invoice balances
+        # (computed_total_outstanding); fall back to the denormalized column
+        # elsewhere until invoice lifecycle sync maintains it.
+        return getattr(obj, "computed_total_outstanding", obj.total_outstanding)
+
+
+class CustomerPageSerializer(serializers.Serializer):
+    """Paginated customer list envelope."""
+
+    count = serializers.IntegerField()
+    next = serializers.CharField(allow_null=True)
+    previous = serializers.CharField(allow_null=True)
+    results = CustomerSerializer(many=True)
+
+
+class CustomerOverviewSerializer(serializers.Serializer):
+    active_customer_count = serializers.IntegerField()
+    total_outstanding_receivable = serializers.DecimalField(
+        max_digits=14, decimal_places=2
+    )
+
 
 class CustomerCreateSerializer(serializers.ModelSerializer):
+    assigned_agent = serializers.SlugRelatedField(
+        slug_field="user_id",
+        queryset=AgentProfile.objects.all(),
+        allow_null=True,
+        required=False,
+    )
+
     class Meta:
         model = CustomerProfile
         fields = [
@@ -90,7 +126,6 @@ class CustomerCreateSerializer(serializers.ModelSerializer):
             "whatsapp_number",
             "gstin",
             "pan",
-            "tags",
             "billing_address_line1",
             "billing_address_line2",
             "billing_city",
@@ -107,16 +142,17 @@ class CustomerCreateSerializer(serializers.ModelSerializer):
             "payment_terms_days",
             "auto_block_on_exceed",
             "status",
-            "internal_notes",
         ]
-
-    def validate_tags(self, value):
-        if not isinstance(value, list):
-            raise serializers.ValidationError("Tags must be a list of strings.")
-        return value
 
 
 class CustomerUpdateSerializer(serializers.ModelSerializer):
+    assigned_agent = serializers.SlugRelatedField(
+        slug_field="user_id",
+        queryset=AgentProfile.objects.all(),
+        allow_null=True,
+        required=False,
+    )
+
     class Meta:
         model = CustomerProfile
         fields = [
@@ -128,7 +164,6 @@ class CustomerUpdateSerializer(serializers.ModelSerializer):
             "whatsapp_number",
             "gstin",
             "pan",
-            "tags",
             "billing_address_line1",
             "billing_address_line2",
             "billing_city",
@@ -145,13 +180,7 @@ class CustomerUpdateSerializer(serializers.ModelSerializer):
             "payment_terms_days",
             "auto_block_on_exceed",
             "status",
-            "internal_notes",
         ]
-
-    def validate_tags(self, value):
-        if not isinstance(value, list):
-            raise serializers.ValidationError("Tags must be a list of strings.")
-        return value
 
 
 class CustomerImportRowSerializer(serializers.Serializer):
@@ -172,6 +201,37 @@ class CustomerImportRowSerializer(serializers.Serializer):
 
 class CustomerImportPreviewSerializer(serializers.Serializer):
     rows = CustomerImportRowSerializer(many=True)
+
+
+class ImportRowResultSerializer(serializers.Serializer):
+    row_number = serializers.IntegerField()
+    errors = serializers.DictField(
+        child=serializers.ListField(child=serializers.CharField()), default=dict
+    )
+
+
+class CustomerImportPreviewResponseSerializer(serializers.Serializer):
+    valid = serializers.ListField(child=serializers.DictField())
+    errors = ImportRowResultSerializer(many=True)
+    total = serializers.IntegerField()
+
+
+class CustomerImportConfirmResponseSerializer(serializers.Serializer):
+    created = CustomerSerializer(many=True)
+    errors = ImportRowResultSerializer(many=True)
+    total = serializers.IntegerField()
+
+
+class GstinVerifyResponseSerializer(serializers.Serializer):
+    valid = serializers.BooleanField()
+    legal_name = serializers.CharField()
+    status = serializers.CharField()
+    type = serializers.CharField()
+    message = serializers.CharField()
+
+
+class CreditActivityResponseSerializer(serializers.Serializer):
+    is_credit_blocked = serializers.BooleanField()
 
 
 class CustomerImportConfirmSerializer(serializers.Serializer):

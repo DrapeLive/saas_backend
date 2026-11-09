@@ -1,0 +1,18 @@
+info:
+  name: business stats
+  type: http
+  seq: 31
+
+http:
+  method: GET
+  url: "{{BASE_URL}}/business/stats"
+  auth:
+    type: bearer
+    token: "{{ACCESS}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: true

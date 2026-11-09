@@ -1,0 +1,164 @@
+info:
+  name: Update category
+  type: http
+  seq: 4
+  tags:
+    - Categories
+
+http:
+  method: PATCH
+  url: "{{baseUrl}}/api/categories/:id/"
+  params:
+    - name: id
+      value: ""
+      type: path
+  body:
+    type: json
+    data: |-
+      {
+        "name": "",
+        "slug": "",
+        "parent": "",
+        "description": "",
+        "image": "",
+        "display_order": 0,
+        "is_active": false,
+        "default_commission_pct": ""
+      }
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    request:
+      url: "{{baseUrl}}/api/categories/:id/"
+      method: PATCH
+      params:
+        - name: id
+          value: ""
+          type: path
+      body:
+        type: json
+        data: |-
+          {
+            "name": "",
+            "slug": "",
+            "parent": "",
+            "description": "",
+            "image": "",
+            "display_order": 0,
+            "is_active": false,
+            "default_commission_pct": ""
+          }
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "id": "",
+            "name": "",
+            "slug": "",
+            "parent": "",
+            "description": "",
+            "image": "",
+            "display_order": 0,
+            "is_active": false,
+            "default_commission_pct": "",
+            "children": [
+              {
+                "id": "",
+                "name": "",
+                "slug": "",
+                "parent": "",
+                "parent_name": "",
+                "image": "",
+                "display_order": 0,
+                "is_active": false,
+                "default_commission_pct": "",
+                "product_count": 0
+              }
+            ],
+            "created_at": "",
+            "updated_at": ""
+          }
+  - name: 400 Response
+    description: Bad request. Field/validation errors are flattened into a single `detail` string.
+    request:
+      url: "{{baseUrl}}/api/categories/:id/"
+      method: PATCH
+      params:
+        - name: id
+          value: ""
+          type: path
+      body:
+        type: json
+        data: |-
+          {
+            "name": "",
+            "slug": "",
+            "parent": "",
+            "description": "",
+            "image": "",
+            "display_order": 0,
+            "is_active": false,
+            "default_commission_pct": ""
+          }
+    response:
+      status: 400
+      statusText: Bad Request
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "detail": ""
+          }
+  - name: 404 Response
+    description: Not found. The requested resource does not exist in the current company.
+    request:
+      url: "{{baseUrl}}/api/categories/:id/"
+      method: PATCH
+      params:
+        - name: id
+          value: ""
+          type: path
+      body:
+        type: json
+        data: |-
+          {
+            "name": "",
+            "slug": "",
+            "parent": "",
+            "description": "",
+            "image": "",
+            "display_order": 0,
+            "is_active": false,
+            "default_commission_pct": ""
+          }
+    response:
+      status: 404
+      statusText: Not Found
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "detail": ""
+          }

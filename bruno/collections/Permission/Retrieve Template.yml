@@ -1,0 +1,18 @@
+info:
+  name: Retrieve Template
+  type: http
+  seq: 4
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/admin/role-templates/7c541e64-676b-4dac-8835-c80cf4aee506"
+  auth:
+    type: bearer
+    token: "{{ACCESS}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false

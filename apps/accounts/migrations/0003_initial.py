@@ -6,42 +6,61 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = [
-        ('accounts', '0002_initial'),
-        ('agents', '0001_initial'),
-        ('products', '0001_initial'),
+        ("accounts", "0002_initial"),
+        ("agents", "0001_initial"),
+        ("products", "0001_initial"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='subadminprofile',
-            name='restricted_agents',
-            field=models.ManyToManyField(blank=True, help_text='If set, SubAdmin can only see orders from these agents', to='agents.agentprofile'),
+            model_name="subadminprofile",
+            name="restricted_agents",
+            field=models.ManyToManyField(
+                blank=True,
+                help_text="If set, SubAdmin can only see orders from these agents",
+                to="agents.agentprofile",
+            ),
         ),
         migrations.AddField(
-            model_name='subadminprofile',
-            name='restricted_categories',
-            field=models.ManyToManyField(blank=True, help_text='If set, SubAdmin can only manage these product categories', to='products.category'),
+            model_name="subadminprofile",
+            name="restricted_categories",
+            field=models.ManyToManyField(
+                blank=True,
+                help_text="If set, SubAdmin can only manage these product categories",
+                to="products.category",
+            ),
         ),
         migrations.AddField(
-            model_name='subadminprofile',
-            name='role_template',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to='accounts.roletemplate'),
+            model_name="subadminprofile",
+            name="role_template",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                to="accounts.roletemplate",
+            ),
         ),
         migrations.AddField(
-            model_name='subadminprofile',
-            name='user',
-            field=models.OneToOneField(limit_choices_to={'role': 'subadmin'}, on_delete=django.db.models.deletion.CASCADE, related_name='subadmin_profile', to=settings.AUTH_USER_MODEL),
+            model_name="subadminprofile",
+            name="user",
+            field=models.OneToOneField(
+                limit_choices_to={"role": "subadmin"},
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="subadmin_profile",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.AddIndex(
-            model_name='user',
-            index=models.Index(fields=['role', 'company'], name='accounts_us_role_5501db_idx'),
+            model_name="user",
+            index=models.Index(
+                fields=["role", "company"], name="accounts_us_role_5501db_idx"
+            ),
         ),
         migrations.AddIndex(
-            model_name='user',
-            index=models.Index(fields=['email'], name='accounts_us_email_74c8d6_idx'),
+            model_name="user",
+            index=models.Index(fields=["email"], name="accounts_us_email_74c8d6_idx"),
         ),
     ]

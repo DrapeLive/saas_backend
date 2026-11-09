@@ -1,0 +1,90 @@
+info:
+  name: Adjust stock manually
+  type: http
+  seq: 1
+  tags:
+    - Stock
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/stock/adjust/"
+  body:
+    type: json
+    data: |-
+      {
+        "variant_size_id": "",
+        "quantity": 0,
+        "reason": ""
+      }
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    request:
+      url: "{{baseUrl}}/api/stock/adjust/"
+      method: POST
+      body:
+        type: json
+        data: |-
+          {
+            "variant_size_id": "",
+            "quantity": 0,
+            "reason": ""
+          }
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "id": "",
+            "size": "",
+            "sku": "",
+            "price_override": "",
+            "stock_quantity": 0,
+            "reserved_qty": 0,
+            "available_qty": 0,
+            "reorder_level": 0,
+            "is_low_stock": false,
+            "is_active": false
+          }
+  - name: 400 Response
+    description: Bad request. Field/validation errors are flattened into a single `detail` string.
+    request:
+      url: "{{baseUrl}}/api/stock/adjust/"
+      method: POST
+      body:
+        type: json
+        data: |-
+          {
+            "variant_size_id": "",
+            "quantity": 0,
+            "reason": ""
+          }
+    response:
+      status: 400
+      statusText: Bad Request
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "detail": ""
+          }
+
+docs: Adds or removes quantity on a variant size (`quantity` positive to add, negative to remove). Denied if removal exceeds available stock. Writes a `StockMovement` ledger entry and recomputes product totals.

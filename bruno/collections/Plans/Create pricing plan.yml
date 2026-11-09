@@ -1,0 +1,157 @@
+info:
+  name: Create pricing plan
+  type: http
+  seq: 2
+  tags:
+    - Plans
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/plans/"
+  body:
+    type: json
+    data: |-
+      {
+        "tier": "free",
+        "name": "",
+        "description": "",
+        "monthly_price": "",
+        "yearly_price": "",
+        "trial_days": 0,
+        "max_agents": 0,
+        "max_customers": 0,
+        "max_products": 0,
+        "max_orders_per_month": 0,
+        "storage_gb": 0,
+        "tally_sync_enabled": false,
+        "whatsapp_enabled": false,
+        "gst_verify_enabled": false,
+        "analytics_advanced": false,
+        "offline_mode_enabled": false,
+        "api_access_enabled": false,
+        "custom_domain_enabled": false,
+        "dedicated_support": false,
+        "is_active": false,
+        "display_order": 0
+      }
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 201 Response
+    request:
+      url: "{{baseUrl}}/api/plans/"
+      method: POST
+      body:
+        type: json
+        data: |-
+          {
+            "tier": "free",
+            "name": "",
+            "description": "",
+            "monthly_price": "",
+            "yearly_price": "",
+            "trial_days": 0,
+            "max_agents": 0,
+            "max_customers": 0,
+            "max_products": 0,
+            "max_orders_per_month": 0,
+            "storage_gb": 0,
+            "tally_sync_enabled": false,
+            "whatsapp_enabled": false,
+            "gst_verify_enabled": false,
+            "analytics_advanced": false,
+            "offline_mode_enabled": false,
+            "api_access_enabled": false,
+            "custom_domain_enabled": false,
+            "dedicated_support": false,
+            "is_active": false,
+            "display_order": 0
+          }
+    response:
+      status: 201
+      statusText: Created
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "id": "",
+            "tier": "free",
+            "name": "",
+            "description": "",
+            "monthly_price": "",
+            "yearly_price": "",
+            "trial_days": 0,
+            "max_agents": 0,
+            "max_customers": 0,
+            "max_products": 0,
+            "max_orders_per_month": 0,
+            "storage_gb": 0,
+            "tally_sync_enabled": false,
+            "whatsapp_enabled": false,
+            "gst_verify_enabled": false,
+            "analytics_advanced": false,
+            "offline_mode_enabled": false,
+            "api_access_enabled": false,
+            "custom_domain_enabled": false,
+            "dedicated_support": false,
+            "is_active": false,
+            "display_order": 0,
+            "active_subscription_count": 0
+          }
+  - name: 400 Response
+    description: Bad request. Field/validation errors are flattened into a single `detail` string.
+    request:
+      url: "{{baseUrl}}/api/plans/"
+      method: POST
+      body:
+        type: json
+        data: |-
+          {
+            "tier": "free",
+            "name": "",
+            "description": "",
+            "monthly_price": "",
+            "yearly_price": "",
+            "trial_days": 0,
+            "max_agents": 0,
+            "max_customers": 0,
+            "max_products": 0,
+            "max_orders_per_month": 0,
+            "storage_gb": 0,
+            "tally_sync_enabled": false,
+            "whatsapp_enabled": false,
+            "gst_verify_enabled": false,
+            "analytics_advanced": false,
+            "offline_mode_enabled": false,
+            "api_access_enabled": false,
+            "custom_domain_enabled": false,
+            "dedicated_support": false,
+            "is_active": false,
+            "display_order": 0
+          }
+    response:
+      status: 400
+      statusText: Bad Request
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "detail": ""
+          }
+
+docs: Super-admin only. Creates a new plan tier with pricing and feature flags.

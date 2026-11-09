@@ -1,0 +1,53 @@
+info:
+  name: Setup wizard — tax settings
+  type: http
+  seq: 10
+  tags:
+    - Admin
+
+http:
+  method: PATCH
+  url: "{{baseUrl}}/api/admin/setup/tax"
+  body:
+    type: json
+    data: |-
+      {
+        "default_gst_rate": "",
+        "reverse_charge": false
+      }
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    request:
+      url: "{{baseUrl}}/api/admin/setup/tax"
+      method: PATCH
+      body:
+        type: json
+        data: |-
+          {
+            "default_gst_rate": "",
+            "reverse_charge": false
+          }
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "default_gst_rate": "",
+            "reverse_charge": false
+          }

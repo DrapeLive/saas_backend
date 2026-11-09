@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import dj_database_url
+from botocore.config import Config
 from decouple import config
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -10,10 +11,11 @@ SECRET_KEY = config("SECRET_KEY")
 
 DEBUG = config("DEBUG")
 
-ALLOWED_HOSTS = []
-
+ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="*").split(",")
 
 INSTALLED_APPS = [
+    "daphne",
+    "channels",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -25,6 +27,7 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt",
     "rest_framework_simplejwt.token_blacklist",
     "corsheaders",
+    "drf_spectacular",
     # Apps
     "apps.accounts",
     "apps.agents",
@@ -37,7 +40,9 @@ INSTALLED_APPS = [
     "apps.orders",
     "apps.payments",
     "apps.products",
+    "apps.reports",
     "apps.subscriptions",
+    "apps.sub_admin",
     "apps.tally_integrations",
     "apps.companies",
 ]
@@ -72,6 +77,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "config.wsgi.application"
+ASGI_APPLICATION = "config.asgi.application"
 
 AUTH_USER_MODEL = "accounts.User"
 
@@ -138,7 +144,181 @@ REST_FRAMEWORK = {
         "password_reset": "3/hour",
     },
     "DEFAULT_RENDERER_CLASSES": ("rest_framework.renderers.JSONRenderer",),
+    # JSON-only API: test client posts nested payloads as JSON by default
+    "TEST_REQUEST_DEFAULT_FORMAT": "json",
     "EXCEPTION_HANDLER": "apps.accounts.views.custom_exception_handler",
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+}
+
+# ---------------------------------------------------------------------------
+# OpenAPI schema (drf-spectacular)
+# ---------------------------------------------------------------------------
+SPECTACULAR_SETTINGS = {
+    "TITLE": "Lable API",
+    "DESCRIPTION": (
+        "REST API for the Lable platform — a multi-tenant textile "
+        "wholesale management suite covering customers, products, inventory, "
+        "orders, dispatch, invoicing, payments, commissions and Tally sync.\n\n"
+        "### Authentication\n"
+        "All endpoints except **Authentication** (login / signup / refresh / "
+        "password reset) require a bearer token:\n\n"
+        "    Authorization: Bearer <access-token>\n\n"
+        "Obtain a token pair from `POST /api/auth/login` or `POST /api/auth/signup`. "
+        "Access tokens expire after 24 hours; use `POST /api/auth/refresh` to renew. "
+        'Click **Authorize** and paste the access token to enable "Try it out" on '
+        "authenticated endpoints.\n\n"
+        "### Company scoping\n"
+        "Every business endpoint is scoped to a single tenant company. The company "
+        "is resolved from the JWT `company_id` claim. Agents whose token carries no "
+        "`company_id` claim may select a company by sending the `X-Company-Id` "
+        "header (must match an active membership).\n\n"
+        "### Roles\n"
+        "`superadmin` — platform operator only. `admin` — company owner. "
+        "`subadmin` — company staff. `agent` — field sales agent. `customer` — "
+        "customer portal (not exposed by this API).\n\n"
+        "### Errors\n"
+        "All error responses share a flat envelope returned by the global "
+        "exception handler:\n\n"
+        '    {\\"detail\\": \\"Human-readable error message.\\"}\n\n'
+        "Status codes: `400` validation / business-rule failure, `401` missing or "
+        "invalid token, `403` forbidden role, `404` not found in the current "
+        "company, `409` conflict, `429` rate limited."
+    ),
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "COMPONENT_SPLIT_REQUEST": True,
+    "SCHEMA_PATH_PREFIX": "/api",
+    # Developer-facing API domains. Order controls the Swagger sidebar.
+    "TAGS": [
+        {
+            "name": "Authentication",
+            "description": "Login, signup, token refresh, logout, password and agent onboarding.",
+        },
+        {
+            "name": "Accounts",
+            "description": "Company users, sub-admins, invitations and the company setup wizard.",
+        },
+        {
+            "name": "Companies",
+            "description": "Super-admin lifecycle management of tenant companies.",
+        },
+        {
+            "name": "Agents",
+            "description": "Agent memberships, approvals, performance and leaderboards.",
+        },
+        {
+            "name": "Customers",
+            "description": "Customer profiles, documents, communication logs and customer analytics.",
+        },
+        {
+            "name": "Products",
+            "description": "Products, color variants, QR scans and inventory listings.",
+        },
+        {"name": "Categories", "description": "Hierarchical product categories."},
+        {
+            "name": "Size Charts",
+            "description": "Reusable size charts attached to products.",
+        },
+        {
+            "name": "Stock",
+            "description": "Stock movement ledger and manual adjustments.",
+        },
+        {
+            "name": "Orders",
+            "description": "Orders, workflow status, packing, approvals, offline sync and signatures.",
+        },
+        {
+            "name": "Dispatch",
+            "description": "Dispatch records and delivery confirmation.",
+        },
+        {
+            "name": "Invoices",
+            "description": "Invoices, credit/debit notes, voiding and PDF download.",
+        },
+        {
+            "name": "Payments",
+            "description": "Payments, outstanding aging reports and payment reminders.",
+        },
+        {
+            "name": "Plans",
+            "description": "Subscription pricing tiers managed by the super-admin.",
+        },
+        {
+            "name": "Subscriptions",
+            "description": "Company subscriptions, upgrades, extensions and usage.",
+        },
+        {
+            "name": "Commissions",
+            "description": "Commission plans, slabs, category rates and entry settlement.",
+        },
+        {
+            "name": "Notifications",
+            "description": "Notification templates and dispatch records.",
+        },
+        {
+            "name": "Audit Logs",
+            "description": "Read-only audit trail of company activity.",
+        },
+        {
+            "name": "Tally Integration",
+            "description": "Tally sync logs, ledger mappings and connection actions.",
+        },
+        {
+            "name": "Admin",
+            "description": "Company admin dashboards, analytics and business stats.",
+        },
+        {"name": "Super Admin", "description": "Platform-level dashboard."},
+    ],
+    # Stable, meaningful enum component names. Keys map the exact `(value,
+    # label)` choice set (via TextChoices/Enum class path, or a bare value list
+    # when the source has no reusable class) to a human-friendly name.
+    "ENUM_NAME_OVERRIDES": {
+        # Accounts / roles
+        "RoleEnum": "apps.accounts.models.RoleType",
+        # Companies
+        "CompanyStatusEnum": "apps.companies.models.CompanyStatus",
+        # Customers
+        "CustomerStatusEnum": "apps.customers.models.CustomerProfile.CustomerStatus",
+        "GstinStatusEnum": "apps.customers.models.GstStatus",
+        "DocTypeEnum": "apps.customers.models.CustomerDocument.DocType",
+        "CommunicationChannelEnum": "apps.customers.models.CustomerCommunicationLog.ChannelType",
+        # Products
+        "ProductStatusEnum": "apps.products.models.Product.ProductStatus",
+        "StockMovementTypeEnum": "apps.products.models.StockMovement.MovementType",
+        # Orders
+        "OrderStatusEnum": "apps.orders.models.OrderStatus",
+        "PackingStatusEnum": "apps.orders.models.PackingStatus",
+        "OrderApprovalActionEnum": ["approve", "reject"],
+        # Invoices
+        "InvoiceTypeEnum": "apps.invoices.models.InvoiceType",
+        "InvoiceStatusEnum": "apps.invoices.models.InvoiceStatus",
+        # Payments
+        "PaymentModeEnum": "apps.payments.models.PaymentMode",
+        "PaymentReminderChannelEnum": ["whatsapp", "email", "both"],
+        # Plans / subscriptions
+        "PlanTierEnum": "apps.subscriptions.models.PlanTier",
+        "BillingCycleEnum": "apps.subscriptions.models.BillingCycle",
+        "SubscriptionStatusEnum": "apps.subscriptions.models.SubscriptionStatus",
+        "SubscriptionEventTypeEnum": "apps.subscriptions.models.SubscriptionEvent.EventType",
+        # Agents
+        "AgentMembershipStatusEnum": "apps.agents.models.AgentCompanyMembership.MembershipStatus",
+        "InvitationMethodEnum": [
+            ("whatsapp", "WhatsApp"),
+            ("email", "Email"),
+            ("qr_code", "QR Code"),
+            ("in_app", "In-App"),
+        ],
+        "InvitationStatusEnum": "apps.agents.models.AgentInvitation.InviteStatus",
+        # Commissions
+        "CommissionEntryStatusEnum": "apps.commissions.models.CommissionEntry.EntryStatus",
+        # Notifications
+        "NotificationChannelEnum": "apps.notifications.models.NotificationChannel",
+        "NotificationStatusEnum": "apps.notifications.models.NotificationStatus",
+        "NotificationTemplateEventTypeEnum": "apps.notifications.models.NotificationTemplate.EventType",
+        # Tally
+        "TallyDirectionEnum": "apps.tally_integrations.models.TallySyncLog.Direction",
+        "TallySyncStatusEnum": "apps.tally_integrations.models.TallySyncLog.SyncStatus",
+    },
 }
 
 # ---------------------------------------------------------------------------
@@ -167,7 +347,7 @@ SIMPLE_JWT = {
 # ---------------------------------------------------------------------------
 CORS_ALLOWED_ORIGINS = config(
     "CORS_ALLOWED_ORIGINS",
-    default="http://localhost:3000,http://localhost:5173",
+    default="https://lable.drapelive.in,http://localhost:3000,http://localhost:5173",
     cast=lambda v: [x.strip() for x in v.split(",")],
 )
 CORS_ALLOW_CREDENTIALS = True
@@ -184,17 +364,48 @@ CORS_ALLOW_HEADERS = [
     "authorization",
     "content-type",
     "x-requested-with",
+    "x-company-id",
 ]
 
 # ---------------------------------------------------------------------------
 # Celery
 # ---------------------------------------------------------------------------
-CELERY_BROKER_URL = config("CELERY_BROKER_URL", default="redis://localhost:6379/0")
-CELERY_RESULT_BACKEND = config("CELERY_BROKER_URL", default="redis://localhost:6379/0")
+REDIS_URL = config("REDIS_URL", default="redis://localhost:6379/0")
+CELERY_BROKER_URL = config("CELERY_BROKER_URL", default=REDIS_URL)
+CELERY_RESULT_BACKEND = config("CELERY_RESULT_BACKEND", default=CELERY_BROKER_URL)
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = "UTC"
+CELERY_BEAT_SCHEDULE = {
+    "expire-draft-orders": {
+        "task": "apps.orders.tasks.expire_drafts_task",
+        "schedule": 60.0,
+    },
+    "transition-expired-subscriptions": {
+        "task": "apps.subscriptions.tasks.transition_expired_subscriptions",
+        "schedule": 3600.0,
+    },
+}
+
+# ---------------------------------------------------------------------------
+# Django Channels / WebSockets
+# ---------------------------------------------------------------------------
+if TESTING:
+    CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}
+else:
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels_redis.core.RedisChannelLayer",
+            "CONFIG": {"hosts": [REDIS_URL]},
+        }
+    }
+
+# Draft order lifecycle (seconds).
+ORDER_DRAFT_TTL_SECONDS = config("ORDER_DRAFT_TTL_SECONDS", default=2700, cast=int)
+ORDER_EMPTY_DRAFT_TTL_SECONDS = config(
+    "ORDER_EMPTY_DRAFT_TTL_SECONDS", default=2700, cast=int
+)
 
 if TESTING:
     CELERY_TASK_ALWAYS_EAGER = True
@@ -213,6 +424,91 @@ USE_TZ = True
 
 
 STATIC_URL = "static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
+
+# ---------------------------------------------------------------------------
+# Media / File Storage — Backblaze B2 (S3-compatible object storage)
+# ---------------------------------------------------------------------------
+# Credentials come from B2_* env vars and are mapped onto the AWS_* settings
+# that django-storages' S3Storage reads. The conventional AWS_* names remain
+# as a fallback for real AWS S3 or other S3-compatible providers.
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
+
+AWS_ACCESS_KEY_ID = config("B2_KEY_ID", default="") or config(
+    "AWS_ACCESS_KEY_ID", default=""
+)
+AWS_SECRET_ACCESS_KEY = config("B2_APPLICATION_KEY", default="") or config(
+    "AWS_SECRET_ACCESS_KEY", default=""
+)
+AWS_STORAGE_BUCKET_NAME = config("B2_BUCKET_NAME", default="") or config(
+    "AWS_STORAGE_BUCKET_NAME", default=""
+)
+
+# Custom S3 endpoint (Backblaze B2: B2_ENDPOINT_URL / B2_REGION). Leave blank
+# to talk to real AWS S3.
+AWS_S3_REGION_NAME = (
+    config("B2_REGION", default="")
+    or config("AWS_S3_REGION_NAME", default="")
+    or config("AWS_REGION", default="")
+)
+AWS_S3_ENDPOINT_URL = (
+    config("B2_ENDPOINT_URL", default="")
+    or config("AWS_S3_ENDPOINT_URL", default="")
+    or config("AWS_ENDPOINT_URL_S3", default="")
+)
+
+# Bucket is private, so serve expiring presigned URLs.
+AWS_QUERYSTRING_AUTH = True
+# B2 rejects ACL headers on uploads.
+AWS_DEFAULT_ACL = None
+AWS_S3_ADDRESSING_STYLE = "path"
+AWS_S3_SIGNATURE_VERSION = "s3v4"
+AWS_S3_OBJECT_PARAMETERS = {
+    "CacheControl": "public, max-age=31536000, immutable",
+}
+
+# botocore >= 1.36 defaults request_checksum_calculation to "when_supported",
+# which makes every PutObject/UploadPart stream its body as
+# `Content-Encoding: aws-chunked` with an `X-Amz-Trailer: x-amz-checksum-crc32`
+# trailer and `X-Amz-Content-SHA256: STREAMING-UNSIGNED-PAYLOAD-TRAILER`.
+# Several S3-compatible providers (Backblaze B2 included) only support
+# Content-Type / Content-Disposition / Cache-Control / x-amz-meta-* on
+# PutObject and reject that payload framing, so every upload failed. Opting
+# back into "when_required" restores a plain PutObject with a normal payload
+# hash.
+#
+# Setting AWS_S3_CLIENT_CONFIG makes django-storages ignore
+# AWS_S3_ADDRESSING_STYLE and AWS_S3_SIGNATURE_VERSION
+# (storages/backends/s3.py:344-349), so both are repeated in the Config below.
+AWS_S3_CLIENT_CONFIG = Config(
+    signature_version="s3v4",
+    s3={"addressing_style": "path"},
+    request_checksum_calculation="when_required",
+    response_checksum_validation="when_required",
+    retries={"max_attempts": 3, "mode": "standard"},
+)
+
+USE_S3 = bool(AWS_STORAGE_BUCKET_NAME and AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY)
+
+if USE_S3:
+    STORAGES = {
+        "default": {
+            "BACKEND": "storages.backends.s3.S3Storage",
+        },
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        },
+    }
+else:
+    STORAGES = {
+        "default": {
+            "BACKEND": "django.core.files.storage.FileSystemStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        },
+    }
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 

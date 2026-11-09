@@ -1,6 +1,12 @@
 from django.db import transaction
 from django.db.models import Q, Sum
 from django.utils.timezone import now
+from drf_spectacular.utils import (
+    OpenApiParameter,
+    OpenApiTypes,
+    extend_schema,
+    extend_schema_view,
+)
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -13,6 +19,56 @@ from apps.audits.serializers import (
     AuditLogDetailSerializer,
     AuditLogFilterSerializer,
     AuditLogListSerializer,
+    DistinctActionsSerializer,
+)
+from apps.core.openapi import RESPONSE_404
+
+
+@extend_schema_view(
+    list=extend_schema(
+        tags=["Audit Logs"],
+        summary="List audit logs",
+        description="Admin-only, company-scoped audit trail (latest 500 entries).",
+        parameters=[
+            OpenApiParameter(
+                "user_id", OpenApiTypes.UUID, OpenApiParameter.QUERY, description="Filter by acting user."
+            ),
+            OpenApiParameter(
+                "user_role", OpenApiTypes.STR, OpenApiParameter.QUERY, description="Filter by acting user role."
+            ),
+            OpenApiParameter(
+                "action", OpenApiTypes.STR, OpenApiParameter.QUERY,
+                description="Exact action string, e.g. `order.create`, `company.suspend`.",
+            ),
+            OpenApiParameter(
+                "entity_type", OpenApiTypes.STR, OpenApiParameter.QUERY, description="Filter by entity type."
+            ),
+            OpenApiParameter(
+                "entity_id", OpenApiTypes.UUID, OpenApiParameter.QUERY, description="Filter by entity id."
+            ),
+            OpenApiParameter(
+                "date_from", OpenApiTypes.DATE, OpenApiParameter.QUERY, description="Filter from date."
+            ),
+            OpenApiParameter(
+                "date_to", OpenApiTypes.DATE, OpenApiParameter.QUERY, description="Filter to date."
+            ),
+            OpenApiParameter(
+                "ip_address", OpenApiTypes.STR, OpenApiParameter.QUERY, description="Filter by IP address."
+            ),
+        ],
+        responses={200: AuditLogListSerializer(many=True)},
+    ),
+    retrieve=extend_schema(
+        tags=["Audit Logs"],
+        summary="Get audit log",
+        responses={200: AuditLogDetailSerializer, 404: RESPONSE_404},
+    ),
+    distinct_actions=extend_schema(
+        tags=["Audit Logs"],
+        summary="List distinct actions",
+        description="Returns all distinct action strings for the filter dropdown.",
+        responses={200: DistinctActionsSerializer()},
+    ),
 )
 
 
@@ -22,6 +78,11 @@ class AuditLogViewSet(GenericViewSet):
 
     def _get_company(self, request):
         return request.user.company
+
+    def get_serializer_class(self):
+        if self.action == "retrieve":
+            return AuditLogDetailSerializer
+        return AuditLogListSerializer
 
     # GET /api/audit-logs/
     def list(self, request):

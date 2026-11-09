@@ -1,0 +1,121 @@
+info:
+  name: Create subscription for a company
+  type: http
+  seq: 5
+  tags:
+    - Subscriptions
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/subscriptions/"
+  body:
+    type: json
+    data: |-
+      {
+        "company_id": "",
+        "plan_id": "",
+        "billing_cycle": ""
+      }
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 201 Response
+    request:
+      url: "{{baseUrl}}/api/subscriptions/"
+      method: POST
+      body:
+        type: json
+        data: |-
+          {
+            "company_id": "",
+            "plan_id": "",
+            "billing_cycle": ""
+          }
+    response:
+      status: 201
+      statusText: Created
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "id": "",
+            "plan": "",
+            "billing_cycle": "monthly",
+            "status": "trial",
+            "trial_start": "",
+            "trial_end": "",
+            "current_period_start": "",
+            "current_period_end": "",
+            "grace_period_end": "",
+            "cancelled_at": "",
+            "price_paid": "",
+            "discount_pct": "",
+            "engagement_score": 0,
+            "notes": "",
+            "days_remaining": 0,
+            "is_usable": false,
+            "events": [
+              {
+                "id": "",
+                "event_type": "created",
+                "from_plan_name": "",
+                "to_plan_name": "",
+                "performed_by_name": "",
+                "notes": "",
+                "metadata": "",
+                "created_at": ""
+              }
+            ],
+            "usage": [
+              {
+                "id": "",
+                "snapshot_month": "",
+                "agent_count": 0,
+                "customer_count": 0,
+                "product_count": 0,
+                "order_count": 0,
+                "storage_used_mb": 0
+              }
+            ]
+          }
+  - name: 400 Response
+    description: Bad request. Field/validation errors are flattened into a single `detail` string.
+    request:
+      url: "{{baseUrl}}/api/subscriptions/"
+      method: POST
+      body:
+        type: json
+        data: |-
+          {
+            "company_id": "",
+            "plan_id": "",
+            "billing_cycle": ""
+          }
+    response:
+      status: 400
+      statusText: Bad Request
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "detail": ""
+          }
+
+docs: |-
+  SuperAdmin: full read + lifecycle management of any company's subscription.
+  Admin:      read-only access to their own company's subscription.

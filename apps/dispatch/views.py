@@ -18,11 +18,27 @@ from apps.dispatch.serializers import (
     TransportSerializer,
 )
 from apps.orders.models import OrderStatus, OrderStatusHistory
+from apps.orders.services import (
+    create_commission_entry,
+    generate_sales_invoice,
+    send_order_notification,
+)
 
 
 class DispatchViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
     permission_classes = (IsAdminOrSubAdmin,)
+
+    def get_serializer_class(self):
+        if self.action == "list":
+            return DispatchListSerializer
+        if self.action == "create":
+            return DispatchCreateSerializer
+        if self.action == "partial_update":
+            return DispatchUpdateSerializer
+        if self.action == "mark_delivered":
+            return MarkDeliveredSerializer
+        return DispatchDetailSerializer
 
     def _get_company(self, request):
         return request.user.company
@@ -98,30 +114,39 @@ class DispatchViewSet(GenericViewSet):
             notes=f"LR: {dispatch.lr_number}",
         )
 
-        # Deduct reserved stock → actual OUT movement
+        # Deduct stock for what was actually packed and release ALL reservations
+        # (packed qty leaves stock; any unpacked remainder becomes sellable again).
         for item in order.items.all():
-            from django.db.models import F
-
             from apps.products.models import StockMovement, VariantSize
 
+            shipped_qty = item.packed_quantity
             VariantSize.objects.filter(pk=item.variant_size_id).update(
-                stock_quantity=F("stock_quantity") - item.quantity,
-                reserved_qty=F("reserved_qty") - item.quantity,
+                stock_quantity=F("stock_quantity") - shipped_qty,
+                reserved_qty=Greatest(F("reserved_qty") - item.quantity, Value(0)),
             )
-            item.variant_size.refresh_from_db(fields=["stock_quantity"])
-            StockMovement.objects.create(
-                variant_size=item.variant_size,
-                movement_type=StockMovement.MovementType.OUT,
-                quantity=-item.quantity,
-                balance_after=item.variant_size.stock_quantity,
-                reference_type="dispatch",
-                reference_id=dispatch.id,
-                performed_by=request.user,
-            )
+            if shipped_qty > 0:
+                item.variant_size.refresh_from_db(fields=["stock_quantity"])
+                StockMovement.objects.create(
+                    variant_size=item.variant_size,
+                    movement_type=StockMovement.MovementType.OUT,
+                    quantity=-shipped_qty,
+                    balance_after=item.variant_size.stock_quantity,
+                    reference_type="dispatch",
+                    reference_id=dispatch.id,
+                    performed_by=request.user,
+                )
 
         # Queue: generate sales invoice + WhatsApp notification
         # tasks.generate_sales_invoice.delay(str(order.id))
         # tasks.send_dispatch_notification.delay(str(dispatch.id))
+
+        # Sales invoice + commission + notification for a dispatched order
+        generate_sales_invoice(company, order)
+        if order.agent:
+            create_commission_entry(company, order, performed_by=request.user)
+        customer_user = order.customer.user
+        if customer_user:
+            send_order_notification(company, order, "order_dispatched", customer_user)
 
         return Response(
             DispatchDetailSerializer(dispatch).data, status=status.HTTP_201_CREATED
@@ -172,6 +197,10 @@ class DispatchViewSet(GenericViewSet):
             changed_by=request.user,
             notes=serializer.validated_data.get("notes", ""),
         )
+
+        customer_user = order.customer.user
+        if customer_user:
+            send_order_notification(company, order, "order_delivered", customer_user)
 
         return Response(DispatchDetailSerializer(dispatch).data)
 

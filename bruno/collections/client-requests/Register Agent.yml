@@ -1,0 +1,32 @@
+info:
+  name: Register Agent
+  type: http
+  seq: 4
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/auth/agents/register"
+  body:
+    type: json
+    data: |-
+      {
+        "email": "agent@gmail.com",
+        "password": "password!12",
+        "full_name": "agent",
+        "phone": "8967845789"
+      }
+  auth:
+    type: bearer
+    token: "{{ACCESS}}"
+
+runtime:
+  variables:
+    - name: BASE_URL
+      value: https://beta.xlapparals.in/api
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: true

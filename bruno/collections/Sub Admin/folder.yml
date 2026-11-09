@@ -1,0 +1,7 @@
+info:
+  name: Sub Admin
+  type: folder
+  seq: 29
+
+request:
+  auth: inherit

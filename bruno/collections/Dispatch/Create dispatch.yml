@@ -1,0 +1,122 @@
+info:
+  name: Create dispatch
+  type: http
+  seq: 2
+  tags:
+    - Dispatch
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/dispatches/"
+  body:
+    type: json
+    data: |-
+      {
+        "order": "85d90b34-9526-4c97-b277-2cb57b622f87",
+        "lr_number": "847387384",
+        "transport_name": "Vehicle",
+        "vehicle_number": "KL65F422",
+        "driver_contact": "8976567867",
+        "dispatch_date": "2026-04-30",
+        "expected_delivery": "2026-05-30",
+        "eway_bill_no": "894893",
+        "boxes_count": 0,
+        "weight_kg": "89",
+        "tracking_url": "https://url.com"
+      }
+  auth:
+    type: bearer
+    token: "{{ACCESS}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 201 Response
+    request:
+      url: "{{baseUrl}}/api/dispatches/"
+      method: POST
+      body:
+        type: json
+        data: |-
+          {
+            "order": "",
+            "lr_number": "",
+            "transport_name": "",
+            "vehicle_number": "",
+            "driver_contact": "",
+            "dispatch_date": "",
+            "expected_delivery": "",
+            "eway_bill_no": "",
+            "boxes_count": 0,
+            "weight_kg": "",
+            "tracking_url": ""
+          }
+    response:
+      status: 201
+      statusText: Created
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "id": "",
+            "order": "",
+            "order_number": "",
+            "customer_name": "",
+            "lr_number": "",
+            "transport_name": "",
+            "vehicle_number": "",
+            "driver_contact": "",
+            "dispatch_date": "",
+            "expected_delivery": "",
+            "actual_delivery": "",
+            "tracking_url": "",
+            "eway_bill_no": "",
+            "boxes_count": 0,
+            "weight_kg": "",
+            "dispatched_by_name": "",
+            "created_at": "",
+            "updated_at": ""
+          }
+  - name: 400 Response
+    description: Bad request. Field/validation errors are flattened into a single `detail` string.
+    request:
+      url: "{{baseUrl}}/api/dispatches/"
+      method: POST
+      body:
+        type: json
+        data: |-
+          {
+            "order": "",
+            "lr_number": "",
+            "transport_name": "",
+            "vehicle_number": "",
+            "driver_contact": "",
+            "dispatch_date": "",
+            "expected_delivery": "",
+            "eway_bill_no": "",
+            "boxes_count": 0,
+            "weight_kg": "",
+            "tracking_url": ""
+          }
+    response:
+      status: 400
+      statusText: Bad Request
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "detail": ""
+          }
+
+docs: Creates a dispatch for a packed order, advances the order to `DISPATCHED` and deducts stock for the packed quantity.

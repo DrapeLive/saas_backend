@@ -1,0 +1,39 @@
+info:
+  name: create categories
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/categories/"
+  body:
+    type: multipart-form
+    data:
+      - name: name
+        type: text
+        value: Men's Shirt
+        contentType: Text
+      - name: description
+        type: text
+        value: Shirt for all gender
+      - name: image
+        type: file
+        value:
+          - /home/muflih/Pictures/git_profile.jpg
+        contentType: image/jpeg
+      - name: display_order
+        type: text
+        value: "1"
+      - name: default_commission_pct
+        type: text
+        value: "1"
+  auth:
+    type: bearer
+    token: "{{ACCESS}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: true

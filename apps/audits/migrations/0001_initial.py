@@ -7,35 +7,66 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = [
-        ('companies', '0001_initial'),
+        ("companies", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='AuditLog',
+            name="AuditLog",
             fields=[
-                ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False)),
-                ('user_role', models.CharField(blank=True, max_length=20)),
-                ('action', models.CharField(max_length=100)),
-                ('entity_type', models.CharField(blank=True, max_length=100)),
-                ('entity_id', models.UUIDField(blank=True, null=True)),
-                ('old_value', models.JSONField(blank=True, null=True)),
-                ('new_value', models.JSONField(blank=True, null=True)),
-                ('ip_address', models.GenericIPAddressField(blank=True, null=True)),
-                ('user_agent', models.CharField(blank=True, max_length=500)),
-                ('created_at', models.DateTimeField(auto_now_add=True, db_index=True)),
-                ('company', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to='companies.company')),
-                ('user', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.UUIDField(
+                        default=uuid.uuid4,
+                        editable=False,
+                        primary_key=True,
+                        serialize=False,
+                    ),
+                ),
+                ("user_role", models.CharField(blank=True, max_length=20)),
+                ("action", models.CharField(max_length=100)),
+                ("entity_type", models.CharField(blank=True, max_length=100)),
+                ("entity_id", models.UUIDField(blank=True, null=True)),
+                ("old_value", models.JSONField(blank=True, null=True)),
+                ("new_value", models.JSONField(blank=True, null=True)),
+                ("ip_address", models.GenericIPAddressField(blank=True, null=True)),
+                ("user_agent", models.CharField(blank=True, max_length=500)),
+                ("created_at", models.DateTimeField(auto_now_add=True, db_index=True)),
+                (
+                    "company",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        to="companies.company",
+                    ),
+                ),
+                (
+                    "user",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'db_table': 'audit_log',
-                'ordering': ['-created_at'],
-                'indexes': [models.Index(fields=['company', 'action', 'created_at'], name='audit_log_company_04668e_idx'), models.Index(fields=['user', 'created_at'], name='audit_log_user_id_3b54b4_idx')],
+                "db_table": "audit_log",
+                "ordering": ["-created_at"],
+                "indexes": [
+                    models.Index(
+                        fields=["company", "action", "created_at"],
+                        name="audit_log_company_04668e_idx",
+                    ),
+                    models.Index(
+                        fields=["user", "created_at"],
+                        name="audit_log_user_id_3b54b4_idx",
+                    ),
+                ],
             },
         ),
     ]

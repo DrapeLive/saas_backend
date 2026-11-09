@@ -1,0 +1,334 @@
+FRONTEND IMPLEMENTATION PROMPT — AGENT DRAFT ORDER FLOW (REST + WEBSOCKET)
+==========================================================================
+
+You are implementing the agent order-taking screen for a garment wholesale SaaS.
+The backend already supports a resumable DRAFT order flow over both REST and
+WebSocket. Implement the agent UI against these contracts. Do not invent new
+endpoints or client-side stock calculations; always trust the server response.
+
+-------------------------------------------------------------------------------
+1. AUTHENTICATION / HEADERS
+-------------------------------------------------------------------------------
+- All REST calls need: Authorization: Bearer <access_token>
+- Agents must also send: X-Company-Id: <active_company_id>
+- WebSocket URL:
+    wss://<api-host>/ws/orders/?token=<access_token>&company_id=<active_company_id>
+- If the socket closes with code 4401 or 4403, refresh auth or prompt the agent
+  to select a company; do not retry in a tight loop.
+
+-------------------------------------------------------------------------------
+2. CORE UX FLOW
+-------------------------------------------------------------------------------
+Agent flow: select customer -> create empty draft -> scan product QR -> pick
+size range -> quantity -> repeat -> submit (or resume/discard draft later).
+
+Rules:
+- An order is created as an empty DRAFT. Items are added one scan at a time.
+- A scan adds ONE OrderItem per size in the selected range. The requested
+  quantity is PER SIZE.
+  Example: size range "20-24" + quantity 3 => 3 x size 20, 3 x size 22,
+  3 x size 24 (9 units total).
+- All items from one scan share the same group_id. Removing/updating by group
+  affects the whole scan.
+- Stock reservations happen at add-item time. Submit does NOT reduce stock.
+  Stock is deducted later at dispatch by the warehouse flow.
+- Drafts expire automatically:
+    * non-empty draft: 10 minutes after the last activity (sliding window)
+    * empty draft: 2 minutes after creation
+  Every add/remove/update/metadata change refreshes the expiry.
+  Resume drafts are listed by the server; do NOT keep drafts only in local
+  storage.
+- If the agent presses Back / abandons a draft, call DELETE on the draft so the
+  reservation is released immediately.
+- If the server returns CUSTOMER_BLOCKED, stop the flow and show the credit
+  message.
+
+-------------------------------------------------------------------------------
+3. SIZE RANGE DATA (IMPORTANT)
+-------------------------------------------------------------------------------
+The product size chart drives the size-range dropdown. The chart is already
+available from:
+
+    GET /api/size-charts/
+    GET /api/products/<product_id>/
+
+The product's `size_chart.sizes` is a JSON array. Segments that contain an
+`order_creation` object define the allowed scan ranges:
+
+    "sizes": [
+      {"order_creation": {"20-24": ["20", "22", "24"]}},
+      {"order_creation": {"26-30": ["26", "28", "30"]}}
+    ]
+
+UI rule:
+- Read `product.size_chart.sizes`, collect every `order_creation` object, and
+  flatten its keys into the dropdown values. Example dropdown:
+      ["20-24", "26-30"]
+- The VALUE sent to the server is the exact key string (e.g. "20-24").
+- The matching array is the list of sizes the backend will create. Show it as
+  a hint ("Adds sizes 20, 22, 24 — quantity applies to each size").
+- Cache size charts in localStorage keyed by company + chart id/updated_at so
+  scanning works offline for the product catalogue. Refresh in the background.
+- If the product has no `order_creation` map, the backend rejects the scan with
+  SIZE_CHART_MISSING. Show "This product has no order sizes configured."
+- If the range is not in the map, the backend returns INVALID_SIZE_RANGE and
+  puts the allowed range keys in `error.fields.size_range`.
+
+`GET /api/products/<id>/` also exposes `color_variants[].sizes[]` with
+`available_qty`, `stock_quantity`, `reserved_qty`, `is_low_stock`, and the
+product exposes `available_stock`. Use these for display and to disable
+obviously out-of-stock options, but ALWAYS re-check the server response.
+
+-------------------------------------------------------------------------------
+4. REST CONTRACT
+-------------------------------------------------------------------------------
+Base: /api
+
+4.1 List orders
+    GET /api/orders/
+    Optional query: status, include_drafts=true, agent_id, customer_id,
+                    search, date_from, date_to, pending_approval, offline
+    Drafts are excluded unless status=draft or include_drafts=true.
+
+4.2 List my drafts (resume screen)
+    GET /api/orders/drafts/
+    -> [OrderDetail, ...] ordered by most recently updated.
+
+4.3 Create empty draft
+    POST /api/orders/
+    Body:
+      {
+        "customer": "<customer_uuid>",
+        "discount_pct": "0.00",
+        "delivery_address_line1": "...",
+        "delivery_address_line2": "...",
+        "delivery_city": "...",
+        "delivery_state": "...",
+        "delivery_pincode": "...",
+        "expected_delivery_date": "2026-11-10",
+        "order_notes": "..."
+      }
+    Do NOT send `items` here; the backend returns 400 if you do.
+    201 -> OrderDetail with status="draft" and draft_expires_at.
+
+4.4 Add a scan to a draft
+    POST /api/orders/<order_id>/items/
+    Body (range scan — normal path):
+      {
+        "qr_code": "<color_variant.qr_code>",   // or "color_variant": "<uuid>"
+        "size_range": "20-24",
+        "quantity": 3,
+        "discount_pct": "0.00",
+        "client_ref": "<stable-unique-id-for-this-scan>"
+      }
+    Body (single size):
+      {"variant_size": "<variant_size_uuid>", "quantity": 2, "client_ref": "..."}
+    Response:
+      {
+        "order": OrderDetail,          // fresh draft totals/items
+        "group_id": "<uuid>",          // group for this scan
+        "stock_updates": [
+          {"variant_size_id": "...", "size": "20", "stock_quantity": 10,
+           "reserved_qty": 3, "available_qty": 7}
+        ],
+        "created": true
+      }
+    200 with "created": false means the client_ref was already applied
+    (idempotent retry). Do not add the row twice.
+    Errors: INSUFFICIENT_STOCK (HTTP 409, error.fields.items has per-size
+    requested/available), VARIANT_NOT_FOUND, INVALID_SIZE_RANGE,
+    SIZE_CHART_MISSING, VARIANT_SIZE_MISSING, ORDER_NOT_DRAFT.
+
+4.5 Update the quantity of a scan group
+    PATCH /api/orders/<order_id>/items/<item_id>/
+    Body: {"quantity": 5}
+    `item_id` may be any item from the group; the new quantity applies to every
+    size in that group. Response same shape as 4.4 (minus created).
+
+4.6 Remove a scan group
+    DELETE /api/orders/<order_id>/items/<item_id>/
+    Optional query: scope=single (default scope=group removes the whole scan)
+    Response: {"order": OrderDetail, "stock_updates": [...]}
+
+4.7 Update draft metadata
+    PATCH /api/orders/<order_id>/
+    Body: any of delivery_address_line1/2, delivery_city, delivery_state,
+          delivery_pincode, expected_delivery_date, order_notes, discount_pct
+    Response: OrderDetail.
+
+4.8 Submit draft
+    POST /api/orders/<order_id>/submit/
+    Body: optional metadata overrides (same fields as 4.7)
+    -> OrderDetail with status "submitted" (or "confirmed" if the company
+       auto-confirms) and draft_expires_at=null.
+    Errors: EMPTY_ORDER, CUSTOMER_CREDIT_EXCEEDED, AGENT_CREDIT_EXCEEDED.
+
+4.9 Discard draft / back button
+    DELETE /api/orders/<order_id>/
+    -> 204. Releases every reservation. Only valid for DRAFT orders.
+    If the draft is empty and was just created, still call this before leaving.
+
+4.10 Fetch a draft/order
+    GET /api/orders/<order_id>/   (use for reload/reconnect)
+
+Error envelope (all business errors):
+    {
+      "detail": "Human-readable message",
+      "code": "MACHINE_CODE",
+      "fields": {...}   // may be {} or per-field details
+    }
+Handle at least: CUSTOMER_BLOCKED, CUSTOMER_CREDIT_EXCEEDED,
+AGENT_CREDIT_EXCEEDED, EMPTY_ORDER, INSUFFICIENT_STOCK, INVALID_SIZE_RANGE,
+SIZE_CHART_MISSING, VARIANT_SIZE_MISSING, ORDER_NOT_DRAFT, ORDER_NOT_FOUND.
+
+-------------------------------------------------------------------------------
+5. WEBSOCKET CONTRACT
+-------------------------------------------------------------------------------
+Use the socket as the primary transport for create/add/remove/update/submit/
+discard while the agent is on the order screen. Keep REST as fallback and for
+initial page-load fetches.
+
+Connect:
+    /ws/orders/?token=<jwt>&company_id=<uuid>
+
+First server message:
+    {
+      "event": "connected",
+      "data": {
+        "user_id": "...",
+        "agent_id": "...",
+        "company_id": "...",
+        "draft_ttl_seconds": 600,
+        "empty_draft_ttl_seconds": 120,
+        "drafts": [OrderDetail, ...]
+      }
+    }
+Use `drafts` to populate the resume sheet immediately.
+
+Request envelope:
+    {"action": "<action>", "request_id": "<client-unique>", "payload": {...}}
+
+Response envelope:
+    {"action": "<action>", "request_id": "...", "ok": true, "data": {...}}
+    {"action": "<action>", "request_id": "...", "ok": false,
+     "error": {"code": "...", "message": "...", "fields": {...}}}
+
+Actions and payloads:
+- "order.create"     payload = same as POST /api/orders/
+- "order.add_item"   payload = {order_id, ...same as POST items}
+- "order.remove_item" payload = {order_id, item_id, scope?: "group"|"single"}
+- "order.update_item" payload = {order_id, item_id, quantity}
+- "order.discard"    payload = {order_id}
+- "order.submit"     payload = {order_id, ...optional metadata}
+- "order.get"        payload = {order_id}
+- "order.drafts"     payload = {}
+- "order.list"       payload = {status?, include_drafts?}
+- "order.ping"       payload = {}  -> data.server_time
+
+Action data:
+- create/get/submit -> OrderDetail
+- add_item/update_item/remove_item -> same shapes as REST 4.4/4.5/4.6
+- discard -> {"order_id": "..."}
+- drafts -> [OrderDetail]
+- list -> [OrderList]
+
+Server-pushed events (no request_id; handle them separately):
+    {"event": "order.updated", "data": {
+        "order_id": "...", "status": "draft", "total_amount": "1234.00",
+        "item_count": 9, "draft_expires_at": "2026-11-03T12:34:56Z"}}
+    {"event": "order.expired", "data": {"order_id": "..."}}
+    {"event": "stock.updated", "data": {"updates": [stock_update, ...]}}
+    {"event": "error", "ok": false, "error": {...}}   // connect failure
+
+Client behavior:
+- Maintain request_id -> pending promise map. Resolve on matching
+  action+request_id. Ignore duplicate/late responses.
+- Use a stable client_ref per scan (generate once, reuse on retry/reconnect).
+  This makes add_item idempotent.
+- On `order.expired`: if the current screen is that order, show "Draft expired,
+  stock released", clear local cart state, and navigate to the resume screen.
+- On `order.updated`: this is a lightweight summary (no line items). If it is
+  for the order on screen, apply the summary fields and, when you need the
+  fresh item list, call order.get or GET /api/orders/<id>/. The response to
+  your own add/update/remove action already contains the full OrderDetail, so
+  prefer that payload for the cart. Do not merge quantities locally.
+- On `stock.updated`: update visible available quantities.
+- Heartbeat: send order.ping every 25-30s; reconnect with exponential backoff
+  (1s, 2s, 4s ... max 30s) if the socket drops. On reconnect, the `connected`
+  payload includes the current drafts; reconcile the UI with it.
+- If the socket is unavailable, fall back to the REST endpoints. The response
+  shapes are identical.
+
+Optimistic UI:
+- You may optimistically show a pending scan row, but mark it "syncing". Only
+  enable submit after the server confirms it and returns the fresh OrderDetail.
+- On INSUFFICIENT_STOCK, remove the optimistic row and show per-size availability
+  from error.fields.items.
+- Always recompute displayed totals from the OrderDetail returned by the server.
+
+-------------------------------------------------------------------------------
+6. DRAFT RESUME / BACK BUTTON
+-------------------------------------------------------------------------------
+- On app open or order-screen mount, call GET /api/orders/drafts/ (or use the
+  drafts from the WS `connected` event) and show a resume sheet:
+    "You have an unfinished order for <customer> — <item count> items,
+     expires in <seconds_until_expiry>s. Resume / Discard".
+- `seconds_until_expiry` is included on every OrderList/OrderDetail. Count down
+  locally, but do not locally delete the draft; the server expiry task does
+  that and pushes `order.expired`.
+- If the agent backs out of an active order screen, call DELETE
+  /api/orders/<id>/ (or WS order.discard). If the network call fails, queue it
+  and retry on reconnect.
+- Do not create a second draft for the same customer/visit unless the agent
+  explicitly starts a new order.
+
+-------------------------------------------------------------------------------
+7. ORDER DETAIL SHAPE (key fields)
+-------------------------------------------------------------------------------
+OrderDetail includes:
+  id, order_number, customer, customer_details, agent, agent_details,
+  status, packing_status, draft_expires_at, seconds_until_expiry,
+  subtotal, discount_pct, discount_amount, taxable_amount,
+  cgst_amount, sgst_amount, igst_amount, total_amount, is_interstate,
+  delivery_*, expected_delivery_date, order_notes, requires_approval,
+  submitted_at, created_at, updated_at,
+  items: [
+    {id, group_id, size_range, variant_size, variant_details, size_chart,
+     product_name, color_name, size, sku, hsn_code, unit_price, quantity,
+     packed_quantity, pending_qty, packing_status, discount_pct,
+     line_total, gst_rate, gst_amount}
+  ],
+  status_history, signature, invoices
+Statuses: draft | submitted | confirmed | processing | packed | dispatched |
+          delivered | cancelled
+
+-------------------------------------------------------------------------------
+8. RECOMMENDED SCREEN STATES
+-------------------------------------------------------------------------------
+1) Customer select
+2) Draft creation (spinner; disable back until created or cancelled)
+3) Scan screen
+   - QR scanner -> resolve product/color
+   - size-range dropdown from size_chart.order_creation
+   - quantity stepper (default 1) + "applies to each size" hint
+   - running cart grouped by group_id, with per-group quantity edit/remove
+   - live totals from server OrderDetail
+   - draft expiry countdown
+4) Submit confirmation
+5) Draft resume sheet (from drafts/WS connected payload)
+6) Expired/abandoned state
+
+-------------------------------------------------------------------------------
+9. ACCEPTANCE CHECKLIST
+-------------------------------------------------------------------------------
+[ ] Creating an order sends no items and lands in draft status.
+[ ] Scanning a range with quantity N creates one line per size, each with N.
+[ ] The same scan retried with the same client_ref does not duplicate rows.
+[ ] Reserved stock updates are reflected from server responses, not guessed.
+[ ] Insufficient stock shows per-size requested vs available and adds nothing.
+[ ] Deleting a group/scan releases stock for every size in the group.
+[ ] Back/abandon deletes the draft and releases stock.
+[ ] Submit with zero items is blocked by the server and shown clearly.
+[ ] Draft expiry countdown uses seconds_until_expiry; expiry event clears UI.
+[ ] Reconnect restores drafts and pending requests without duplicates.
+[ ] REST fallback works when the WebSocket cannot connect.

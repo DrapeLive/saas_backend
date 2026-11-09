@@ -1,13 +1,17 @@
+from decimal import Decimal
 from typing import ClassVar
 
 from django.utils import timezone
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.subscriptions.models import (
     BillingCycle,
     Plan,
+    PlanTier,
     Subscription,
     SubscriptionEvent,
+    SubscriptionPayment,
     SubscriptionStatus,
     UsageSnapshot,
 )
@@ -44,6 +48,7 @@ class PlanListSerializer(serializers.ModelSerializer):
             "active_subscription_count",
         ]
 
+    @extend_schema_field(serializers.IntegerField())
     def get_active_subscription_count(self, obj):
         return obj.subscriptions.filter(
             status__in=[SubscriptionStatus.ACTIVE, SubscriptionStatus.TRIAL]
@@ -145,14 +150,80 @@ class UsageSnapshotSerializer(serializers.ModelSerializer):
         ]
 
 
+class SubscriptionPaymentListSerializer(serializers.ModelSerializer):
+    subscription_id = serializers.UUIDField(source="subscription.id", read_only=True)
+    company_name = serializers.CharField(
+        source="subscription.company.name", read_only=True
+    )
+
+    class Meta:
+        model = SubscriptionPayment
+        fields: ClassVar[list[str]] = [
+            "id",
+            "subscription_id",
+            "company_name",
+            "amount",
+            "currency",
+            "status",
+            "payment_method",
+            "provider",
+            "provider_payment_id",
+            "idempotency_key",
+            "paid_at",
+            "created_at",
+        ]
+
+
+class SubscriptionPaymentDetailSerializer(SubscriptionPaymentListSerializer):
+    class Meta(SubscriptionPaymentListSerializer.Meta):
+        fields: ClassVar[list[str]] = SubscriptionPaymentListSerializer.Meta.fields + [
+            "notes",
+            "recorded_by",
+            "updated_at",
+        ]
+
+
+class SubscriptionPaymentCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SubscriptionPayment
+        fields: ClassVar[list[str]] = [
+            "subscription",
+            "amount",
+            "currency",
+            "payment_method",
+            "provider",
+            "provider_payment_id",
+            "idempotency_key",
+            "notes",
+        ]
+
+    def validate_amount(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("Payment amount must be greater than zero.")
+        return value
+
+    def validate_subscription(self, value):
+        if value.status == SubscriptionStatus.CANCELLED:
+            raise serializers.ValidationError(
+                "Cancelled subscriptions must be reactivated before payment."
+            )
+        return value
+
+
+class SubscriptionPaymentStatusSerializer(serializers.Serializer):
+    notes = serializers.CharField(required=False, allow_blank=True)
+
+
 class SubscriptionListSerializer(serializers.ModelSerializer):
     plan_name = serializers.CharField(source="plan.name", read_only=True)
     plan_tier = serializers.CharField(source="plan.tier", read_only=True)
+    company_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Subscription
         fields: ClassVar[list[str]] = [
             "id",
+            "company_name",
             "plan_name",
             "plan_tier",
             "billing_cycle",
@@ -161,6 +232,11 @@ class SubscriptionListSerializer(serializers.ModelSerializer):
             "current_period_end",
             "price_paid",
         ]
+
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_company_name(self, obj):
+        company = getattr(obj, "company", None)
+        return company.name if company else None
 
 
 class SubscriptionDetailSerializer(serializers.ModelSerializer):
@@ -193,6 +269,7 @@ class SubscriptionDetailSerializer(serializers.ModelSerializer):
             "usage",
         ]
 
+    @extend_schema_field(serializers.IntegerField(allow_null=True))
     def get_days_remaining(self, obj):
         if obj.current_period_end:
             delta = obj.current_period_end - timezone.now().date()
@@ -206,11 +283,18 @@ class SubscriptionUpgradeSerializer(serializers.Serializer):
     discount_pct = serializers.DecimalField(
         max_digits=5,
         decimal_places=2,
-        default=0,
+        default=Decimal(0),
         min_value=0,
         max_value=100,
     )
     notes = serializers.CharField(required=False, allow_blank=True)
+
+    def validate_billing_cycle(self, value):
+        if value == BillingCycle.TRIAL:
+            raise serializers.ValidationError(
+                "Use monthly or yearly billing when changing an existing subscription."
+            )
+        return value
 
     def validate_plan_id(self, value):
         if not Plan.objects.filter(id=value, is_active=True).exists():
@@ -248,9 +332,32 @@ class SubscriptionCreateSerializer(serializers.Serializer):
 
     def validate_plan_id(self, value):
         try:
-            plan = Plan.objects.get(pk=value)
+            plan = Plan.objects.get(pk=value, is_active=True)
         except Plan.DoesNotExist:
-            raise serializers.ValidationError("Plan not found.")
+            raise serializers.ValidationError("Plan not found or inactive.")
 
         self.context["plan"] = plan
         return value
+
+    def validate(self, attrs):
+        if (
+            attrs.get("billing_cycle") == BillingCycle.TRIAL
+            and self.context["plan"].trial_days <= 0
+        ):
+            raise serializers.ValidationError(
+                {"billing_cycle": "The selected plan does not provide a trial."}
+            )
+        return attrs
+
+
+class PlanToggleResponseSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    tier = serializers.ChoiceField(choices=PlanTier.choices)  # type: ignore
+    name = serializers.CharField()
+    is_active = serializers.BooleanField()
+    detail = serializers.CharField()
+
+
+class SeedPlansResponseSerializer(serializers.Serializer):
+    created = serializers.ListField(child=serializers.CharField())
+    detail = serializers.CharField()

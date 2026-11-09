@@ -1,0 +1,21 @@
+info:
+  name: impersonate
+  type: http
+  seq: 8
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/super-admin/companies/36e6aadf-2a1e-4113-a448-853c73d99236/impersonate"
+  body:
+    type: json
+    data: ""
+  auth:
+    type: bearer
+    token: "{{SUPERADMIN_ACCESS}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: true

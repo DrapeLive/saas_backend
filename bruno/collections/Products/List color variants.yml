@@ -1,0 +1,78 @@
+info:
+  name: List color variants
+  type: http
+  seq: 6
+  tags:
+    - Products
+
+http:
+  method: GET
+  url: "{{baseUrl}}/api/products/:product_pk/variants/"
+  params:
+    - name: product_pk
+      value: ""
+      type: path
+  auth:
+    type: bearer
+    token: "{{token}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: false
+
+examples:
+  - name: 200 Response
+    request:
+      url: "{{baseUrl}}/api/products/:product_pk/variants/"
+      method: GET
+      params:
+        - name: product_pk
+          value: ""
+          type: path
+    response:
+      status: 200
+      statusText: OK
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          [
+            {
+              "id": "",
+              "color_name": "",
+              "color_hex": "",
+              "image": "",
+              "is_primary": false,
+              "sku": "",
+              "is_active": false,
+              "total_stock": 0
+            }
+          ]
+  - name: 404 Response
+    description: Not found. The requested resource does not exist in the current company.
+    request:
+      url: "{{baseUrl}}/api/products/:product_pk/variants/"
+      method: GET
+      params:
+        - name: product_pk
+          value: ""
+          type: path
+    response:
+      status: 404
+      statusText: Not Found
+      headers:
+        - name: Content-Type
+          value: application/json
+      body:
+        type: json
+        data: |-
+          {
+            "detail": ""
+          }
+
+docs: Lists every color variant (with sizes) for a product.

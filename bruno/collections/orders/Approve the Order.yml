@@ -1,0 +1,27 @@
+info:
+  name: Approve the Order
+  type: http
+  seq: 8
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/orders/85d90b34-9526-4c97-b277-2cb57b622f87/approve/"
+  headers:
+    - name: X-Company-Id
+      value: 34548a8b-3322-44f3-ad9b-48ba4e40278c
+  body:
+    type: json
+    data: |-
+      {
+        "action": "approve"
+      }
+  auth:
+    type: bearer
+    token: "{{ACCESS}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: true

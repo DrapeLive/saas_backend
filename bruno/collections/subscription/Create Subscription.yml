@@ -1,0 +1,26 @@
+info:
+  name: Create Subscription
+  type: http
+  seq: 7
+
+http:
+  method: POST
+  url: "{{baseUrl}}/api/subscriptions/"
+  body:
+    type: json
+    data: |
+      {
+        "company_id": "39fdf6a9-46b8-4cb8-a56d-045e1e2ebbf0",
+        "plan_id": "9b67cb73-8af5-463e-95fe-796c8058d2ca",
+        "billing_cycle": "monthly"
+      }
+  auth:
+    type: bearer
+    token: "{{SUPERADMIN_ACCESS}}"
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
+  forwardAuthorizationHeader: true

@@ -1,0 +1,78 @@
+info:
+    name: Inventory Listing - Default
+    type: http
+    seq: 1
+
+http:
+    method: GET
+    url: "{{baseUrl}}/products/"
+    headers:
+        - name: Authorization
+          value: "Bearer {{authToken}}"
+        - name: accept
+          value: application/json
+    body:
+        type: none
+    auth:
+        type: none
+
+runtime:
+    scripts:
+        - type: tests
+          code: |-
+              test("Returns 200", function () {
+                expect(res.status).to.equal(200);
+              });
+
+              test("Response has pagination fields", function () {
+                expect(res.body).to.have.property("count");
+                expect(res.body).to.have.property("next");
+                expect(res.body).to.have.property("previous");
+                expect(res.body).to.have.property("summary");
+                expect(res.body).to.have.property("filters");
+                expect(res.body).to.have.property("results");
+              });
+
+              test("Summary has stock_valuation", function () {
+                expect(res.body.summary).to.have.property("stock_valuation");
+                expect(res.body.summary.stock_valuation).to.be.a("string");
+              });
+
+              test("Filters has sizes array", function () {
+                expect(res.body.filters).to.have.property("sizes");
+                expect(res.body.filters.sizes).to.be.an("array");
+              });
+
+              test("Results is an array", function () {
+                expect(res.body.results).to.be.an("array");
+              });
+
+              test("Each result has correct structure", function () {
+                if (res.body.results.length > 0) {
+                  const row = res.body.results[0];
+                  expect(row).to.have.property("id");
+                  expect(row).to.have.property("product");
+                  expect(row).to.have.property("sku");
+                  expect(row).to.have.property("category");
+                  expect(row).to.have.property("color");
+                  expect(row).to.have.property("size");
+                  expect(row).to.have.property("price_per_unit");
+                  expect(row).to.have.property("stock");
+
+                  expect(row.product).to.have.property("id");
+                  expect(row.product).to.have.property("name");
+
+                  expect(row.category).to.have.property("id");
+                  expect(row.category).to.have.property("name");
+
+                  expect(row.color).to.have.property("name");
+                  expect(row.color).to.have.property("hex");
+
+                  expect(row.stock).to.have.property("stock_quantity");
+                  expect(row.stock).to.have.property("reserved_quantity");
+                  expect(row.stock).to.have.property("available_quantity");
+                  expect(row.stock).to.have.property("reorder_level");
+                  expect(row.stock).to.have.property("is_low_stock");
+                  expect(row.stock).to.have.property("is_out_of_stock");
+                }
+              });
