@@ -406,6 +406,16 @@ ORDER_EMPTY_DRAFT_TTL_SECONDS = config(
     "ORDER_EMPTY_DRAFT_TTL_SECONDS", default=2700, cast=int
 )
 
+# ---------------------------------------------------------------------------
+# Firebase Cloud Messaging (push notifications)
+# ---------------------------------------------------------------------------
+# Provide the service-account credentials either as JSON in
+# ``FIREBASE_CREDENTIALS_JSON`` (preferred, e.g. from the environment) or as a
+# file path in ``FIREBASE_CREDENTIALS_PATH``. Never commit the credentials file.
+FIREBASE_CREDENTIALS_JSON = config("FIREBASE_CREDENTIALS_JSON", default=None)
+FIREBASE_CREDENTIALS_PATH = config("FIREBASE_CREDENTIALS_PATH", default=None)
+NOTIFICATIONS_PUSH_ENABLED = config("NOTIFICATIONS_PUSH_ENABLED", default=True, cast=bool)
+
 if TESTING:
     CELERY_TASK_ALWAYS_EAGER = True
     CELERY_TASK_EAGER_PROPAGATES = True

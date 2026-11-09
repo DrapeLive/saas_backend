@@ -84,3 +84,25 @@ class Notification(UUIDModel):
             models.Index(fields=["recipient", "status", "created_at"]),
             models.Index(fields=["channel", "status"]),
         ]
+
+
+class FCMDevice(models.Model):
+    """Firebase Cloud Messaging device registration for push notifications."""
+
+    user = models.ForeignKey(
+        "accounts.User", on_delete=models.CASCADE, related_name="fcm_devices"
+    )
+    device_id = models.CharField(max_length=200)
+    fcm_token = models.CharField(max_length=500, db_index=True)
+    platform = models.CharField(max_length=20, default="android")
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "notifications_fcm_device"
+        unique_together = [("user", "device_id")]
+        indexes = [models.Index(fields=["fcm_token", "is_active"])]
+
+    def __str__(self):
+        return f"{self.user.email} — {self.fcm_token[:20]}... ({self.platform})"
