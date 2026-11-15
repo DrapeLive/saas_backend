@@ -50,6 +50,12 @@ class OrderSignatureSerializer(serializers.ModelSerializer):
 
 class OrderItemSerializer(serializers.ModelSerializer):
     variant_details = VariantSizeSerializer(source="variant_size", read_only=True)
+    product_id = serializers.UUIDField(
+        source="variant_size.color_variant.product_id", read_only=True
+    )
+    color_variant_id = serializers.UUIDField(
+        source="variant_size.color_variant_id", read_only=True
+    )
     size_chart = SizeChartSerializer(
         source="variant_size.color_variant.product.size_chart",
         read_only=True,
@@ -64,6 +70,9 @@ class OrderItemSerializer(serializers.ModelSerializer):
         read_only=True,
         help_text="Derived: unpacked | partially_packed | packed.",
     )
+    image_url = serializers.SerializerMethodField(
+        help_text="Absolute URL of the ordered color variant's product image.",
+    )
 
     class Meta:
         model = OrderItem
@@ -72,6 +81,8 @@ class OrderItemSerializer(serializers.ModelSerializer):
             "group_id",
             "size_range",
             "variant_size",
+            "product_id",
+            "color_variant_id",
             "variant_details",
             "size_chart",
             "product_name",
@@ -88,7 +99,16 @@ class OrderItemSerializer(serializers.ModelSerializer):
             "line_total",
             "gst_rate",
             "gst_amount",
+            "image_url",
         ]
+
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_image_url(self, obj):
+        image = obj.variant_size.color_variant.image
+        if not image:
+            return None
+        request = self.context.get("request")
+        return request.build_absolute_uri(image.url) if request else image.url
 
 
 class OrderItemCreateSerializer(serializers.ModelSerializer):
