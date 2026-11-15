@@ -2,6 +2,16 @@ from decimal import Decimal
 
 from apps.accounts.models import AppModule, RoleType, SubAdminProfile
 
+ACTION_FLAGS = {
+    "view": "can_view",
+    "add": "can_add",
+    "edit": "can_edit",
+    "delete": "can_delete",
+    "export": "can_export",
+}
+
+ALL_MODULES = [module for module, _label in AppModule.choices]
+
 
 def get_subadmin_profile(user):
     """
@@ -12,66 +22,91 @@ def get_subadmin_profile(user):
     return getattr(user, "subadmin_profile", None)
 
 
-def can_manage_module(user, module):
+def get_module_rules(profile):
     """
-    RBAC check: whether a subadmin is allowed to work with a module.
+    Resolve a sub-admin's module rules.
 
-    Admins and superadmins are always allowed. For subadmins, the check
-    resolves permissions from:
-      1. the assigned RoleTemplate (rank-order default), then
-      2. explicit SubAdminProfile.custom_permissions overrides.
-    Modules without any template permission default to read-only for subadmins.
+    The role template provides defaults; explicit ``SubAdminPermission`` rows
+    override the template one module at a time.
     """
-    if getattr(user, "role", None) in (RoleType.ADMIN, RoleType.SUPER_ADMIN):
+    rules = {}
+    template = profile.role_template
+    if template is not None:
+        for rule in template.module_permissions.all():
+            rules[rule.module] = rule
+    for rule in profile.module_permissions.all():
+        rules[rule.module] = rule
+    return rules
+
+
+def can_manage_module(user, module, action="view"):
+    """
+    RBAC check for one module action.
+
+    Admins and superadmins always pass. Non-subadmin staff (e.g. agents) are
+    left to the existing role permission classes. For sub-admins, a module
+    without an explicit rule is denied.
+    """
+    role = getattr(user, "role", None)
+    if role in (RoleType.ADMIN, RoleType.SUPER_ADMIN):
+        return True
+    if role != RoleType.SUB_ADMIN:
         return True
 
     profile = get_subadmin_profile(user)
     if profile is None:
         return False
 
-    permission = None
-    template = profile.role_template
-    if template is not None:
-        permission = template.permissions.filter(module=module).first()
-    if permission is None:
-        permission = profile.custom_permissions.filter(module=module).first()
-    if permission is None:
-        # No explicit rule -> default to view-only (module visible).
-        return True
-    return permission.can_view
+    rule = get_module_rules(profile).get(module)
+    if rule is None:
+        return False
+
+    flag = ACTION_FLAGS.get(action)
+    if flag is None:
+        return False
+    return bool(getattr(rule, flag))
 
 
 def get_effective_permission_map(user):
     """
-    Resolve a subadmin's effective permissions across every module.
+    Resolve the effective permission map returned to the mobile app.
 
-    Precedence matches ``can_manage_module``: RoleTemplate rules win,
-    custom overrides fill modules missing from the template, and modules
-    without any rule default to view-only. Returns a list of dicts.
+    Every module is always present so the client can reason about a complete
+    matrix. Modules without a rule are explicitly disabled for sub-admins.
     """
+    role = getattr(user, "role", None)
+    if role in (RoleType.ADMIN, RoleType.SUPER_ADMIN):
+        return [
+            {
+                "module": module,
+                "can_view": True,
+                "can_add": True,
+                "can_edit": True,
+                "can_delete": True,
+                "can_export": True,
+            }
+            for module in ALL_MODULES
+        ]
+
+    if role != RoleType.SUB_ADMIN:
+        return []
+
     profile = get_subadmin_profile(user)
     if profile is None:
         return []
 
-    module_map = {}
-    template = profile.role_template
-    if template is not None:
-        for perm in template.permissions.all():
-            module_map.setdefault(perm.module, perm)
-    for perm in profile.custom_permissions.all():
-        module_map.setdefault(perm.module, perm)
-
+    rules = get_module_rules(profile)
     result = []
-    for module, _label in AppModule.choices:
-        perm = module_map.get(module)
+    for module in ALL_MODULES:
+        rule = rules.get(module)
         result.append(
             {
                 "module": module,
-                "can_view": perm.can_view if perm else True,
-                "can_add": perm.can_add if perm else False,
-                "can_edit": perm.can_edit if perm else False,
-                "can_delete": perm.can_delete if perm else False,
-                "can_export": perm.can_export if perm else False,
+                "can_view": bool(rule.can_view) if rule else False,
+                "can_add": bool(rule.can_add) if rule else False,
+                "can_edit": bool(rule.can_edit) if rule else False,
+                "can_delete": bool(rule.can_delete) if rule else False,
+                "can_export": bool(rule.can_export) if rule else False,
             }
         )
     return result
@@ -94,6 +129,66 @@ def get_subadmin_restrictions(user):
         ),
         "approval_threshold": profile.approval_threshold,
     }
+
+
+def serialize_module_permissions(rules):
+    """Serialize module rules (template or override rows) for API responses."""
+    return [rule.as_dict() | {"id": str(rule.id)} for rule in rules]
+
+
+def set_subadmin_permissions(profile, rows):
+    """
+    Replace a sub-admin's explicit module overrides.
+
+    ``rows`` is a list of dicts carrying ``module`` plus action flags. Duplicate
+    modules are collapsed (last one wins).
+    """
+    from apps.accounts.models import SubAdminPermission
+
+    normalized = {}
+    for row in rows:
+        normalized[row["module"]] = row
+
+    profile.module_permissions.all().delete()
+    SubAdminPermission.objects.bulk_create(
+        [
+            SubAdminPermission(
+                sub_admin=profile,
+                module=row["module"],
+                can_view=bool(row.get("can_view", False)),
+                can_add=bool(row.get("can_add", False)),
+                can_edit=bool(row.get("can_edit", False)),
+                can_delete=bool(row.get("can_delete", False)),
+                can_export=bool(row.get("can_export", False)),
+            )
+            for row in normalized.values()
+        ]
+    )
+
+
+def set_template_permissions(template, rows):
+    """Replace a role template's module rules."""
+    from apps.accounts.models import RoleTemplatePermission
+
+    normalized = {}
+    for row in rows:
+        normalized[row["module"]] = row
+
+    template.module_permissions.all().delete()
+    RoleTemplatePermission.objects.bulk_create(
+        [
+            RoleTemplatePermission(
+                role_template=template,
+                module=row["module"],
+                can_view=bool(row.get("can_view", False)),
+                can_add=bool(row.get("can_add", False)),
+                can_edit=bool(row.get("can_edit", False)),
+                can_delete=bool(row.get("can_delete", False)),
+                can_export=bool(row.get("can_export", False)),
+            )
+            for row in normalized.values()
+        ]
+    )
 
 
 def get_subadmin_restricted_agent_ids(user):
@@ -173,3 +268,14 @@ def compute_subadmin_approval_threshold(profile, amount):
     if threshold is None:
         return False
     return Decimal(amount) > Decimal(threshold)
+
+
+def revoke_user_refresh_tokens(user):
+    """Blacklist every outstanding refresh token for a deactivated user."""
+    from rest_framework_simplejwt.token_blacklist.models import (
+        BlacklistedToken,
+        OutstandingToken,
+    )
+
+    for token in OutstandingToken.objects.filter(user=user):
+        BlacklistedToken.objects.get_or_create(token=token)

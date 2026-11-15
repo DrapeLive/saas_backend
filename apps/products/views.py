@@ -9,6 +9,7 @@ from rest_framework.viewsets import GenericViewSet
 
 from apps.accounts.authentication import CustomJWTAuthentication
 from apps.accounts.permissions import CompanyApproved, IsAdminOrSubAdmin, IsCompanyStaff
+from apps.sub_admin.permissions import ModulePermission
 from apps.core.pagination import DefaultPageNumberPagination
 from apps.core.parsers import NestedMultiPartParser
 from apps.products.models import (
@@ -44,6 +45,7 @@ from apps.sub_admin.services import (
 
 class CategoryViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
+    permission_module = "products"
 
     def get_permissions(self):
         if self.action == "list":
@@ -59,6 +61,7 @@ class CategoryViewSet(GenericViewSet):
             IsAuthenticated(),
             CompanyApproved(),
             *[permission() for permission in permission_classes],
+            ModulePermission(),
         ]
 
     def get_serializer_class(self):
@@ -154,6 +157,7 @@ class CategoryViewSet(GenericViewSet):
 class SizeChartViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
     serializer_class = SizeChartSerializer
+    permission_module = "products"
 
     def get_permissions(self):
         if self.action == "list":
@@ -169,6 +173,7 @@ class SizeChartViewSet(GenericViewSet):
             IsAuthenticated(),
             CompanyApproved(),
             *[permission() for permission in permission_classes],
+            ModulePermission(),
         ]
 
     def _get_company(self, request):
@@ -220,6 +225,8 @@ class SizeChartViewSet(GenericViewSet):
 
 class ProductViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
+    permission_module = "products"
+    permission_action_map = {"scan": "view"}
     pagination_class = DefaultPageNumberPagination
     parser_classes = (
         parsers.JSONParser,
@@ -240,8 +247,18 @@ class ProductViewSet(GenericViewSet):
         # Agents (quick action: browse catalog, scan QR) may read; only
         # admin/sub-admin may mutate catalog data.
         if self.action in ("create", "partial_update", "destroy"):
-            return [IsAuthenticated(), CompanyApproved(), IsAdminOrSubAdmin()]
-        return [IsAuthenticated(), CompanyApproved(), IsCompanyStaff()]
+            return [
+                IsAuthenticated(),
+                CompanyApproved(),
+                IsAdminOrSubAdmin(),
+                ModulePermission(),
+            ]
+        return [
+            IsAuthenticated(),
+            CompanyApproved(),
+            IsCompanyStaff(),
+            ModulePermission(),
+        ]
 
     def _get_company(self, request):
         return request.company or request.user.company
@@ -437,6 +454,7 @@ class ProductViewSet(GenericViewSet):
 
 class ColorVariantViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
+    permission_module = "products"
     parser_classes = (
         parsers.JSONParser,
         parsers.FormParser,
@@ -457,6 +475,7 @@ class ColorVariantViewSet(GenericViewSet):
             IsAuthenticated(),
             CompanyApproved(),
             *[permission() for permission in permission_classes],
+            ModulePermission(),
         ]
 
     def get_serializer_class(self):
@@ -582,6 +601,8 @@ class ColorVariantViewSet(GenericViewSet):
 
 class StockViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
+    permission_module = "inventory"
+    permission_action_map = {"adjust": "edit"}
 
     def get_permissions(self):
         if self.action == "list":
@@ -597,6 +618,7 @@ class StockViewSet(GenericViewSet):
             IsAuthenticated(),
             CompanyApproved(),
             *[permission() for permission in permission_classes],
+            ModulePermission(),
         ]
 
     def get_serializer_class(self):

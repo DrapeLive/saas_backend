@@ -8,6 +8,7 @@ from rest_framework.viewsets import GenericViewSet
 
 from apps.accounts.authentication import CustomJWTAuthentication
 from apps.accounts.permissions import IsAdmin, IsAdminOrSubAdmin
+from apps.sub_admin.permissions import ModulePermission
 from apps.commissions.models import CommissionEntry
 from apps.commissions.serializers import (
     AgentCommissionSummarySerializer,
@@ -23,6 +24,14 @@ from apps.commissions.services import settlement_month_for, upsert_payout
 class CommissionEntryViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
     permission_classes = (IsAdminOrSubAdmin,)
+    permission_module = "commissions"
+    permission_action_map = {"summary": "view", "update_status": "edit", "settle": "edit"}
+
+    def get_permissions(self):
+        # Status changes and payouts are admin-only workflows.
+        if self.action in ("update_status", "settle"):
+            return [IsAdmin()]
+        return [*super().get_permissions(), ModulePermission()]
 
     def get_serializer_class(self):
         if self.action == "list":

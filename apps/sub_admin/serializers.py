@@ -1,10 +1,64 @@
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 
-from apps.accounts.models import Permission, RoleTemplate, RoleType, SubAdminProfile, User
-from apps.accounts.serializers import PermissionSerializer
+from apps.accounts.models import (
+    AppModule,
+    Permission,
+    RoleTemplate,
+    RoleType,
+    SubAdminProfile,
+    User,
+)
 from apps.agents.models import AgentProfile
 from apps.products.models import Category
+from apps.sub_admin.services import (
+    get_effective_permission_map,
+    revoke_user_refresh_tokens,
+    serialize_module_permissions,
+    set_subadmin_permissions,
+    set_template_permissions,
+)
+
+
+def _validate_permission_rows(value):
+    """Validate and normalize a list of module permission dicts."""
+    valid_modules = set(AppModule.values)
+    normalized = {}
+    for item in value:
+        if not isinstance(item, dict):
+            raise serializers.ValidationError(
+                "Each permission entry must be an object."
+            )
+        module = str(item.get("module", "")).strip()
+        if module not in valid_modules:
+            raise serializers.ValidationError(f"Unknown module: {module!r}.")
+        normalized[module] = {
+            "module": module,
+            "can_view": bool(item.get("can_view", False)),
+            "can_add": bool(item.get("can_add", False)),
+            "can_edit": bool(item.get("can_edit", False)),
+            "can_delete": bool(item.get("can_delete", False)),
+            "can_export": bool(item.get("can_export", False)),
+        }
+    return list(normalized.values())
+
+
+def _rows_from_permission_ids(permission_ids):
+    """Legacy support: a selected module means view access."""
+    rows = []
+    for permission in Permission.objects.filter(pk__in=permission_ids):
+        rows.append({"module": permission.module, "can_view": True})
+    return rows
+
+
+class ModulePermissionSerializer(serializers.Serializer):
+    id = serializers.UUIDField(read_only=True)
+    module = serializers.CharField()
+    can_view = serializers.BooleanField()
+    can_add = serializers.BooleanField()
+    can_edit = serializers.BooleanField()
+    can_delete = serializers.BooleanField()
+    can_export = serializers.BooleanField()
 
 
 class RoleTemplateCreateSerializer(serializers.Serializer):
@@ -12,9 +66,15 @@ class RoleTemplateCreateSerializer(serializers.Serializer):
     description = serializers.CharField(max_length=500, required=False, allow_blank=True)
     rank = serializers.IntegerField(min_value=0, max_value=100, required=False, default=50)
     is_default = serializers.BooleanField(required=False, default=False)
-    permission_ids = serializers.ListField(
-        child=serializers.UUIDField(), write_only=True
+    permissions = serializers.ListField(
+        child=serializers.DictField(), required=False, write_only=True
     )
+    permission_ids = serializers.ListField(
+        child=serializers.UUIDField(), required=False, write_only=True
+    )
+
+    def validate_permissions(self, value):
+        return _validate_permission_rows(value)
 
     def validate_permission_ids(self, value):
         existing = set(Permission.objects.filter(pk__in=value).values_list("id", flat=True))
@@ -27,6 +87,7 @@ class RoleTemplateCreateSerializer(serializers.Serializer):
 
     def create(self, validated_data):
         company = self.context["company"]
+        permissions = validated_data.pop("permissions", None)
         permission_ids = validated_data.pop("permission_ids", [])
         is_default = validated_data.pop("is_default", False)
         template = RoleTemplate.objects.create(
@@ -34,8 +95,11 @@ class RoleTemplateCreateSerializer(serializers.Serializer):
             is_default=is_default,
             **validated_data,
         )
-        if permission_ids:
-            template.permissions.set(Permission.objects.filter(pk__in=permission_ids))
+        rows = permissions
+        if rows is None and permission_ids:
+            rows = _rows_from_permission_ids(permission_ids)
+        if rows:
+            set_template_permissions(template, rows)
         if is_default:
             RoleTemplate.objects.filter(
                 company=company, is_default=True
@@ -48,9 +112,15 @@ class RoleTemplateUpdateSerializer(serializers.Serializer):
     description = serializers.CharField(max_length=500, required=False, allow_blank=True)
     rank = serializers.IntegerField(min_value=0, max_value=100, required=False)
     is_default = serializers.BooleanField(required=False)
+    permissions = serializers.ListField(
+        child=serializers.DictField(), required=False, write_only=True
+    )
     permission_ids = serializers.ListField(
         child=serializers.UUIDField(), required=False, write_only=True
     )
+
+    def validate_permissions(self, value):
+        return _validate_permission_rows(value)
 
     def validate_permission_ids(self, value):
         existing = set(Permission.objects.filter(pk__in=value).values_list("id", flat=True))
@@ -63,6 +133,7 @@ class RoleTemplateUpdateSerializer(serializers.Serializer):
 
     def update(self, instance, validated_data):
         company = self.context.get("company")
+        permissions = validated_data.pop("permissions", None)
         permission_ids = validated_data.pop("permission_ids", None)
         is_default = validated_data.get("is_default")
 
@@ -70,10 +141,11 @@ class RoleTemplateUpdateSerializer(serializers.Serializer):
             setattr(instance, field, value)
         instance.save()
 
-        if permission_ids is not None:
-            instance.permissions.set(
-                Permission.objects.filter(pk__in=permission_ids)
-            )
+        rows = permissions
+        if rows is None and permission_ids is not None:
+            rows = _rows_from_permission_ids(permission_ids)
+        if rows is not None:
+            set_template_permissions(instance, rows)
 
         if is_default:
             RoleTemplate.objects.filter(
@@ -84,7 +156,8 @@ class RoleTemplateUpdateSerializer(serializers.Serializer):
 
 
 class RoleTemplateDetailSerializer(serializers.ModelSerializer):
-    permissions = PermissionSerializer(many=True, read_only=True)
+    permissions = serializers.SerializerMethodField()
+    permission_ids = serializers.SerializerMethodField()
 
     class Meta:
         model = RoleTemplate
@@ -96,10 +169,18 @@ class RoleTemplateDetailSerializer(serializers.ModelSerializer):
             "is_default",
             "company",
             "permissions",
+            "permission_ids",
             "created_at",
             "updated_at",
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
+
+    def get_permissions(self, obj):
+        return serialize_module_permissions(obj.module_permissions.all())
+
+    def get_permission_ids(self, obj):
+        """Legacy field: ids of the module rules selected by this template."""
+        return [str(rule.id) for rule in obj.module_permissions.all()]
 
 
 class SubAdminCreateSerializer(serializers.Serializer):
@@ -108,6 +189,9 @@ class SubAdminCreateSerializer(serializers.Serializer):
     full_name = serializers.CharField(max_length=150)
     phone = serializers.CharField(max_length=15, required=False, allow_blank=True)
     role_template_id = serializers.UUIDField(required=False, allow_null=True)
+    permissions = serializers.ListField(
+        child=serializers.DictField(), required=False, write_only=True
+    )
     approval_threshold = serializers.DecimalField(
         max_digits=12,
         decimal_places=2,
@@ -122,6 +206,9 @@ class SubAdminCreateSerializer(serializers.Serializer):
                 "A user with this email already exists."
             )
         return value.lower()
+
+    def validate_permissions(self, value):
+        return _validate_permission_rows(value)
 
     def validate_role_template_id(self, value):
         if value is None:
@@ -142,7 +229,14 @@ class SubAdminCreateSerializer(serializers.Serializer):
     def create(self, validated_data):
         company = self.context["company"]
         role_template = validated_data.pop("role_template_id", None)
+        permissions = validated_data.pop("permissions", None)
         approval_threshold = validated_data.pop("approval_threshold", None)
+
+        if role_template is None:
+            role_template = RoleTemplate.objects.filter(
+                company=company, is_default=True
+            ).first()
+
         user = User.objects.create_user(
             role=RoleType.SUB_ADMIN,
             company=company,
@@ -155,20 +249,29 @@ class SubAdminCreateSerializer(serializers.Serializer):
                 "approval_threshold": approval_threshold,
             },
         )
-        if role_template is not None:
-            profile.role_template = role_template
+        profile.role_template = role_template
         if approval_threshold is not None:
             profile.approval_threshold = approval_threshold
         profile.save()
+
+        if permissions is not None:
+            set_subadmin_permissions(profile, permissions)
         return profile
 
 
 class SubAdminUpdateSerializer(serializers.ModelSerializer):
     role_template_id = serializers.UUIDField(required=False, allow_null=True)
+    permissions = serializers.ListField(
+        child=serializers.DictField(), required=False, write_only=True
+    )
+    is_active = serializers.BooleanField(required=False)
 
     class Meta:
         model = SubAdminProfile
-        fields = ["approval_threshold", "role_template_id"]
+        fields = ["approval_threshold", "role_template_id", "permissions", "is_active"]
+
+    def validate_permissions(self, value):
+        return _validate_permission_rows(value)
 
     def validate_role_template_id(self, value):
         if value is None:
@@ -187,13 +290,30 @@ class SubAdminUpdateSerializer(serializers.ModelSerializer):
         return template
 
     def update(self, instance, validated_data):
-        role_template_id = validated_data.pop("role_template_id", None)
-        profile = super().update(instance, validated_data)
-        if role_template_id is not None:
-            from apps.accounts.models import RoleTemplate
+        permissions = validated_data.pop("permissions", None)
+        is_active = validated_data.pop("is_active", None)
+        has_template = "role_template_id" in validated_data
+        role_template = validated_data.pop("role_template_id", None)
 
-            profile.role_template = RoleTemplate.objects.get(pk=role_template_id)
+        profile = super().update(instance, validated_data)
+
+        if has_template:
+            profile.role_template = role_template
             profile.save(update_fields=["role_template", "updated_at"])
+
+        if permissions is not None:
+            set_subadmin_permissions(profile, permissions)
+        elif has_template:
+            # Switching template resets explicit overrides so the new
+            # template's defaults take effect immediately.
+            profile.module_permissions.all().delete()
+
+        if is_active is not None:
+            profile.user.is_active = is_active
+            profile.user.save(update_fields=["is_active"])
+            if not is_active:
+                revoke_user_refresh_tokens(profile.user)
+
         return profile
 
 
@@ -205,6 +325,7 @@ class SubAdminDetailSerializer(serializers.ModelSerializer):
     is_active = serializers.BooleanField(source="user.is_active")
     company = serializers.UUIDField(source="user.company_id")
     role_template = serializers.PrimaryKeyRelatedField(read_only=True)
+    permissions = serializers.SerializerMethodField()
     restricted_agents = serializers.PrimaryKeyRelatedField(
         many=True, read_only=True
     )
@@ -225,6 +346,7 @@ class SubAdminDetailSerializer(serializers.ModelSerializer):
             "is_active",
             "company",
             "role_template",
+            "permissions",
             "restricted_agents",
             "restricted_categories",
             "approval_threshold",
@@ -232,6 +354,9 @@ class SubAdminDetailSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
+
+    def get_permissions(self, obj):
+        return get_effective_permission_map(obj.user)
 
 
 class SubAdminListSerializer(SubAdminDetailSerializer):

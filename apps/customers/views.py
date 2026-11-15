@@ -17,6 +17,7 @@ from rest_framework.viewsets import GenericViewSet
 from apps.accounts.authentication import CustomJWTAuthentication
 from apps.accounts.models import RoleType
 from apps.accounts.permissions import CompanyApproved, IsCompanyStaff
+from apps.sub_admin.permissions import ModulePermission
 from apps.core.openapi import RESPONSE_400, RESPONSE_404
 from apps.core.pagination import DefaultPageNumberPagination
 from apps.customers.customer_detail import (
@@ -216,6 +217,20 @@ class CustomerViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
     permission_classes = (IsAuthenticated,)
     pagination_class = DefaultPageNumberPagination
+    permission_module = "customers"
+    permission_action_map = {
+        "overview": "view",
+        "import_preview": "add",
+        "import_confirm": "add",
+        "verify_gstin": "view",
+        "credit_block": "edit",
+        "credit_unblock": "edit",
+        "communication_logs": "view",
+        "summary": "view",
+        "orders": "view",
+        "payments": "view",
+        "outstanding": "view",
+    }
 
     # Invoice statuses whose remaining balance counts as outstanding receivable.
     UNPAID_STATUSES = (
@@ -249,8 +264,8 @@ class CustomerViewSet(GenericViewSet):
             "credit_block",
             "credit_unblock",
         ):
-            return [IsAuthenticated(), CompanyApproved(), IsAdminOrSubAdmin()]
-        if self.action in (
+            perms = [IsAuthenticated(), CompanyApproved(), IsAdminOrSubAdmin()]
+        elif self.action in (
             "list",
             "retrieve",
             "create",
@@ -260,8 +275,10 @@ class CustomerViewSet(GenericViewSet):
             "destroy",
             "communication_logs",
         ):
-            return [IsAuthenticated(), CompanyApproved(), IsCompanyStaff()]
-        return [IsAuthenticated(), CompanyApproved(), IsAdminOrSubAdmin()]
+            perms = [IsAuthenticated(), CompanyApproved(), IsCompanyStaff()]
+        else:
+            perms = [IsAuthenticated(), CompanyApproved(), IsAdminOrSubAdmin()]
+        return [*perms, ModulePermission()]
 
     def get_queryset(self):
         return CustomerProfile.objects.select_related(

@@ -9,6 +9,7 @@ from rest_framework.viewsets import GenericViewSet
 
 from apps.accounts.authentication import CustomJWTAuthentication
 from apps.accounts.permissions import IsAdminOrSubAdmin
+from apps.sub_admin.permissions import ModulePermission
 from apps.invoices.models import InvoiceStatus
 from apps.orders.services import update_customer_outstanding
 from apps.payments.models import OutstandingAging, Payment
@@ -25,7 +26,8 @@ from apps.payments.serializers import (
 
 class PaymentViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
-    permission_classes = (IsAdminOrSubAdmin,)
+    permission_classes = (IsAdminOrSubAdmin, ModulePermission)
+    permission_module = "payments"
 
     def get_serializer_class(self):
         if self.action == "list":
@@ -142,7 +144,9 @@ class PaymentViewSet(GenericViewSet):
 
 class OutstandingAgingViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
-    permission_classes = (IsAdminOrSubAdmin,)
+    permission_classes = (IsAdminOrSubAdmin, ModulePermission)
+    permission_module = "payments"
+    permission_action_map = {"summary": "view", "send_reminder": "edit"}
 
     def get_serializer_class(self):
         if self.action == "send_reminder":

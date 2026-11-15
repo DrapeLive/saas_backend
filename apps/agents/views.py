@@ -31,6 +31,7 @@ from apps.accounts.permissions import (
     IsAdminOrSubAdmin,
     IsAgent,
 )
+from apps.sub_admin.permissions import ModulePermission
 from apps.agents import agent_detail as agent_detail_service
 from apps.agents.detail_serializers import (
     AgentAdjustmentSerializer,
@@ -330,6 +331,23 @@ class AgentMembershipViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
     permission_classes = (IsAuthenticated,)
     pagination_class = DefaultPageNumberPagination
+    permission_module = "agents"
+    permission_action_map = {
+        "memberships": "view",
+        "overview": "view",
+        "agent_detail": "view",
+        "agent_transactions": "view",
+        "agent_commission": "view",
+        "agent_payouts": "view",
+        "agent_adjustments": "view",
+        "agent_performance": "view",
+        "leaderboard": "view",
+        "pay_commission": "edit",
+        "profile": "view",
+        "my_companies": "view",
+        "switch_company": "edit",
+        "my_performance": "view",
+    }
 
     def get_serializer_class(self):
         if self.action == "partial_update":
@@ -401,8 +419,8 @@ class AgentMembershipViewSet(GenericViewSet):
             "agent_payouts",
             "agent_adjustments",
         ):
-            return [IsAuthenticated(), CompanyApproved(), IsAdminOrSubAdmin()]
-        if self.action in (
+            perms = [IsAuthenticated(), CompanyApproved(), IsAdminOrSubAdmin()]
+        elif self.action in (
             "retrieve",
             "partial_update",
             "destroy",
@@ -414,14 +432,16 @@ class AgentMembershipViewSet(GenericViewSet):
             "leaderboard",
             "pay_commission",
         ):
-            return [IsAuthenticated(), CompanyApproved(), CanManageUsers()]
-        if self.action in (
+            perms = [IsAuthenticated(), CompanyApproved(), CanManageUsers()]
+        elif self.action in (
             "my_companies",
             "switch_company",
             "my_performance",
         ):
-            return [IsAuthenticated(), IsAgent()]
-        return super().get_permissions()
+            perms = [IsAuthenticated(), IsAgent()]
+        else:
+            perms = super().get_permissions()
+        return [*perms, ModulePermission()]
 
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset().filter(company=request.user.company)

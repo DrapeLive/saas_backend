@@ -9,6 +9,7 @@ from rest_framework.viewsets import GenericViewSet
 
 from apps.accounts.authentication import CustomJWTAuthentication
 from apps.accounts.permissions import IsAdmin, IsAdminOrSubAdmin
+from apps.sub_admin.permissions import ModulePermission
 from apps.dispatch.models import Dispatch, Transport
 from apps.dispatch.serializers import (
     DispatchCreateSerializer,
@@ -28,7 +29,9 @@ from apps.orders.services import (
 
 class DispatchViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
-    permission_classes = (IsAdminOrSubAdmin,)
+    permission_classes = (IsAdminOrSubAdmin, ModulePermission)
+    permission_module = "dispatch"
+    permission_action_map = {"mark_delivered": "edit"}
 
     def get_serializer_class(self):
         if self.action == "list":
@@ -212,11 +215,12 @@ DUPLICATE_TRANSPORT_NAME = "A transport with this name already exists."
 class TransportViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
     permission_classes = (IsAdminOrSubAdmin,)
+    permission_module = "dispatch"
 
     def get_permissions(self):
         if self.action in ("create", "partial_update", "destroy"):
-            return [IsAdmin()]
-        return [IsAdminOrSubAdmin()]
+            return [IsAdmin(), ModulePermission()]
+        return [IsAdminOrSubAdmin(), ModulePermission()]
 
     def _get_company(self, request):
         return request.user.company

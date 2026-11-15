@@ -81,9 +81,18 @@ from apps.products.models import VariantSize
 from apps.sub_admin.services import (
     get_effective_permission_map,
     get_subadmin_restrictions,
+    revoke_user_refresh_tokens,
 )
 from apps.subscriptions.models import Subscription, SubscriptionEvent
 from apps.tally_integrations.models import TallySyncLog
+
+
+def _profile_payload(user):
+    """Profile response including the caller's effective permissions."""
+    data = UserProfileSerializer(user).data
+    data["permissions"] = get_effective_permission_map(user)
+    data["restrictions"] = get_subadmin_restrictions(user)
+    return data
 
 
 def custom_exception_handler(exc, context):
@@ -152,9 +161,8 @@ class LoginView(TokenViewBase):
             "refresh": str(refresh),
             "user": LoginUserSerializer(user).data,
         }
-        if user.is_sub_admin:
-            data["permissions"] = get_effective_permission_map(user)
-            data["restrictions"] = get_subadmin_restrictions(user)
+        data["permissions"] = get_effective_permission_map(user)
+        data["restrictions"] = get_subadmin_restrictions(user)
         return Response(data)
 
 
@@ -232,14 +240,14 @@ class AuthViewSet(GenericViewSet):
     @action(detail=False, methods=["get", "patch"], url_path="me")
     def me(self, request, *args, **kwargs):
         if request.method == "GET":
-            return Response(UserProfileSerializer(request.user).data)
+            return Response(_profile_payload(request.user))
 
         serializer = UserProfileUpdateSerializer(
             request.user, data=request.data, partial=True
         )
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return Response(UserProfileSerializer(request.user).data)
+        return Response(_profile_payload(request.user))
 
     @action(detail=False, methods=["post"], url_path="password/change")
     def password_change(self, request, *args, **kwargs):
@@ -404,6 +412,8 @@ class AdminUserViewSet(GenericViewSet):
         serializer = UserAdminSerializer(user, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
+        if not user.is_active:
+            revoke_user_refresh_tokens(user)
         return Response(UserAdminSerializer(user).data)
 
     def destroy(self, request, pk=None, *args, **kwargs):
@@ -423,6 +433,7 @@ class AdminUserViewSet(GenericViewSet):
 
         user.is_active = False
         user.save(update_fields=["is_active"])
+        revoke_user_refresh_tokens(user)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 

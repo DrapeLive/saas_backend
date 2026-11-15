@@ -25,6 +25,7 @@ from rest_framework.viewsets import GenericViewSet
 
 from apps.accounts.authentication import CustomJWTAuthentication
 from apps.accounts.permissions import CompanyApproved, IsAdminOrSubAdmin
+from apps.sub_admin.permissions import ModulePermission
 from apps.agents.models import AgentCompanyMembership, AgentProfile, AgentVisitLog
 from apps.commissions.models import CommissionEntry
 from apps.core.pagination import DefaultPageNumberPagination
@@ -54,7 +55,14 @@ class ReportsViewSet(GenericViewSet):
     """Shared authentication/permissions/pagination for all report endpoints."""
 
     authentication_classes = (CustomJWTAuthentication,)
-    permission_classes = (IsAuthenticated, CompanyApproved, IsAdminOrSubAdmin)
+    permission_classes = (
+        IsAuthenticated,
+        CompanyApproved,
+        IsAdminOrSubAdmin,
+        ModulePermission,
+    )
+    permission_module = "reports"
+    permission_action_map = {"summary": "view"}
     pagination_class = DefaultPageNumberPagination
 
     def _company(self, request):

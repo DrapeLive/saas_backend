@@ -8,6 +8,7 @@ from rest_framework.viewsets import GenericViewSet
 
 from apps.accounts.authentication import CustomJWTAuthentication
 from apps.accounts.permissions import IsAdminSubAdminOrAgent
+from apps.sub_admin.permissions import ModulePermission
 from apps.orders import order_flow
 from apps.orders.exceptions import OrderFlowError
 from apps.orders.models import (
@@ -44,6 +45,26 @@ from apps.sub_admin.services import scope_order_queryset
 class OrderViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
     permission_classes = (IsAdminSubAdminOrAgent,)
+    permission_module = "orders"
+    permission_action_map = {
+        "drafts": "view",
+        "add_item": "add",
+        "update_item": "edit",
+        "remove_item": "delete",
+        "submit": "add",
+        "continue_order": "view",
+        "kanban": "view",
+        "sync_offline": "add",
+        "discard": "delete",
+        "update_status": "edit",
+        "pack_items": "edit",
+        "approve": "edit",
+        "cancel": "delete",
+        "capture_signature": "add",
+    }
+
+    def get_permissions(self):
+        return [*super().get_permissions(), ModulePermission()]
 
     def _get_company(self, request):
         # Use request.company which is set by CustomJWTAuthentication and

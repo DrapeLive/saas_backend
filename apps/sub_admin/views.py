@@ -26,7 +26,7 @@ from apps.sub_admin.serializers import (
     SubAdminListSerializer,
     SubAdminUpdateSerializer,
 )
-from apps.sub_admin.services import get_subadmin_profile
+from apps.sub_admin.services import get_subadmin_profile, revoke_user_refresh_tokens
 
 
 @extend_schema_view(
@@ -154,6 +154,7 @@ class SubAdminViewSet(GenericViewSet):
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
         user.is_active = False
         user.save(update_fields=["is_active"])
+        revoke_user_refresh_tokens(user)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=["post"], url_path="restrict-agents")
@@ -253,7 +254,7 @@ class RoleTemplateViewSet(GenericViewSet):
         company = self._get_company(request)
         templates = RoleTemplate.objects.filter(
             Q(company=company) | Q(company__isnull=True)
-        ).prefetch_related("permissions")
+        ).prefetch_related("module_permissions")
         return Response(RoleTemplateDetailSerializer(templates, many=True).data)
 
     def retrieve(self, request, pk=None, *args, **kwargs):

@@ -15,6 +15,7 @@ from rest_framework.viewsets import GenericViewSet
 
 from apps.accounts.authentication import CustomJWTAuthentication
 from apps.accounts.permissions import IsAdminOrSubAdmin, IsAdminSubAdminOrAgent
+from apps.sub_admin.permissions import ModulePermission
 from apps.core.openapi import RESPONSE_400, RESPONSE_404
 from apps.invoices.models import Invoice, InvoiceItem, InvoiceStatus, InvoiceType
 from apps.invoices.serializers import (
@@ -99,12 +100,14 @@ from apps.invoices.serializers import (
 class InvoiceViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
     permission_classes = (IsAdminSubAdminOrAgent,)
+    permission_module = "invoicing"
+    permission_action_map = {"void": "delete"}
 
     def get_permissions(self):
         # Agents can view invoices but only admin/subadmin may create or void.
         if self.action in ("create", "void"):
-            return [IsAdminOrSubAdmin()]
-        return [IsAdminSubAdminOrAgent()]
+            return [IsAdminOrSubAdmin(), ModulePermission()]
+        return [IsAdminSubAdminOrAgent(), ModulePermission()]
 
     def get_serializer_class(self):
         if self.action == "list":

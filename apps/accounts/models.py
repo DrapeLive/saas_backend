@@ -186,6 +186,8 @@ class SubAdminProfile(UUIDModel, TimeStampedModel):
         on_delete=models.SET_NULL,
     )
 
+    # Deprecated: retained for backwards compatibility with older clients.
+    # Effective permissions now live in ``SubAdminPermission`` rows.
     custom_permissions = models.ManyToManyField(
         Permission,
         blank=True,
@@ -217,3 +219,68 @@ class SubAdminProfile(UUIDModel, TimeStampedModel):
 
     def __str__(self):
         return f"SubAdmin: {self.user.full_name}"
+
+
+class ModulePermissionFlags(models.Model):
+    """
+    Shared action flags for one module.
+
+    Kept as an abstract base so role templates and per-subadmin overrides use
+    exactly the same semantics and the same column names.
+    """
+
+    module = models.CharField(max_length=30, choices=AppModule.choices)
+    can_view = models.BooleanField(default=False)
+    can_add = models.BooleanField(default=False)
+    can_edit = models.BooleanField(default=False)
+    can_delete = models.BooleanField(default=False)
+    can_export = models.BooleanField(default=False)
+
+    class Meta:
+        abstract = True
+
+    def as_dict(self):
+        return {
+            "module": self.module,
+            "can_view": self.can_view,
+            "can_add": self.can_add,
+            "can_edit": self.can_edit,
+            "can_delete": self.can_delete,
+            "can_export": self.can_export,
+        }
+
+
+class RoleTemplatePermission(UUIDModel, TimeStampedModel, ModulePermissionFlags):
+    """Module-level action flags for a role template."""
+
+    role_template = models.ForeignKey(
+        RoleTemplate,
+        on_delete=models.CASCADE,
+        related_name="module_permissions",
+    )
+
+    class Meta:
+        db_table = "accounts_role_template_permission"
+        unique_together = [("role_template", "module")]
+        ordering = ["module"]
+
+    def __str__(self):
+        return f"{self.role_template.name}: {self.module}"
+
+
+class SubAdminPermission(UUIDModel, TimeStampedModel, ModulePermissionFlags):
+    """Per-subadmin module overrides. These win over the role template."""
+
+    sub_admin = models.ForeignKey(
+        SubAdminProfile,
+        on_delete=models.CASCADE,
+        related_name="module_permissions",
+    )
+
+    class Meta:
+        db_table = "accounts_subadmin_permission"
+        unique_together = [("sub_admin", "module")]
+        ordering = ["module"]
+
+    def __str__(self):
+        return f"{self.sub_admin.user.full_name}: {self.module}"
