@@ -49,6 +49,13 @@ class SizeChart(CompanyScopeModel):
         return self.name
 
 
+class ProductStatus(models.TextChoices):
+    ACTIVE = "active", "Active"
+    INACTIVE = "inactive", "Inactive"
+    DRAFT = "draft", "Draft"
+    ARCHIVED = "archived", "Archived"
+
+
 class Product(CompanyScopeModel, SoftDeleteModel):
     category = models.ForeignKey(
         Category, on_delete=models.PROTECT, related_name="products"

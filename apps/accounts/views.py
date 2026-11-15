@@ -684,12 +684,14 @@ class AdminDashboardViewSet(GenericViewSet):
         orders = (
             Order.objects.filter(company=company)
             .exclude(status=OrderStatus.DRAFT)
-            .order_by("-created_at")[:3]
+            .select_related("customer")
+            .order_by("-created_at", "-id")[:3]
         )
         data = []
         for o in orders:
             data.append(
                 {
+                    "id": o.id,
                     "order_name": o.order_number,
                     "customer_name": o.customer.trade_name
                     if getattr(o, "customer", None)

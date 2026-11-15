@@ -1,5 +1,5 @@
 from django.db import transaction
-from django.db.models import F, Value
+from django.db.models import F, Prefetch, Value
 from django.db.models.functions import Greatest
 from django.utils.timezone import now
 from rest_framework import status
@@ -12,6 +12,7 @@ from apps.orders import order_flow
 from apps.orders.exceptions import OrderFlowError
 from apps.orders.models import (
     Order,
+    OrderItem,
     OrderSignature,
     OrderStatus,
     OrderStatusHistory,
@@ -162,7 +163,13 @@ class OrderViewSet(GenericViewSet):
 
         # Re-fetch with nested relations scoped to company to prevent cross-company leak.
         order_full = Order.objects.prefetch_related(
-            "items", "status_history", "signature", "invoices"
+            Prefetch(
+                "items",
+                queryset=OrderItem.objects.select_related(
+                    "variant_size__color_variant__product__size_chart"
+                ),
+            ),
+            "status_history", "signature", "invoices"
         ).get(pk=pk, company=company)
         return Response(OrderDetailSerializer(order_full).data)
 
