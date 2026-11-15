@@ -183,6 +183,16 @@ class NotificationRetrySerializer(serializers.Serializer):
         return value
 
 
+class FCMDeviceRegisterSerializer(serializers.Serializer):
+    """Register a Firebase Cloud Messaging device for push notifications."""
+
+    device_id = serializers.CharField(max_length=200, required=True)
+    fcm_token = serializers.CharField(max_length=500, required=True)
+    platform = serializers.ChoiceField(
+        choices=["android", "ios"], default="android", required=False
+    )
+
+
 class NotificationPreferenceSerializer(serializers.Serializer):
     """Per-user notification preference settings."""
 

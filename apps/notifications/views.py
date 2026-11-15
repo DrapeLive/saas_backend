@@ -16,11 +16,13 @@ from apps.accounts.authentication import CustomJWTAuthentication
 from apps.accounts.permissions import IsAdmin, IsAdminOrSubAdmin
 from apps.core.openapi import DETAIL_RESPONSE_200, RESPONSE_400, RESPONSE_403, RESPONSE_404
 from apps.notifications.models import (
+    FCMDevice,
     Notification,
     NotificationStatus,
     NotificationTemplate,
 )
 from apps.notifications.serializers import (
+    FCMDeviceRegisterSerializer,
     NotificationDetailSerializer,
     NotificationListSerializer,
     NotificationPreferenceSerializer,
@@ -30,6 +32,7 @@ from apps.notifications.serializers import (
     NotificationTemplateDetailSerializer,
     NotificationTemplateListSerializer,
 )
+from apps.notifications.tasks import send_push_notification_task
 
 
 @extend_schema_view(
@@ -249,3 +252,74 @@ class NotificationViewSet(GenericViewSet):
         serializer.is_valid(raise_exception=True)
         # tasks.retry_notification.delay(str(serializer.validated_data["notification_id"]))
         return Response({"detail": "Notification queued for retry."})
+
+
+@extend_schema_view(
+    register=extend_schema(
+        tags=["Notifications"],
+        summary="Register FCM device",
+        description="Registers the current user's Firebase Cloud Messaging device token "
+        "so they can receive push notifications.",
+        request=FCMDeviceRegisterSerializer,
+        responses={200: DETAIL_RESPONSE_200, 400: RESPONSE_400},
+    ),
+    list=extend_schema(
+        tags=["Notifications"],
+        summary="List registered FCM devices",
+        description="Lists the current user's registered FCM devices.",
+        responses={200: FCMDeviceRegisterSerializer(many=True)},
+    ),
+    destroy=extend_schema(
+        tags=["Notifications"],
+        summary="Deactivate an FCM device",
+        description="Deactivates (soft-deletes) a registered FCM device.",
+        responses={204: None, 404: RESPONSE_404},
+    ),
+)
+class FCMDeviceViewSet(GenericViewSet):
+    authentication_classes = (CustomJWTAuthentication,)
+    permission_classes = (IsAdminOrSubAdmin,)
+
+    def get_serializer_class(self):
+        return FCMDeviceRegisterSerializer
+
+    def _get_queryset(self):
+        return FCMDevice.objects.filter(user=self.request.user)
+
+    # POST /api/notifications/devices/register/
+    @action(detail=False, methods=["post"], url_path="register")
+    def register(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        device_id = serializer.validated_data["device_id"]
+        fcm_token = serializer.validated_data["fcm_token"]
+        platform = serializer.validated_data.get("platform", "android")
+
+        obj, created = FCMDevice.objects.update_or_create(
+            user=request.user,
+            device_id=device_id,
+            defaults={
+                "fcm_token": fcm_token,
+                "platform": platform,
+                "is_active": True,
+            },
+        )
+        return Response(
+            {"detail": "FCM device registered.", "created": created},
+            status=status.HTTP_200_OK,
+        )
+
+    # GET /api/notifications/devices/
+    def list(self, request):
+        qs = self._get_queryset().filter(is_active=True)
+        return Response(self.get_serializer(qs, many=True).data)
+
+    # DELETE /api/notifications/devices/<pk>/
+    def destroy(self, request, pk=None):
+        try:
+            obj = FCMDevice.objects.get(pk=pk, user=request.user)
+        except FCMDevice.DoesNotExist:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+        obj.is_active = False
+        obj.save(update_fields=["is_active"])
+        return Response(status=status.HTTP_204_NO_CONTENT)

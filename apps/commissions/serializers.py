@@ -77,18 +77,7 @@ class CommissionEntryDetailSerializer(serializers.ModelSerializer):
 
 class CommissionEntryStatusSerializer(serializers.Serializer):
     status = serializers.ChoiceField(choices=CommissionEntry.EntryStatus.choices)
-    dispute_reason = serializers.CharField(required=False, allow_blank=True)
     adjustment_notes = serializers.CharField(required=False, allow_blank=True)
-
-    def validate(self, attrs):
-        if attrs["status"] == CommissionEntry.EntryStatus.DISPUTED:
-            if not attrs.get("dispute_reason"):
-                raise serializers.ValidationError(
-                    {
-                        "dispute_reason": "Dispute reason is required when marking as disputed."
-                    }
-                )
-        return attrs
 
 
 class CommissionSettlementSerializer(serializers.Serializer):

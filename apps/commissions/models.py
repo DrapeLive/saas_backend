@@ -24,11 +24,8 @@ class CommissionEntry(CompanyScopeModel):
     """
 
     class EntryStatus(models.TextChoices):
-        PENDING = "pending", "Pending"
-        APPROVED = "approved", "Approved"
+        NOT_PAID = "not_paid", "Not Paid"
         PAID = "paid", "Paid"
-        DISPUTED = "disputed", "Disputed"
-        ADJUSTED = "adjusted", "Adjusted"
 
     agent = models.ForeignKey(
         "agents.AgentProfile", on_delete=models.CASCADE, related_name="commissions"
@@ -41,7 +38,7 @@ class CommissionEntry(CompanyScopeModel):
     commission_pct = models.DecimalField(max_digits=5, decimal_places=2)
     commission_amount = models.DecimalField(max_digits=10, decimal_places=2)
     status = models.CharField(
-        max_length=15, choices=EntryStatus.choices, default=EntryStatus.PENDING
+        max_length=15, choices=EntryStatus.choices, default=EntryStatus.NOT_PAID
     )
 
     settlement_month = models.DateField(null=True, blank=True)

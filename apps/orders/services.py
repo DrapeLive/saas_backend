@@ -1,13 +1,19 @@
 from datetime import timedelta
 from decimal import Decimal
 
+from django.conf import settings
 from django.db import transaction
 from django.db.models import Sum
 from django.utils.timezone import now
 
 from apps.commissions.models import CategoryCommissionRate, CommissionEntry
 from apps.invoices.models import Invoice, InvoiceItem, InvoiceStatus, InvoiceType
-from apps.notifications.models import Notification, NotificationStatus
+from apps.notifications.fcm_service import send_push
+from apps.notifications.models import (
+    Notification,
+    NotificationStatus,
+)
+from apps.notifications.tasks import send_push_notification_task
 from apps.products.models import VariantSize
 
 # Invoice statuses that mean the customer still owes money.
@@ -224,7 +230,10 @@ def update_customer_outstanding(customer):
 
 def send_order_notification(company, order, event_type, recipient):
     """
-    Record an outbound order notification (in-app/WhatsApp placeholder).
+    Record an outbound order notification (in-app/WhatsApp placeholder) and, for
+    order submission, send a Firebase push notification to the agent's company
+    admins so the admin app is notified when an agent submits an order.
+
     Creates a `Notification` row scoped to the company/recipient so it can be
     delivered by the async worker later. Returns the Notification.
     """
@@ -271,4 +280,42 @@ def send_order_notification(company, order, event_type, recipient):
         body=body,
         status=NotificationStatus.QUEUED,
     )
+
+    # ─────────────────────────────────────────────────────────────
+    # PUSH NOTIFICATION: notify the agent's company admins when an
+    # order is submitted. Only admins/sub-admins of the same company
+    # who have registered an active FCM device receive the push.
+    # ─────────────────────────────────────────────────────────────
+    if event_type == "order_submitted" and getattr(settings, "NOTIFICATIONS_PUSH_ENABLED", True):
+        from apps.accounts.models import User as AccountsUser
+
+        admin_users = (
+            AccountsUser.objects.filter(
+                company=company,
+                role__in=["admin", "subadmin"],
+                is_active=True,
+            )
+            .exclude(fcm_devices__isnull=True)
+            .distinct()
+        )
+        tokens = list(
+            admin_users.exclude(fcm_devices__is_active=False)
+            .values_list("fcm_devices__fcm_token", flat=True)
+        )
+        tokens = [t for t in tokens if t]
+
+        if tokens:
+            data = {
+                "order_id": str(order.id),
+                "order_number": order.order_number,
+                "type": "order_submitted",
+                "status": order.status,
+                "total_amount": str(order.total_amount),
+            }
+            # Fire-and-forget via Celery; degrade gracefully if Celery is down.
+            try:
+                send_push_notification_task.delay(tokens, subject, body, data)
+            except Exception:  # pragma: no cover - push must never break a request
+                send_push(tokens, subject, body, data)
+
     return notification

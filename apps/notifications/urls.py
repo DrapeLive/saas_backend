@@ -2,7 +2,11 @@
 
 from django.urls import path
 
-from apps.notifications.views import NotificationTemplateViewSet, NotificationViewSet
+from apps.notifications.views import (
+    FCMDeviceViewSet,
+    NotificationTemplateViewSet,
+    NotificationViewSet,
+)
 
 app_name = "notifications"
 
@@ -60,5 +64,26 @@ urlpatterns = [
         "notifications/retry/",
         NotificationViewSet.as_view({"post": "retry"}),
         name="notification-retry",
+    ),
+    # ─────────────────────────────────────────────────────────────
+    # FCM DEVICE REGISTRATION  (Authenticated user)
+    # ─────────────────────────────────────────────────────────────
+    # POST   /api/notifications/devices/register/   Register FCM device token
+    # GET    /api/notifications/devices/            List active devices
+    # DELETE /api/notifications/devices/<pk>/       Deactivate a device
+    path(
+        "notifications/devices/register/",
+        FCMDeviceViewSet.as_view({"post": "register"}),
+        name="fcm-device-register",
+    ),
+    path(
+        "notifications/devices/",
+        FCMDeviceViewSet.as_view({"get": "list"}),
+        name="fcm-device-list",
+    ),
+    path(
+        "notifications/devices/<uuid:pk>/",
+        FCMDeviceViewSet.as_view({"delete": "destroy"}),
+        name="fcm-device-destroy",
     ),
 ]

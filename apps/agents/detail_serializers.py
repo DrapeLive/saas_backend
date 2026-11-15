@@ -91,3 +91,30 @@ class AgentAdjustmentSerializer(serializers.ModelSerializer):
             "settlement_month",
             "created_at",
         ]
+
+
+class AgentPayCommissionSerializer(serializers.Serializer):
+    """Request to pay an agent's approved commission for a settlement month."""
+
+    amount = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=0)
+    notes = serializers.CharField(required=False, allow_blank=True)
+    settlement_month = serializers.DateField(
+        help_text="First day of the settlement month (YYYY-MM-01)."
+    )
+
+    def validate_settlement_month(self, value):
+        if value.day != 1:
+            raise serializers.ValidationError(
+                "settlement_month must be the first day of the month (YYYY-MM-01)."
+            )
+        return value
+
+
+class AgentPayCommissionResponseSerializer(serializers.Serializer):
+    """Confirmation that an agent commission was paid."""
+
+    detail = serializers.CharField()
+    total_paid = serializers.DecimalField(max_digits=12, decimal_places=2)
+    agent_id = serializers.UUIDField()
+    settlement_month = serializers.DateField()
+    payout_id = serializers.UUIDField(allow_null=True)

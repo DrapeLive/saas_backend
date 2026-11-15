@@ -266,13 +266,10 @@ class ProductViewSet(GenericViewSet):
 
         category_f = request.query_params.get("category")
         search = request.query_params.get("search")
-        featured = request.query_params.get("featured")
         low_stock = request.query_params.get("low_stock")
 
         if category_f:
             qs = qs.filter(category_id=category_f)
-        if featured:
-            qs = qs.filter(is_featured=True)
         if low_stock:
             qs = qs.filter(
                 total_stock__lte=F("color_variants__sizes__reorder_level")
@@ -288,11 +285,6 @@ class ProductViewSet(GenericViewSet):
         category = request.query_params.get("category")
         if category:
             qs = qs.filter(category_id=category)
-
-        # Status filter (active/inactive/discontinued)
-        status_f = request.query_params.get("status")
-        if status_f:
-            qs = qs.filter(status=status_f)
 
         # Size filter: products having a variant size with that size
         size = request.query_params.get("size")
@@ -320,7 +312,6 @@ class ProductViewSet(GenericViewSet):
         if (
             search
             or category
-            or status_f
             or size
             or (low_stock and low_stock.lower() == "true")
             or (out_of_stock and out_of_stock.lower() == "true")

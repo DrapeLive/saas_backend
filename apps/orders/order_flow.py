@@ -930,9 +930,8 @@ def submit_draft(order, user, payload=None):
         from apps.agents.services import recompute_agent_metrics
 
         recompute_agent_metrics(order.agent, company=order.company)
-    if order.customer.user:
-        event = "order_submitted"
-        send_order_notification(order.company, order, event, order.customer.user)
+    event = "order_submitted"
+    send_order_notification(order.company, order, event, order.customer.user)
 
     return order
 

@@ -11,12 +11,26 @@ from apps.payments.models import Payment
 
 
 def _paid_ytd(agent, company, today):
-    return (
+    """
+    Total amount paid to the agent YTD. This sums both:
+    - Payment model records (cash payments received from customers)
+    - CommissionEntry records with status='paid' (commissions paid out to agent)
+    """
+    payments_total = (
         Payment.objects.filter(
             agent=agent, company=company, payment_date__year=today.year
         ).aggregate(total=Sum("amount"))["total"]
         or Decimal("0.00")
     )
+    commissions_paid_total = (
+        CommissionEntry.objects.filter(
+            agent=agent,
+            company=company,
+            status=CommissionEntry.EntryStatus.PAID,
+        ).aggregate(total=Sum("commission_amount"))["total"]
+        or Decimal("0.00")
+    )
+    return payments_total + commissions_paid_total
 
 
 def _agent_order_ids(agent, company):
@@ -86,7 +100,7 @@ def agent_transactions(agent, company, type=None, month=None, status=None, limit
                 "date": (p.paid_at.date() if p.paid_at else p.settlement_month),
                 "amount": p.amount,
                 "status": "paid",
-                "reference": p.settlement_month.isoformat(),
+                "reference": p.settlement_month.isoformat() if p.settlement_month else None,
                 "settlement_month": p.settlement_month,
             }
         )
@@ -101,8 +115,6 @@ def agent_transactions(agent, company, type=None, month=None, status=None, limit
 
     for c in commissions:
         txn_type = "order_commission"
-        if c.status == CommissionEntry.EntryStatus.ADJUSTED:
-            txn_type = "adjustment"
         if type and type != txn_type:
             continue
         entries.append(
@@ -142,12 +154,12 @@ def agent_payouts(agent, company):
 
 
 def agent_adjustments(agent, company):
+    """Return commission entries that have adjustment notes (i.e. adjusted entries)."""
     return (
         CommissionEntry.objects.filter(
-            agent=agent,
-            company=company,
-            status=CommissionEntry.EntryStatus.ADJUSTED,
+            agent=agent, company=company, adjustment_notes__isnull=False
         )
+        .exclude(adjustment_notes="")
         .select_related("order")
         .order_by("-created_at")
     )

@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.db.models import (
     Count,
     DecimalField,
@@ -26,6 +27,7 @@ from apps.accounts.authentication import CustomJWTAuthentication
 from apps.accounts.permissions import (
     CanManageUsers,
     CompanyApproved,
+    IsAdmin,
     IsAdminOrSubAdmin,
     IsAgent,
 )
@@ -35,6 +37,8 @@ from apps.agents.detail_serializers import (
     AgentCommissionSerializer,
     AgentOverviewDetailSerializer,
     AgentPayoutSerializer,
+    AgentPayCommissionResponseSerializer,
+    AgentPayCommissionSerializer,
     AgentTransactionSerializer,
 )
 from apps.agents.models import AgentCompanyMembership
@@ -50,6 +54,7 @@ from apps.agents.serializers import (
     SwitchCompanyResponseSerializer,
 )
 from apps.commissions.models import CommissionEntry, CommissionPayout
+from apps.commissions.services import upsert_payout
 from apps.core.openapi import (
     COMPANY_HEADER_PARAM,
     RESPONSE_400,
@@ -304,6 +309,22 @@ from apps.sub_admin.services import scope_agent_membership_queryset
         description="Commission entries marked as `adjusted` for one agent.",
         responses={200: AgentAdjustmentSerializer(many=True)},
     ),
+    pay_commission=extend_schema(
+        tags=["Agents"],
+        summary="Pay agent commission",
+        description=(
+            "Admin. Pays an agent's approved commission entries for a given "
+            "settlement month, marks them PAID, and creates/updates the monthly "
+            "CommissionPayout snapshot."
+        ),
+        request=AgentPayCommissionSerializer,
+        responses={
+            200: AgentPayCommissionResponseSerializer,
+            400: RESPONSE_400,
+            403: RESPONSE_403,
+            404: RESPONSE_404,
+        },
+    ),
 )
 class AgentMembershipViewSet(GenericViewSet):
     authentication_classes = (CustomJWTAuthentication,)
@@ -391,6 +412,7 @@ class AgentMembershipViewSet(GenericViewSet):
             "reactivate",
             "agent_performance",
             "leaderboard",
+            "pay_commission",
         ):
             return [IsAuthenticated(), CompanyApproved(), CanManageUsers()]
         if self.action in (
@@ -868,8 +890,10 @@ class AgentMembershipViewSet(GenericViewSet):
             CommissionEntry.objects.filter(
                 agent=agent_profile,
                 order__company=company,
-                settlement_month__gte=month_start,
                 status__in=["approved", "paid"],
+            ).filter(
+                Q(settlement_month__gte=month_start)
+                | Q(settlement_month__isnull=True)
             ).aggregate(total=Sum("commission_amount"))["total"]
             or 0
         )
@@ -1098,3 +1122,84 @@ class AgentMembershipViewSet(GenericViewSet):
             membership.agent, membership.company
         )
         return Response(AgentAdjustmentSerializer(qs, many=True).data)
+
+    # POST /api/admin/agents/<pk>/pay-commission/
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path="pay-commission",
+        permission_classes=[IsAdmin],
+    )
+    @transaction.atomic
+    def pay_commission(self, request, pk=None, *args, **kwargs):
+        membership = self._get_admin_membership(request, pk)
+        if not membership:
+            return Response(
+                {"detail": "Agent not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        serializer = AgentPayCommissionSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        agent = membership.agent
+        company = membership.company
+        amount = data["amount"]
+        month = data["settlement_month"]
+        notes = data.get("notes", "")
+
+        # Payable entries: not yet paid, for this agent + month.
+        # Include entries with null settlement_month (legacy records) so they
+        # can be paid and assigned to the requested month.
+        entries = CommissionEntry.objects.filter(
+            company=company,
+            agent=agent,
+            status=CommissionEntry.EntryStatus.NOT_PAID,
+        ).filter(
+            Q(settlement_month=month) | Q(settlement_month__isnull=True)
+        )
+        total = entries.aggregate(total=Sum("commission_amount"))["total"] or 0
+
+        if total <= 0:
+            return Response(
+                {
+                    "detail": "No not-paid commission entries found for this agent "
+                    "and settlement month."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if amount > total:
+            return Response(
+                {
+                    "detail": f"Amount {amount} exceeds commission total "
+                    f"{total} for this settlement month."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        entries.update(
+            status=CommissionEntry.EntryStatus.PAID,
+            paid_at=now(),
+            paid_by=request.user,
+            adjustment_notes=notes,
+        )
+
+        payout = upsert_payout(
+            agent_id=agent.id,
+            company_id=company.id,
+            month=month,
+            paid_by=request.user,
+            notes=notes,
+        )
+
+        return Response(
+            {
+                "detail": f"{entries.count()} commission entry(ies) paid.",
+                "total_paid": payout.amount if payout else total,
+                "agent_id": str(agent.id),
+                "settlement_month": str(month),
+                "payout_id": str(payout.id) if payout else None,
+            },
+            status=status.HTTP_200_OK,
+        )

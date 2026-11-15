@@ -30,6 +30,7 @@ venv/
 !.env.example
 .secrets
 secrets.json
+secrets/
 local_settings.py
 
 *.sqlite3
